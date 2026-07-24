@@ -30,8 +30,23 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 BACKEND_PACKAGE_DIR = Path(__file__).resolve().parent
+REPO_ROOT = BACKEND_PACKAGE_DIR.parent
+# Prefer the repo root so `backend.*` imports match tests and production entrypoints.
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 if str(BACKEND_PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_PACKAGE_DIR))
+
+# Alias top-level `core` to `backend.core` before any submodule import. Without this,
+# `from core.config import ...` (app) and `from backend.core.config import ...` (tests)
+# load two module objects with separate ContextVars and provider settings.
+import backend.core as _synapse_core  # noqa: E402
+import backend.core.analysis_cache as _synapse_analysis_cache  # noqa: E402
+import backend.core.config as _synapse_config  # noqa: E402
+
+sys.modules["core"] = _synapse_core
+sys.modules["core.config"] = _synapse_config
+sys.modules["core.analysis_cache"] = _synapse_analysis_cache
 
 from core.analysis_cache import cache_get, cache_set
 from core.config import (

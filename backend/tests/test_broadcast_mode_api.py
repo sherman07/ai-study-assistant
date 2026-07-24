@@ -9,9 +9,23 @@ from fastapi.testclient import TestClient
 
 from backend import app as backend_app_module
 from backend.app import app
+from backend.core import config as core_config
 
 
 class BroadcastModeApiTests(unittest.TestCase):
+    def test_app_and_package_config_share_provider_context(self):
+        """Guard against dual imports of core.config splitting ContextVars."""
+        import core.config as app_side_config
+
+        self.assertIs(
+            app_side_config.REQUEST_AI_TEXT_PROVIDER,
+            core_config.REQUEST_AI_TEXT_PROVIDER,
+            "app `core.config` and package `backend.core.config` must share provider context",
+        )
+        self.assertIs(
+            app_side_config.active_text_provider,
+            core_config.active_text_provider,
+        )
     def test_realtime_session_does_not_duplicate_long_script_context(self):
         long_script = "Opening\n" + ("Generated teaching sentence. " * 1400) + "\nFinal generated chapter."
         instructions = backend_app_module.build_broadcast_realtime_instructions(
@@ -149,7 +163,8 @@ class BroadcastModeApiTests(unittest.TestCase):
             })
 
         with (
-            patch.object(backend_app_module, "AI_TEXT_PROVIDER", "gemini", create=True),
+            # Patch the shared config module (app and package imports must be one object).
+            patch.object(core_config, "AI_TEXT_PROVIDER", "gemini"),
             patch("backend.app.require_text_ai"),
             patch("backend.app.generate_chat", side_effect=fake_generate_chat),
         ):
@@ -157,10 +172,12 @@ class BroadcastModeApiTests(unittest.TestCase):
                 "title": "Provider test",
                 "summary": "Generated Synapse notes with enough content to produce a broadcast script. " * 8,
             }))
-
-        self.assertNotIn("error", result)
-        self.assertEqual(providers, ["openai"])
-        self.assertEqual(backend_app_module.active_text_provider(), "gemini")
+            # Assert while the deployment provider is still patched to gemini: the
+            # request-scoped OpenAI override must reset after generate returns.
+            self.assertNotIn("error", result)
+            self.assertEqual(providers, ["openai"])
+            self.assertEqual(core_config.active_text_provider(), "gemini")
+            self.assertEqual(backend_app_module.active_text_provider(), "gemini")
 
     def test_tts_uses_openai_speech_model_and_writes_asset(self):
         class FakeSpeech:
@@ -178,6 +195,8 @@ class BroadcastModeApiTests(unittest.TestCase):
             with (
                 patch("backend.app.client", fake_client),
                 patch("backend.app.has_openai", return_value=True),
+                # require_openai_api() is the gate used by TTS generation.
+                patch("backend.app.require_openai_api"),
                 patch("backend.app.RUNTIME_ASSETS_DIR", backend_app_module.Path(temp_dir)),
                 patch("backend.app.PUBLIC_BACKEND_BASE_URL", "http://127.0.0.1:8001"),
             ):
@@ -186,6 +205,7 @@ class BroadcastModeApiTests(unittest.TestCase):
                     "speakerInstructions": "Speak warmly.",
                 }))
 
+        self.assertIsInstance(result, dict)
         self.assertNotIn("error", result)
         self.assertTrue(result["audioUrl"].endswith(".mp3"))
         self.assertEqual(fake_speech.calls[0]["model"], "gpt-4o-mini-tts")

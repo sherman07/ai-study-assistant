@@ -1462,6 +1462,22 @@ async function buildCurrentSourceItems(rawSource, backendSources = []) {
     const name = String(source.display_name || source.title_candidate || "").toLowerCase();
     if (name) backendByName.set(name, source);
   });
+  const backendByUrl = new Map();
+  const sourceUrlKey = (value) => {
+    const raw = String(value || "").trim();
+    const videoId = getYouTubeVideoIdClient(raw);
+    if (videoId) return `youtube:${videoId}`;
+    try {
+      const parsedUrl = new URL(raw);
+      return `${parsedUrl.origin}${parsedUrl.pathname}${parsedUrl.search}`.toLowerCase();
+    } catch {
+      return raw.toLowerCase();
+    }
+  };
+  (backendSources || []).forEach(source => {
+    const key = sourceUrlKey(source.embedded_url || source.url || source.source_identity || "");
+    if (key) backendByUrl.set(key, source);
+  });
 
   const items = uploadedFiles.map((file, index) => {
     const backend = backendByName.get(String(file.name || "").toLowerCase()) || backendSources[index] || {};
@@ -1483,15 +1499,19 @@ async function buildCurrentSourceItems(rawSource, backendSources = []) {
 
   sourceLinks.forEach((url, index) => {
     const isYoutube = /(?:youtube\.com|youtu\.be)/i.test(url);
+    const backend = backendByUrl.get(sourceUrlKey(url)) || {};
+    const sourceTitle = backend.title_candidate || backend.display_name || (isYoutube ? `YouTube source ${index + 1}` : `Web source ${index + 1}`);
     items.push(normaliseSourceViewerItem({
       id: `link:${encodeURIComponent(url).slice(0, 140)}`,
       index: items.length + 1,
-      name: isYoutube ? `YouTube source ${index + 1}` : `Web source ${index + 1}`,
-      title: url,
-      displayName: url,
-      kind: isYoutube ? "youtube" : "link",
+      name: sourceTitle,
+      title: sourceTitle,
+      displayName: backend.display_name || sourceTitle,
+      kind: backend.kind || (isYoutube ? "youtube" : "link"),
+      sourceIdentity: backend.source_identity || "",
       originalUrl: url,
-      url
+      url,
+      content: backend.text_excerpt || ""
     }, items.length));
   });
 

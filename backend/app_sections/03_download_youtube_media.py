@@ -56,7 +56,15 @@ def analyse_youtube_url(url: str) -> Tuple[str, List[dict], dict]:
                 shutil.rmtree(Path(media_path).parent, ignore_errors=True)
             except Exception:
                 pass
-    if not transcript:
+    # A video title or an embedded player is not enough evidence to create study
+    # notes. Keep the source visible in the UI, but explicitly mark it as
+    # unavailable to the generator unless we retrieved a meaningful transcript.
+    transcript_body = transcript.strip()
+    transcript_is_usable = (
+        len(re.sub(r"\s+", " ", transcript_body)) >= 240
+        and transcript_body != YOUTUBE_TRANSCRIPT_UNAVAILABLE_TEXT
+    )
+    if not transcript_is_usable:
         transcript = YOUTUBE_TRANSCRIPT_UNAVAILABLE_TEXT
     metadata_lines = []
     if metadata.get("title"):
@@ -74,6 +82,12 @@ def analyse_youtube_url(url: str) -> Tuple[str, List[dict], dict]:
         "content_hash": sha256_text(transcript),
         "metadata": metadata,
         "visual_parts": frame_parts,
+        "transcript_status": "available" if transcript_is_usable else "unavailable",
+        "transcript_characters": len(transcript_body) if transcript_is_usable else 0,
+        "transcript_warning": "" if transcript_is_usable else (
+            "Synapse could not access readable YouTube captions for this video. "
+            "It will not generate notes from the title or player alone."
+        ),
     }
     return transcript, frame_parts, meta
 

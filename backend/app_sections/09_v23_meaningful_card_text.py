@@ -1047,6 +1047,17 @@ def generate_reference_style_multisource_notes(
         if mode_uses_selected_length
         else note_prompt_mode_min_units(prompt_mode_key, env_int("CONTROLLED_MIN_OUTPUT_UNITS", 2600))
     )
+    # Captions are strong textual evidence, but a YouTube-only source normally
+    # has no extractable PDF/slide figures. The previous fixed 980-unit gate
+    # rejected otherwise grounded video notes and replaced them with a generic
+    # local scaffold. Keep a substantial standard for video lessons while
+    # judging them on transcript evidence rather than nonexistent visuals.
+    youtube_only_source = bool(source_units) and all(
+        str(unit.get("source_identity") or "").startswith("youtube:")
+        for unit in source_units
+    )
+    if youtube_only_source:
+        mode_min_units = min(mode_min_units, env_int("YOUTUBE_MIN_OUTPUT_UNITS", 620))
     allow_note_expansion = note_prompt_mode_allows_expansion(prompt_mode_key) and (
         note_length_mode_allows_expansion(note_length_key) if mode_uses_selected_length else True
     )
@@ -1159,6 +1170,29 @@ def generate_reference_style_multisource_notes(
     return strip_visual_card_pollution(remove_standalone_visual_diagram_headings(final_result))
 
 
+def append_source_references(summary: str, source_units: Optional[List[dict]]) -> str:
+    """Make every generated note auditable without inventing citations."""
+    text = (summary or "").strip()
+    units = [unit for unit in (source_units or []) if isinstance(unit, dict)]
+    if not text or not units or re.search(r"^##\s+(?:Sources used|Sources|References)\b", text, flags=re.I | re.M):
+        return text
+
+    references = []
+    for index, unit in enumerate(units, start=1):
+        title = normalise_space(unit.get("title_candidate") or unit.get("display_name") or f"Source {index}")
+        identity = str(unit.get("source_identity") or "")
+        url = str(unit.get("url") or unit.get("embedded_url") or "").strip()
+        if identity.startswith("youtube:"):
+            evidence = f"YouTube transcript analysed ({int(unit.get('transcript_characters') or 0):,} characters)"
+        elif identity.startswith("text:"):
+            evidence = "Pasted source text"
+        else:
+            evidence = "Uploaded or linked source"
+        label = f"**Source {index}: {title}** — {evidence}"
+        references.append(f"- {label}{f' ([Open source]({url}))' if url else ''}")
+    return f"{text}\n\n## Sources used\n\n" + "\n".join(references)
+
+
 def attach_visual_argument_section(summary: str, source_units: List[dict], preferred_language: str) -> str:
     """Prepare source-figure cards and keep their markers in the relevant note flow."""
     cards = rebuild_cached_visual_argument_cards(source_units, preferred_language)
@@ -1198,6 +1232,7 @@ def finalize_generated_summary(
         "source_units": source_units or [],
         "note_length_mode": note_length_mode,
     })
+    text = append_source_references(text, source_units)
     text = dedupe_visual_markers(text)
     text = strip_visual_card_pollution(text)
     text = remove_auto_bilingual_heading_leakage(text, requested_language, source_context)

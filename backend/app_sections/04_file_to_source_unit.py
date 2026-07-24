@@ -111,6 +111,9 @@ def link_to_source_unit(url: str) -> Tuple[List[dict], dict]:
             "content_hash": meta["content_hash"],
             "text_excerpt": transcript,
             "visual_parts": frame_parts or meta.get("visual_parts") or [],
+            "transcript_status": meta.get("transcript_status", "unknown"),
+            "transcript_characters": meta.get("transcript_characters", 0),
+            "transcript_warning": meta.get("transcript_warning", ""),
         }
 
     url = normalize_public_http_url(url, "source URL")

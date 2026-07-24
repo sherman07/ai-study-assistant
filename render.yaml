@@ -41,7 +41,9 @@ services:
       - key: ENABLE_EMBEDDED_YOUTUBE_SOURCES
         value: "false"
       - key: ENABLE_YOUTUBE_YTDLP_FALLBACK
-        value: "false"
+        value: "true"
+      - key: YOUTUBE_MIN_OUTPUT_UNITS
+        value: "620"
       - key: MAX_UPLOAD_BYTES
         value: "104857600"
       - key: MAX_SOURCE_CHARS

@@ -240,6 +240,23 @@ async def analyze_materials(
         if not content_parts:
             return analysis_error_response("No readable files, links, or text were provided.", 400)
 
+        unavailable_youtube_sources = [
+            unit for unit in source_units
+            if str(unit.get("source_identity") or "").startswith("youtube:")
+            and unit.get("transcript_status") == "unavailable"
+        ]
+        if unavailable_youtube_sources and len(unavailable_youtube_sources) == len(source_units):
+            labels = ", ".join(
+                unit.get("title_candidate") or unit.get("display_name") or "YouTube video"
+                for unit in unavailable_youtube_sources
+            )
+            return analysis_error_response(
+                "Synapse could not access readable captions for this YouTube source "
+                f"({labels}). To protect note quality, it will not generate study notes from a title or player alone. "
+                "Choose a video with captions, upload a transcript, or paste the relevant transcript text.",
+                422,
+            )
+
         set_analysis_stage("source_preparation")
         combined_source_text = "\n\n".join(
             part.get("text", "") for part in content_parts
@@ -500,6 +517,10 @@ async def analyze_materials(
                     "url": unit.get("url", "") or unit.get("embedded_url", ""),
                     "embedded_url": unit.get("embedded_url", ""),
                     "text_excerpt": truncate_text(unit.get("text_excerpt", ""), 60000),
+                    "kind": "youtube" if str(unit.get("source_identity") or "").startswith("youtube:") else "source",
+                    "transcript_status": unit.get("transcript_status", ""),
+                    "transcript_characters": unit.get("transcript_characters", 0),
+                    "transcript_warning": unit.get("transcript_warning", ""),
                 }
                 for i, unit in enumerate(source_units)
             ],

@@ -99,6 +99,7 @@ fi
 
 ensure_node
 ensure_backend_env
+node "${PROJECT_ROOT}/scripts/ensure_legacy_controller_combined.mjs"
 start_data_api
 start_backend
 start_frontend

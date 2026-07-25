@@ -112,7 +112,7 @@ export function FocusRoomPage() {
   return (
     <main
       id="focusRoomSurface"
-      className={`focus-room-surface react-focus-room ${isIdle ? "is-idle" : ""} ${view === "setup" ? "is-setup" : "is-session"}`.trim()}
+      className={`focus-room-surface react-focus-room ${isIdle ? "is-idle" : ""} ${view === "setup" ? "is-setup is-innook-setup" : "is-session"}`.trim()}
       aria-live="polite"
       data-focus-room-view={view}
     >

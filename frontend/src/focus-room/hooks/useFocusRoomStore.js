@@ -790,6 +790,7 @@ export const useFocusRoomStore = create((set, get) => {
 
     startSession() {
       const state = get();
+      const timerMode = state.timerMode === "countup" ? "countup" : "countdown";
       persistDraftFromState(state);
       set({
         route: "session",
@@ -799,12 +800,12 @@ export const useFocusRoomStore = create((set, get) => {
         timerPhase: "idle",
         status: "idle",
         timerRestoreTarget: null,
-        timerMode: "countdown",
+        timerMode,
         timerAnchorAtMs: null,
         timerPausedAtMs: null,
         timerUpdatedAtMs: clockNowMs(),
         timerRestoredAtMs: null,
-        timerDurationSeconds: configuredDurationSeconds(state),
+        timerDurationSeconds: timerMode === "countup" ? 0 : configuredDurationSeconds(state),
         elapsedSeconds: 0,
         startedAt: null,
         summaryRecord: null,

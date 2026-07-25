@@ -3988,3 +3988,524 @@ body.focus-room-standalone #focusRoomRoot {
     font-size: 30px;
   }
 }
+
+/* Innook-style scene selection: the setup step deliberately drops the room
+   photography and uses the compact gallery + vertical control capsule. */
+.react-focus-room.is-innook-setup {
+  overflow: auto;
+  background: #050504;
+}
+
+.react-focus-room.is-innook-setup .focus-background-wrap {
+  display: block;
+}
+.react-focus-room.is-innook-setup .focus-overlay {
+  background: rgba(0, 0, 0, .28);
+}
+.react-focus-room.is-innook-setup .focus-vignette {
+  background: radial-gradient(circle at 18% 12%, rgba(244, 231, 211, .12), transparent 32%), linear-gradient(180deg, rgba(0,0,0,.08), rgba(0,0,0,.36));
+}
+
+.react-focus-room .focus-setup-view {
+  min-height: 100svh;
+}
+
+.react-focus-room.is-innook-setup .focus-setup-view {
+  overflow: auto;
+  padding: 0 28px;
+}
+
+.react-focus-room .innook-scene-setup {
+  width: min(1360px, 100%);
+  min-height: 100svh;
+  display: block;
+  margin: 0 auto;
+  padding: 20px 0 32px;
+}
+
+.react-focus-room .innook-setup-header {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 17px;
+  border-bottom: 1px solid rgba(244, 231, 211, .14);
+}
+
+.react-focus-room .innook-setup-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: rgba(244, 231, 211, .9);
+}
+
+.react-focus-room .innook-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border: 1px solid rgba(244, 231, 211, .7);
+  border-radius: 50%;
+  font: 400 19px/1 Georgia, serif;
+}
+
+.react-focus-room .innook-setup-brand > span:last-child {
+  display: grid;
+  gap: 2px;
+}
+
+.react-focus-room .innook-setup-brand strong {
+  font: 600 18px/1 Arial, sans-serif;
+  letter-spacing: -.04em;
+}
+
+.react-focus-room .innook-setup-brand small {
+  color: rgba(244, 231, 211, .54);
+  font-size: 9px;
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.react-focus-room .innook-setup-header-actions {
+  display: flex;
+  gap: 9px;
+}
+
+.react-focus-room .innook-header-action,
+.react-focus-room .innook-rail-icon,
+.react-focus-room .innook-enter-button {
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(244, 231, 211, .31);
+  color: rgba(244, 231, 211, .85);
+  background: linear-gradient(180deg, rgba(42, 39, 35, .58), rgba(30, 27, 24, .34)), rgba(244, 231, 211, .05);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .18), 0 12px 30px rgba(0, 0, 0, .23);
+  cursor: pointer;
+  transition: transform .2s ease, border-color .2s ease, color .2s ease, background .2s ease;
+}
+
+.react-focus-room .innook-header-action {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+}
+
+.react-focus-room .innook-header-action:hover,
+.react-focus-room .innook-rail-icon:hover,
+.react-focus-room .innook-rail-icon.is-active,
+.react-focus-room .innook-enter-button:hover {
+  border-color: rgba(244, 231, 211, .72);
+  color: #fffaf0;
+  background: rgba(244, 231, 211, .12);
+  transform: translateY(-1px);
+}
+
+.react-focus-room .innook-setup-layout {
+  width: min(928px, 100%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 64px;
+  align-items: center;
+  gap: 22px;
+  margin: 32px auto 0;
+}
+
+.react-focus-room .innook-scene-panel {
+  min-width: 0;
+  padding: 30px;
+  border: 1px solid rgba(244, 231, 211, .32);
+  border-radius: 28px;
+  background: linear-gradient(135deg, rgba(42, 39, 35, .58), rgba(30, 27, 24, .34)), rgba(244, 231, 211, .05);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .18), 0 22px 58px rgba(0, 0, 0, .32);
+}
+
+.react-focus-room .innook-panel-heading {
+  margin-bottom: 15px;
+}
+
+.react-focus-room .innook-panel-heading > span {
+  display: block;
+  color: rgba(244, 231, 211, .62);
+  font-size: 10px;
+  font-weight: 650;
+  letter-spacing: .22em;
+  text-transform: uppercase;
+}
+
+.react-focus-room .innook-panel-heading h1 {
+  margin: 7px 0 0;
+  color: rgba(244, 231, 211, .88);
+  font-family: "Innook Songti Subset", "Songti SC", STSong, Georgia, serif;
+  font-size: clamp(26px, 2.45vw, 31px);
+  font-weight: 400;
+  letter-spacing: .025em;
+  line-height: 1.05;
+}
+
+.react-focus-room .scene-selector-gallery {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 15px 16px;
+}
+
+.react-focus-room .scene-card-gallery {
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  gap: 7px;
+  padding: 0;
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  color: rgba(244, 231, 211, .72);
+  background: transparent;
+  box-shadow: none;
+  text-align: left;
+}
+
+.react-focus-room .scene-card-gallery::before,
+.react-focus-room .scene-card-gallery::after {
+  content: none;
+}
+
+.react-focus-room .scene-card-gallery-media {
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: 0;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  padding: 11px;
+  border: 1px solid rgba(244, 231, 211, .1);
+  border-radius: 18px;
+  background-color: #201f1b;
+  background-position: center;
+  background-size: cover;
+  box-shadow: inset 0 -52px 44px rgba(0, 0, 0, .54), 0 10px 24px rgba(0, 0, 0, .22);
+}
+
+.react-focus-room .scene-card-gallery-media::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, transparent 42%, rgba(0, 0, 0, .54));
+}
+
+.react-focus-room .scene-card-gallery-media > span {
+  position: relative;
+  z-index: 1;
+  padding: 4px 7px;
+  border: 1px solid rgba(244, 231, 211, .18);
+  border-radius: 999px;
+  color: rgba(255, 250, 240, .82);
+  background: rgba(11, 10, 9, .38);
+  font-size: 8px;
+  letter-spacing: .03em;
+}
+
+.react-focus-room .scene-card.scene-card-gallery > .scene-card-gallery-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 0 2px;
+}
+
+.react-focus-room .scene-card.scene-card-gallery > .scene-card-gallery-copy strong {
+  display: block;
+  overflow: hidden;
+  color: rgba(244, 231, 211, .88);
+  font-size: 12px;
+  font-weight: 540;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-focus-room .scene-card.scene-card-gallery > .scene-card-gallery-copy small {
+  display: block;
+  overflow: hidden;
+  color: rgba(244, 231, 211, .48);
+  font-size: 9px;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-focus-room .scene-card-gallery.active .scene-card-gallery-media {
+  border-color: rgba(244, 231, 211, .76);
+  box-shadow: inset 0 0 0 1px rgba(244, 231, 211, .42), inset 0 -52px 44px rgba(0, 0, 0, .54), 0 0 0 3px rgba(244, 231, 211, .08), 0 12px 28px rgba(0, 0, 0, .26);
+}
+
+.react-focus-room .scene-card-gallery.active .scene-card-gallery-copy strong {
+  color: #fffaf0;
+}
+
+.react-focus-room .innook-control-rail {
+  position: relative;
+  min-height: 398px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 9px;
+  padding: 12px 8px;
+  border: 1px solid rgba(244, 231, 211, .32);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(42, 39, 35, .58), rgba(30, 27, 24, .34)), rgba(244, 231, 211, .05);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .18), 0 22px 58px rgba(0, 0, 0, .32);
+}
+
+.react-focus-room .innook-rail-group,
+.react-focus-room .innook-duration-list {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+}
+
+.react-focus-room .innook-rail-icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 50%;
+}
+
+.react-focus-room .innook-rail-divider {
+  width: 26px;
+  height: 1px;
+  flex: none;
+  background: rgba(244, 231, 211, .14);
+}
+
+.react-focus-room .innook-duration {
+  width: 38px;
+  min-height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  color: rgba(244, 231, 211, .66);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.react-focus-room .innook-duration:hover,
+.react-focus-room .innook-duration.is-active {
+  color: #fffaf0;
+  background: rgba(244, 231, 211, .15);
+  box-shadow: inset 0 0 0 1px rgba(244, 231, 211, .56);
+}
+
+.react-focus-room .innook-duration-infinity {
+  display: grid;
+  place-items: center;
+}
+
+.react-focus-room .innook-enter-button {
+  width: 48px;
+  height: 48px;
+  margin-top: auto;
+  border-radius: 50%;
+}
+
+.react-focus-room .innook-goal-popover {
+  position: absolute;
+  z-index: 4;
+  top: 214px;
+  left: 76px;
+  width: 220px;
+  display: grid;
+  gap: 7px;
+  padding: 13px;
+  border: 1px solid rgba(244, 231, 211, .32);
+  border-radius: 16px;
+  color: rgba(244, 231, 211, .76);
+  background: rgba(25, 22, 19, .94);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, .38);
+  font-size: 10px;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.react-focus-room .innook-goal-popover textarea {
+  min-height: 78px;
+  resize: vertical;
+  padding: 9px;
+  border: 1px solid rgba(244, 231, 211, .3);
+  border-radius: 10px;
+  color: #fffaf0;
+  background: rgba(244, 231, 211, .08);
+  font: 12px/1.45 Arial, sans-serif;
+}
+
+.react-focus-room .innook-goal-popover textarea:focus {
+  outline: 2px solid rgba(244, 231, 211, .72);
+  outline-offset: 2px;
+}
+
+@media (max-width: 820px) {
+  .react-focus-room.is-innook-setup .focus-setup-view {
+    padding: 0 16px;
+  }
+
+  .react-focus-room .innook-scene-setup {
+    padding-top: 18px;
+  }
+
+  .react-focus-room .innook-setup-layout {
+    grid-template-columns: 1fr;
+    margin-top: 28px;
+  }
+
+  .react-focus-room .innook-scene-panel {
+    padding: 20px;
+  }
+
+  .react-focus-room .scene-selector-gallery {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .react-focus-room .innook-control-rail {
+    min-height: 64px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    border-radius: 24px;
+  }
+
+  .react-focus-room .innook-rail-group,
+  .react-focus-room .innook-duration-list {
+    display: flex;
+    align-items: center;
+  }
+
+  .react-focus-room .innook-rail-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .react-focus-room .innook-enter-button {
+    width: 40px;
+    height: 40px;
+    margin-top: 0;
+  }
+
+  .react-focus-room .innook-goal-popover {
+    top: 72px;
+    right: 0;
+    left: auto;
+  }
+}
+
+@media (max-width: 560px) {
+  .react-focus-room .innook-setup-header {
+    min-height: 52px;
+  }
+
+  .react-focus-room .innook-setup-brand strong {
+    font-size: 16px;
+  }
+
+  .react-focus-room .innook-header-action {
+    width: 38px;
+    height: 38px;
+  }
+
+  .react-focus-room .innook-setup-layout {
+    margin-top: 18px;
+  }
+
+  .react-focus-room .innook-scene-panel {
+    padding: 16px;
+    border-radius: 20px;
+  }
+
+  .react-focus-room .innook-panel-heading h1 {
+    font-size: 26px;
+  }
+
+  .react-focus-room .scene-selector-gallery {
+    gap: 12px;
+  }
+
+  .react-focus-room .innook-control-rail {
+    flex-wrap: wrap;
+    gap: 6px;
+    padding: 10px;
+  }
+
+  .react-focus-room .innook-rail-group {
+    order: 1;
+  }
+
+
+
+.react-focus-room .innook-scene-panel .scene-selector-wrap {
+  position: relative;
+}
+.react-focus-room .innook-scene-panel .scene-pagination {
+  position: absolute;
+  inset: 0;
+  display: block;
+  pointer-events: none;
+}
+.react-focus-room .innook-scene-panel .scene-page-arrow {
+  position: absolute;
+  top: 42%;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid rgba(244, 231, 211, .22);
+  border-radius: 50%;
+  color: rgba(244, 231, 211, .82);
+  background: rgba(244, 231, 211, .06);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.12), 0 12px 28px rgba(0,0,0,.2);
+  transform: translateY(-50%);
+  pointer-events: auto;
+  cursor: pointer;
+}
+.react-focus-room .innook-scene-panel .scene-page-arrow:disabled {
+  opacity: .35;
+  cursor: default;
+}
+.react-focus-room .innook-scene-panel .scene-page-button-left { left: -44px; }
+.react-focus-room .innook-scene-panel .scene-page-button-right { right: -44px; }
+.react-focus-room .scene-card-gallery-media .scene-card-check {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(244, 231, 211, .4);
+  border-radius: 50%;
+  color: #fffaf0;
+  background: rgba(36, 31, 26, .45);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+}
+.react-focus-room .innook-scene-panel {
+  backdrop-filter: blur(22px) saturate(120%);
+}
+.react-focus-room .innook-control-rail {
+  backdrop-filter: blur(22px) saturate(120%);
+}
+.react-focus-room .innook-setup-header {
+  border-bottom-color: transparent;
+}
+.react-focus-room.is-innook-setup .innook-scene-setup {
+  position: relative;
+  z-index: 10;
+}
+@media (max-width: 820px) {
+  .react-focus-room .innook-scene-panel .scene-page-button-left { left: -6px; }
+  .react-focus-room .innook-scene-panel .scene-page-button-right { right: -6px; }
+}
+

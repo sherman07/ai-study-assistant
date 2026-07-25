@@ -183,7 +183,8 @@ const FOCUS_ROOM_SCENES = [
     name: "Morning Window",
     kicker: "Bright focus",
     description: "Soft daylight, quiet desk, gentle outdoor calm.",
-    image: "./assets/focus-room/morning-window.webp",
+    image: "./assets/focus-room/innook/morning-window.jpg",
+    video: "./assets/focus-room/innook/morning-window.mp4",
     ambientSound: "Nature",
     musicType: "Piano"
   },
@@ -232,6 +233,136 @@ const FOCUS_ROOM_SCENES = [
     ambientSound: "White Noise",
     musicType: "Deep Focus"
   },
+  {
+    id: "innook-cabin-twilight",
+    name: "木屋黄昏",
+    kicker: "暖光 · 放松",
+    description: "Warm cabin light and an unhurried focus block.",
+    image: "./assets/focus-room/innook/cabin-twilight.jpg",
+    ambientSound: "Nature",
+    musicType: "Piano",
+    galleryOnly: true
+  },
+  {
+    id: "innook-last-room",
+    name: "末世客厅",
+    kicker: "废土 · 微光",
+    description: "A quiet room with distant, low-lit calm.",
+    image: "./assets/focus-room/innook/last-room.jpg",
+    ambientSound: "White Noise",
+    musicType: "Minimal",
+    galleryOnly: true
+  },
+  {
+    id: "innook-garden-cafe",
+    name: "绿植咖啡",
+    kicker: "绿植 · 咖啡",
+    description: "Soft café ambience among abundant greenery.",
+    image: "./assets/focus-room/innook/garden-cafe.jpg",
+    ambientSound: "Cafe Rain",
+    musicType: "Lo-fi",
+    galleryOnly: true
+  },
+  {
+    id: "innook-sunset-classroom",
+    name: "晚霞教室",
+    kicker: "教室 · 晚霞",
+    description: "An empty classroom in the fading evening light.",
+    image: "./assets/focus-room/innook/sunset-classroom.jpg",
+    ambientSound: "Nature",
+    musicType: "Piano",
+    galleryOnly: true
+  },
+  {
+    id: "innook-tokyo-night",
+    name: "东京夜景",
+    kicker: "城市 · 夜色",
+    description: "A city-night view for steady late study.",
+    image: "./assets/focus-room/innook/tokyo-night-view.jpg",
+    ambientSound: "White Noise",
+    musicType: "Deep Focus",
+    galleryOnly: true
+  },
+  {
+    id: "innook-snow-window-cabin",
+    name: "雪窗木屋",
+    kicker: "雪夜 · 木屋",
+    description: "Snow beyond the window, warmth at the desk.",
+    image: "./assets/focus-room/innook/snow-window-cabin.jpg",
+    ambientSound: "Wind",
+    musicType: "Minimal",
+    galleryOnly: true
+  },
+  {
+    id: "innook-bamboo-cabin",
+    name: "竹林小屋",
+    kicker: "竹影 · 安静",
+    description: "A bamboo retreat made for quiet concentration.",
+    image: "./assets/focus-room/innook/bamboo-cabin.jpg",
+    ambientSound: "Nature",
+    musicType: "Deep Focus",
+    galleryOnly: true
+  },
+  {
+    id: "innook-snow-peak-window",
+    name: "雪峰窗边",
+    kicker: "雪山 · 冷静",
+    description: "Cool alpine light through a quiet study window.",
+    image: "./assets/focus-room/innook/snow-peak-window.jpg",
+    ambientSound: "Wind",
+    musicType: "Piano",
+    galleryOnly: true
+  },
+  {
+    id: "innook-herbal-apothecary",
+    name: "草药书桌",
+    kicker: "本草 · 木色",
+    description: "Warm wood shelves and a grounded herbal desk.",
+    image: "./assets/focus-room/innook/herbal-apothecary.jpg",
+    ambientSound: "Nature",
+    musicType: "Minimal",
+    galleryOnly: true
+  },
+  {
+    id: "innook-garden-study",
+    name: "花园书房",
+    kicker: "绿意 · 窗边",
+    description: "Garden light and a calm reading desk.",
+    image: "./assets/focus-room/innook/garden-study-window.jpg",
+    ambientSound: "Nature",
+    musicType: "Piano",
+    galleryOnly: true
+  },
+  {
+    id: "innook-summer-green",
+    name: "夏日绿窗",
+    kicker: "绿荫 · 明亮",
+    description: "Bright summer greens for a fresh focus block.",
+    image: "./assets/focus-room/innook/summer-green-window.jpg",
+    ambientSound: "Nature",
+    musicType: "Lo-fi",
+    galleryOnly: true
+  },
+  {
+    id: "innook-forest-chimes",
+    name: "林间风铃",
+    kicker: "森林 · 轻风",
+    description: "Forest light and soft outdoor calm.",
+    image: "./assets/focus-room/innook/forest-window-chimes.jpg",
+    ambientSound: "Nature",
+    musicType: "Deep Focus",
+    galleryOnly: true
+  },
+];
+
+const FOCUS_ROOM_GALLERY_SCENES = [
+  {
+    ...FOCUS_ROOM_SCENES[0],
+    name: "清晨窗边",
+    kicker: "晨光 · 植物",
+    description: "A bright morning desk beside a leafy window."
+  },
+  ...FOCUS_ROOM_SCENES.filter(scene => scene.galleryOnly)
 ];
 
 const FOCUS_ROOM_DURATIONS = [25, 45, 50, 90];
@@ -917,6 +1048,7 @@ export {
   FOCUS_ROOM_DRAFT_KEY,
   FOCUS_ROOM_AMBIENT_SOUNDS,
   FOCUS_ROOM_DURATIONS,
+  FOCUS_ROOM_GALLERY_SCENES,
   FOCUS_ROOM_MUSIC_TRACKS,
   FOCUS_ROOM_SCENES,
   FOCUS_ROOM_SESSION_KEY,

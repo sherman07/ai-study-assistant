@@ -1,4 +1,5 @@
 import { createPool } from "../db/pool.js";
+import { databaseUnavailableError, isDatabaseUnavailableError } from "../middleware/errors.js";
 import { firstSupabaseRow, supabaseRequest, supabaseStorageEnabled } from "../supabase/rest.js";
 import { stableUserId } from "../utils/ids.js";
 import { cleanString, jsonString, jsonValue, nullableString } from "../utils/validators.js";
@@ -259,7 +260,14 @@ async function mirrorMysql(operation, label) {
 
 async function upsertUser(identity = {}) {
   if (!supabaseStorageEnabled()) {
-    return mysqlUpsertUser(identity);
+    try {
+      return await mysqlUpsertUser(identity);
+    } catch (error) {
+      if (isDatabaseUnavailableError(error)) {
+        throw databaseUnavailableError(error);
+      }
+      throw error;
+    }
   }
 
   let supabaseUser = null;
@@ -274,7 +282,10 @@ async function upsertUser(identity = {}) {
   const mysqlUser = await mirrorMysql(() => mysqlUpsertUser(identity), "user upsert");
   if (supabaseUser) return supabaseUser;
   if (mysqlUser) return mysqlUser;
-  throw supabaseError || new Error("Could not persist user.");
+  if (supabaseError && isDatabaseUnavailableError(supabaseError)) {
+    throw databaseUnavailableError(supabaseError);
+  }
+  throw supabaseError || databaseUnavailableError(new Error("Could not persist user."));
 }
 
 async function getUserById(userId) {

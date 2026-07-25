@@ -170,7 +170,7 @@ assert.ok(
   "Standalone Focus Room page should redirect direct visitors to the workspace while disabled"
 );
 assert.ok(
-  focusRoomHtml.includes('import("./src/focus-room/static-compatible-loader.js?v=focus-room-loader-v13")'),
+  focusRoomHtml.includes('import("./src/focus-room/static-compatible-loader.js?v=focus-room-loader-v14")'),
   "Standalone Focus Room page should only import the loader after the feature flag allows it"
 );
 assert.ok(
@@ -182,18 +182,18 @@ assert.ok(
   "Standalone Focus Room page should not boot the loader unconditionally while disabled"
 );
 assert.ok(
-  focusRoomHtml.includes("styles/09-focus-room.css?v=topics-queue-v1"),
+  focusRoomHtml.includes("styles/09-focus-room.css?v=ui-contrast-v1"),
   "Focus Room HTML should cache-bust the CSS after portal stacking fixes"
 );
 assert.ok(
-  focusRoomHtml.includes("static-compatible-loader.js?v=focus-room-loader-v13"),
+  focusRoomHtml.includes("static-compatible-loader.js?v=focus-room-loader-v14"),
   "Focus Room HTML should cache-bust the standalone loader after boot fixes"
 );
 assert.ok(focusRoomHtml.includes("styles/09-focus-room.css"), "Standalone Focus Room page should load Focus Room styles directly");
 assert.ok(!focusRoomHtml.includes("react@18"), "Standalone Focus Room should rely on Vite/npm React, not CDN React");
 assert.ok(focusRoomStaticLoader.includes("focus-room-static.js"), "Focus Room static loader should import the prebuilt static bundle");
 assert.ok(
-  focusRoomStaticLoader.includes("focus-room-static.js?v=focus-room-static-v13"),
+  focusRoomStaticLoader.includes("focus-room-static.js?v=focus-room-static-v14"),
   "Focus Room loader should cache-bust the static bundle after portal stacking fixes"
 );
 assert.ok(
@@ -206,6 +206,27 @@ assert.ok(focusRoomStaticLoader.includes("addEventListener(\"error\""), "Focus R
 assert.ok(focusRoomStaticLoader.includes("addEventListener(\"unhandledrejection\""), "Focus Room loader should surface async boot errors");
 assert.ok(focusRoomStaticLoader.includes("focusRoomHasMounted"), "Focus Room loader should verify that React mounted visible UI");
 assert.ok(exists("frontend/assets/focus-room-app/focus-room-static.js"), "prebuilt static Focus Room bundle should exist for static servers");
+assert.ok(
+  /innook-setup-brand[\s\S]*?background:\s*transparent/.test(focusStyle),
+  "Innook brand button must reset opaque UA/theme white fills"
+);
+assert.ok(
+  focusStyle.includes("html[data-theme=\"light\"] .react-focus-room.is-innook-setup .innook-setup-brand"),
+  "Innook brand must stay transparent under light account theme"
+);
+assert.ok(
+  focusStyle.includes("scrollbar-color: rgba(244, 231, 211, .45)"),
+  "Topics queue scrollbar should stay readable on dark glass"
+);
+const themeStyle = read("frontend/styles/00-theme.css");
+assert.ok(
+  themeStyle.includes(".focus-room-surface:not(.react-focus-room) button:not(.glass-button-primary)"),
+  "Light theme must not paint React Focus Room buttons as opaque white surfaces"
+);
+assert.ok(
+  themeStyle.includes(":where(.innook-setup-brand, .focus-landing-brand, .focus-wordmark, .landing-logo, .nav-logo, .mobile-brand)"),
+  "Site brand controls should share a transparent chrome reset"
+);
 assert.ok(focusRoomStandalone.includes("initFocusRoom({ root })"), "Standalone Focus Room boot should initialize the React controller");
 assert.ok(focusRoomStandaloneBridge.includes("HISTORY_STORAGE_KEY"), "Standalone Focus Room bridge should read generated history");
 assert.ok(focusRoomStandaloneBridge.includes("getSynapseFocusRoomMaterials"), "Standalone Focus Room bridge should expose material providers");

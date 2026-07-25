@@ -1536,7 +1536,20 @@ body.focus-room-standalone #focusRoomRoot {
 .react-focus-room .focus-landing-header,
 .react-focus-room .focus-selection-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-bottom: 20px; border-bottom: 1px solid rgba(244, 231, 211, .16); }
 .react-focus-room .focus-landing-brand,
-.react-focus-room .focus-wordmark { display: inline-flex; align-items: center; gap: 10px; padding: 0; color: var(--innook-ink); background: none; border: 0; cursor: pointer; }
+.react-focus-room .focus-wordmark {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  color: var(--innook-ink);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
 .react-focus-room .focus-landing-brand { text-align: left; }
 .react-focus-room .focus-wordmark-mark { display: grid; place-items: center; width: 34px; height: 34px; border: 1px solid rgba(244, 231, 211, .62); border-radius: 50%; font: 400 20px/1 "Innook Songti Subset", Georgia, serif; color: var(--innook-ink); background: rgba(244, 231, 211, .06); }
 .react-focus-room .focus-landing-brand-copy,
@@ -4036,7 +4049,15 @@ body.focus-room-standalone #focusRoomRoot {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  color: rgba(244, 231, 211, .9);
+  margin: 0;
+  padding: 0;
+  color: rgba(244, 231, 211, .96);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
 }
 
 .react-focus-room .innook-brand-mark {
@@ -4044,26 +4065,42 @@ body.focus-room-standalone #focusRoomRoot {
   place-items: center;
   width: 34px;
   height: 34px;
-  border: 1px solid rgba(244, 231, 211, .7);
+  border: 1px solid rgba(244, 231, 211, .78);
   border-radius: 50%;
+  color: #fffaf0;
+  background: rgba(244, 231, 211, .1);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .2);
   font: 400 19px/1 Georgia, serif;
 }
 
 .react-focus-room .innook-setup-brand > span:last-child {
   display: grid;
   gap: 2px;
+  background: transparent;
 }
 
 .react-focus-room .innook-setup-brand strong {
   font: 600 18px/1 Arial, sans-serif;
   letter-spacing: -.04em;
+  color: #fffaf0;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, .35);
 }
 
 .react-focus-room .innook-setup-brand small {
-  color: rgba(244, 231, 211, .54);
+  color: rgba(244, 231, 211, .72);
   font-size: 9px;
   letter-spacing: .13em;
   text-transform: uppercase;
+}
+
+/* Immersive cream-glass chrome stays readable even if the account theme is light. */
+html[data-theme="light"] .react-focus-room.is-innook-setup .innook-setup-brand,
+html[data-theme="light"] .react-focus-room .focus-landing-brand,
+html[data-theme="light"] .react-focus-room .focus-wordmark {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  color: rgba(244, 231, 211, .96) !important;
 }
 
 .react-focus-room .innook-setup-header-actions {
@@ -4076,10 +4113,12 @@ body.focus-room-standalone #focusRoomRoot {
 .react-focus-room .innook-enter-button {
   display: grid;
   place-items: center;
-  border: 1px solid rgba(244, 231, 211, .31);
-  color: rgba(244, 231, 211, .85);
-  background: linear-gradient(180deg, rgba(42, 39, 35, .58), rgba(30, 27, 24, .34)), rgba(244, 231, 211, .05);
-  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .18), 0 12px 30px rgba(0, 0, 0, .23);
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid rgba(244, 231, 211, .42);
+  color: rgba(244, 231, 211, .92);
+  background: linear-gradient(180deg, rgba(42, 39, 35, .68), rgba(30, 27, 24, .42)), rgba(244, 231, 211, .08);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, .2), 0 12px 30px rgba(0, 0, 0, .26);
   cursor: pointer;
   transition: transform .2s ease, border-color .2s ease, color .2s ease, background .2s ease;
 }
@@ -4282,9 +4321,11 @@ body.focus-room-standalone #focusRoomRoot {
   width: 38px;
   min-height: 22px;
   padding: 0;
+  appearance: none;
+  -webkit-appearance: none;
   border: 0;
   border-radius: 999px;
-  color: rgba(244, 231, 211, .66);
+  color: rgba(244, 231, 211, .78);
   background: transparent;
   font-size: 11px;
   font-weight: 600;
@@ -4552,8 +4593,24 @@ body.focus-room-standalone #focusRoomRoot {
   text-transform: none;
   letter-spacing: 0;
   font-size: 12px;
-  background: linear-gradient(160deg, rgba(42, 39, 35, .92), rgba(24, 21, 18, .94));
+  color: rgba(244, 231, 211, .92);
+  border-color: rgba(244, 231, 211, .42);
+  background: linear-gradient(160deg, rgba(42, 39, 35, .96), rgba(24, 21, 18, .97));
   backdrop-filter: blur(22px) saturate(120%);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(244, 231, 211, .45) rgba(244, 231, 211, .08);
+}
+.react-focus-room .innook-topics-popover::-webkit-scrollbar {
+  width: 10px;
+}
+.react-focus-room .innook-topics-popover::-webkit-scrollbar-track {
+  background: rgba(244, 231, 211, .08);
+  border-radius: 999px;
+}
+.react-focus-room .innook-topics-popover::-webkit-scrollbar-thumb {
+  background: rgba(244, 231, 211, .42);
+  border: 2px solid rgba(24, 21, 18, .9);
+  border-radius: 999px;
 }
 .react-focus-room .focus-topics-panel {
   display: grid;
@@ -4568,7 +4625,7 @@ body.focus-room-standalone #focusRoomRoot {
 }
 .react-focus-room .focus-topics-eyebrow {
   display: block;
-  color: rgba(244, 231, 211, .55);
+  color: rgba(244, 231, 211, .72);
   font-size: 9px;
   font-weight: 650;
   letter-spacing: .18em;
@@ -4576,7 +4633,7 @@ body.focus-room-standalone #focusRoomRoot {
 }
 .react-focus-room .focus-topics-head h3 {
   margin: 5px 0 0;
-  color: rgba(244, 231, 211, .92);
+  color: #fffaf0;
   font: 400 18px/1.15 "Innook Songti Subset", Georgia, serif;
   letter-spacing: .02em;
 }
@@ -4589,24 +4646,26 @@ body.focus-room-standalone #focusRoomRoot {
   gap: 5px;
   min-height: 28px;
   padding: 0 10px;
-  border: 1px solid rgba(244, 231, 211, .28);
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid rgba(244, 231, 211, .44);
   border-radius: 999px;
-  color: rgba(244, 231, 211, .88);
-  background: rgba(244, 231, 211, .08);
-  box-shadow: inset 0 1px 1px rgba(255,255,255,.12);
+  color: #fffaf0;
+  background: rgba(244, 231, 211, .14);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.14);
   cursor: pointer;
   transition: border-color .2s ease, background .2s ease, color .2s ease;
 }
 .react-focus-room .focus-topics-add:hover,
 .react-focus-room .focus-topic-action:hover,
 .react-focus-room .dock-topic-finish:hover {
-  border-color: rgba(244, 231, 211, .62);
-  background: rgba(244, 231, 211, .14);
+  border-color: rgba(244, 231, 211, .78);
+  background: rgba(244, 231, 211, .22);
   color: #fffaf0;
 }
 .react-focus-room .focus-topics-hint {
   margin: 0;
-  color: rgba(244, 231, 211, .58);
+  color: rgba(244, 231, 211, .76);
   font-size: 11px;
   line-height: 1.45;
 }
@@ -4618,17 +4677,17 @@ body.focus-room-standalone #focusRoomRoot {
   display: grid;
   gap: 8px;
   padding: 12px;
-  border: 1px solid rgba(244, 231, 211, .18);
+  border: 1px solid rgba(244, 231, 211, .3);
   border-radius: 16px;
-  background: rgba(244, 231, 211, .05);
-  box-shadow: inset 0 1px 1px rgba(255,255,255,.08);
+  background: rgba(244, 231, 211, .09);
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.1);
 }
 .react-focus-room .focus-topic-card.is-active {
-  border-color: rgba(244, 231, 211, .55);
-  background: rgba(244, 231, 211, .1);
+  border-color: rgba(244, 231, 211, .7);
+  background: rgba(244, 231, 211, .16);
 }
 .react-focus-room .focus-topic-card.is-done {
-  opacity: .62;
+  opacity: .72;
 }
 .react-focus-room .focus-topic-card-top {
   display: flex;
@@ -4636,13 +4695,13 @@ body.focus-room-standalone #focusRoomRoot {
   gap: 8px;
 }
 .react-focus-room .focus-topic-index {
-  color: rgba(244, 231, 211, .5);
+  color: rgba(244, 231, 211, .68);
   font-size: 10px;
   letter-spacing: .12em;
 }
 .react-focus-room .focus-topic-status {
   margin-right: auto;
-  color: rgba(244, 231, 211, .72);
+  color: rgba(244, 231, 211, .86);
   font-size: 10px;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -4660,21 +4719,21 @@ body.focus-room-standalone #focusRoomRoot {
   font-size: 10px;
 }
 .react-focus-room .focus-topic-action.is-success {
-  border-color: rgba(244, 231, 211, .42);
+  border-color: rgba(244, 231, 211, .58);
 }
 .react-focus-room .focus-topic-action.is-danger {
   width: 26px;
   padding: 0;
-  color: rgba(242, 214, 201, .86);
+  color: rgba(255, 214, 201, .95);
 }
 .react-focus-room .focus-topic-action:disabled {
-  opacity: .35;
+  opacity: .4;
   cursor: default;
 }
 .react-focus-room .focus-topic-field {
   display: grid;
   gap: 5px;
-  color: rgba(244, 231, 211, .58);
+  color: rgba(244, 231, 211, .78);
   font-size: 10px;
   letter-spacing: .06em;
   text-transform: uppercase;
@@ -4682,31 +4741,70 @@ body.focus-room-standalone #focusRoomRoot {
 .react-focus-room .focus-topic-field input,
 .react-focus-room .focus-topic-field textarea {
   width: 100%;
-  border: 1px solid rgba(244, 231, 211, .24);
+  appearance: none;
+  -webkit-appearance: none;
+  border: 1px solid rgba(244, 231, 211, .4);
   border-radius: 12px;
   color: #fffaf0;
-  background: rgba(244, 231, 211, .07);
+  background: rgba(12, 10, 8, .42);
   font: 12px/1.45 Arial, sans-serif;
   letter-spacing: 0;
   text-transform: none;
   padding: 9px 10px;
   resize: vertical;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .28);
+}
+.react-focus-room .focus-topic-field input::placeholder,
+.react-focus-room .focus-topic-field textarea::placeholder {
+  color: rgba(244, 231, 211, .52);
+  opacity: 1;
 }
 .react-focus-room .focus-topic-field input:focus,
 .react-focus-room .focus-topic-field textarea:focus {
-  outline: 2px solid rgba(244, 231, 211, .55);
+  outline: 2px solid rgba(244, 231, 211, .7);
   outline-offset: 1px;
+  border-color: rgba(244, 231, 211, .72);
+  background: rgba(12, 10, 8, .55);
 }
 .react-focus-room .focus-topic-field input:disabled,
 .react-focus-room .focus-topic-field textarea:disabled {
-  opacity: .7;
+  opacity: .78;
+}
+html[data-theme="light"] .react-focus-room .focus-topic-field input,
+html[data-theme="light"] .react-focus-room .focus-topic-field textarea,
+html[data-theme="light"] .react-focus-room .innook-goal-popover textarea,
+html[data-theme="light"] .react-focus-room .focus-topics-add,
+html[data-theme="light"] .react-focus-room .focus-topic-action,
+html[data-theme="light"] .react-focus-room .dock-topic-finish,
+html[data-theme="light"] .react-focus-room .innook-header-action,
+html[data-theme="light"] .react-focus-room .innook-rail-icon,
+html[data-theme="light"] .react-focus-room .innook-enter-button,
+html[data-theme="light"] .react-focus-room .innook-duration {
+  color: #fffaf0 !important;
+  border-color: rgba(244, 231, 211, .44) !important;
+  background: rgba(12, 10, 8, .42) !important;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, .28);
+}
+html[data-theme="light"] .react-focus-room .focus-topics-add,
+html[data-theme="light"] .react-focus-room .focus-topic-action,
+html[data-theme="light"] .react-focus-room .dock-topic-finish,
+html[data-theme="light"] .react-focus-room .innook-header-action,
+html[data-theme="light"] .react-focus-room .innook-rail-icon,
+html[data-theme="light"] .react-focus-room .innook-enter-button {
+  background: rgba(244, 231, 211, .14) !important;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,.14);
+}
+html[data-theme="light"] .react-focus-room .innook-duration {
+  background: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none;
 }
 .react-focus-room .room-control-topics {
   margin: 0 0 16px;
   padding: 14px;
-  border: 1px solid rgba(244, 231, 211, .2);
+  border: 1px solid rgba(244, 231, 211, .32);
   border-radius: 18px;
-  background: rgba(244, 231, 211, .04);
+  background: rgba(244, 231, 211, .08);
 }
 .react-focus-room .dock-goal-description {
   display: block;

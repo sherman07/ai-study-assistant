@@ -1463,7 +1463,7 @@ body.mobile-assistant-open::before {
   padding: 9px 15px;
   border: 1px solid var(--border-blue);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.68);
+  background: color-mix(in srgb, var(--color-surface-elevated) 72%, transparent);
   backdrop-filter: blur(16px);
   color: var(--primary);
   font-weight: 800;

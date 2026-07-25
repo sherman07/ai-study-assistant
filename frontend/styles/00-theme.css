@@ -193,12 +193,43 @@ html[data-theme="dark"] :where(.visual-modal, .synapse-confirmation-overlay, .ac
 }
 body.focus-room-standalone, .focus-room-surface { background: var(--focus-scene-background); }
 .focus-overlay { background: var(--focus-overlay); }
-html[data-theme="light"] :where(.focus-setup-scenes, .focus-setup-controls, .focus-room-surface .liquid-glass, .focus-room-surface .liquid-glass-lite, .focus-room-surface .focus-card, .focus-room-surface [role="dialog"], .focus-room-surface [data-radix-popper-content-wrapper] > *) { color: var(--color-text-primary); }
+html[data-theme="light"] :where(.focus-setup-scenes, .focus-setup-controls, .focus-room-surface:not(.react-focus-room) .liquid-glass, .focus-room-surface:not(.react-focus-room) .liquid-glass-lite, .focus-room-surface:not(.react-focus-room) .focus-card, .focus-room-surface:not(.react-focus-room) [role="dialog"], .focus-room-surface:not(.react-focus-room) [data-radix-popper-content-wrapper] > *) { color: var(--color-text-primary); }
 html[data-theme="light"] .focus-setup-scenes,
 html[data-theme="light"] .focus-setup-controls { background: linear-gradient(135deg, rgba(255,255,255,.88), rgba(234,240,255,.76)); border-color: var(--focus-glass-border); box-shadow: var(--shadow-large); }
-html[data-theme="light"] :where(.focus-room-surface .glass-button, .focus-room-surface button:not(.glass-button-primary), .focus-room-surface input, .focus-room-surface textarea, .focus-room-surface select) { color: var(--color-text-primary); border-color: var(--focus-glass-border); background: var(--color-surface-elevated); }
-html[data-theme="light"] :where(.focus-room-surface .glass-button:hover, .focus-room-surface button:hover) { background: var(--color-surface-hover); border-color: var(--focus-glass-border-strong); }
-html[data-theme="light"] .focus-room-surface .glass-button-primary { background: var(--color-accent); color: white; border-color: var(--color-accent); }
+/* Legacy (non-React) Focus Room surfaces can follow the account light palette.
+ * React Focus Room is immersive cream-glass on scene photography — never flatten
+ * its buttons/inputs into opaque white workspace chrome. */
+html[data-theme="light"] :where(.focus-room-surface:not(.react-focus-room) .glass-button, .focus-room-surface:not(.react-focus-room) button:not(.glass-button-primary), .focus-room-surface:not(.react-focus-room) input, .focus-room-surface:not(.react-focus-room) textarea, .focus-room-surface:not(.react-focus-room) select) { color: var(--color-text-primary); border-color: var(--focus-glass-border); background: var(--color-surface-elevated); }
+html[data-theme="light"] :where(.focus-room-surface:not(.react-focus-room) .glass-button:hover, .focus-room-surface:not(.react-focus-room) button:hover) { background: var(--color-surface-hover); border-color: var(--focus-glass-border-strong); }
+html[data-theme="light"] .focus-room-surface:not(.react-focus-room) .glass-button-primary { background: var(--color-accent); color: white; border-color: var(--color-accent); }
+
+/* Transparent brand / wordmark controls must never inherit UA buttonface white. */
+:where(.innook-setup-brand, .focus-landing-brand, .focus-wordmark, .landing-logo, .nav-logo, .mobile-brand) {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+/* Dark theme: keep muted copy readable (avoid near-invisible tertiary text). */
+html[data-theme="dark"] {
+  --color-text-tertiary: #b7c3d8;
+  --color-text-disabled: #8490a8;
+  --color-border-default: #445572;
+  --color-border-strong: #6a7fa3;
+}
+
+html[data-theme="dark"] :where(.btn-outline-primary, .btn-outline-secondary, .section-btn, .account-secondary-action, .account-plan-action) {
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+  background-color: var(--color-surface-secondary);
+}
+html[data-theme="dark"] :where(.btn-outline-primary:hover, .btn-outline-secondary:hover, .section-btn:hover, .account-secondary-action:hover) {
+  color: var(--color-text-primary);
+  border-color: var(--color-accent);
+  background-color: var(--color-surface-hover);
+}
 
 /* Static auth, billing, and landing documents get the same root palette. */
 html[data-theme="dark"] :where(body.auth-page, .billing-shell) { background: var(--color-page-background); color: var(--color-text-primary); }

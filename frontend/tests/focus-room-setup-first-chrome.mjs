@@ -92,12 +92,34 @@ async function main() {
     await sceneButtons[1].click();
     await sleep(250);
 
+    await page.click("[data-focus-topics-toggle='true']");
+    await page.waitForSelector("[data-focus-topics-popover='true']", { timeout: 10000 });
+    await page.click("[data-focus-topic-add='true']");
+    await sleep(200);
+    const titled = await page.evaluate(() => {
+      const inputs = [...document.querySelectorAll("[data-focus-topic-title]")];
+      if (inputs.length < 2) return { ok: false, count: inputs.length };
+      const setValue = (el, value) => {
+        const proto = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value");
+        proto?.set?.call(el, value);
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+      };
+      setValue(inputs[0], "Topic Alpha");
+      setValue(inputs[1], "Topic Beta");
+      return { ok: true, count: inputs.length, first: inputs[0].value, second: inputs[1].value };
+    });
+    assert.equal(titled.ok, true, "setup topics editor should support multiple topics");
+    assert.equal(titled.first, "Topic Alpha");
+    assert.equal(titled.second, "Topic Beta");
+    await sleep(150);
+
     const durationButtons = await page.$$(".innook-duration");
     assert.ok(durationButtons.length >= 5, "setup should expose duration presets including infinity");
     await durationButtons[2].click(); // 50
     await sleep(150);
 
-    const musicButtons = await page.$$(".innook-rail-icon");
+    const musicButtons = await page.$$(".innook-rail-group .innook-rail-icon");
     assert.ok(musicButtons.length >= 5, "setup should expose music atmosphere icons");
     await musicButtons[0].click();
     await sleep(150);
@@ -115,15 +137,23 @@ async function main() {
       setupGone: !document.querySelector("[data-focus-setup='true']"),
       hasTimer: Boolean(document.querySelector(".timer-editor, .focus-session-dock, .dock-timer-block")),
       hasHeader: Boolean(document.querySelector(".focus-room-header")),
+      activeTopic: document.querySelector("[data-focus-active-topic='true'] strong")?.textContent || "",
     }));
     assert.equal(sessionState.view, "session");
     assert.equal(sessionState.setupGone, true);
     assert.equal(sessionState.hasHeader, true);
     assert.equal(sessionState.hasTimer, true);
+    assert.match(sessionState.activeTopic, /Topic Alpha/);
     await page.screenshot({ path: path.join(artifactDir, "focus-room-session-after-setup.png"), fullPage: true });
+
+    await page.click("[data-focus-topic-finish-dock='true']");
+    await sleep(250);
+    const afterFinish = await page.evaluate(() => document.querySelector("[data-focus-active-topic='true'] strong")?.textContent || "");
+    assert.match(afterFinish, /Topic Beta/, "finishing active topic should switch to the next topic");
 
     // Open settings and return to setup
     await page.click('button[aria-label="Open room settings"]');
+    await page.waitForSelector("[data-focus-topics='true']", { timeout: 10000 });
     await page.waitForSelector("[data-focus-return-setup='true']", { timeout: 10000 });
     await page.click("[data-focus-return-setup='true']");
     await page.waitForSelector("[data-focus-setup='true']", { timeout: 15000 });
@@ -138,8 +168,6 @@ async function main() {
       () => document.getElementById("focusRoomSurface")?.getAttribute("data-focus-room-view") === "session",
       { timeout: 15000 },
     );
-    const countupLabel = await page.evaluate(() => document.body.innerText.includes("Count-up") || document.body.innerText.includes("count"));
-    assert.ok(countupLabel || true, "count-up session entered");
     await page.screenshot({ path: path.join(artifactDir, "focus-room-return-setup.png"), fullPage: true });
 
     console.log("focus-room-setup-first-chrome: passed");

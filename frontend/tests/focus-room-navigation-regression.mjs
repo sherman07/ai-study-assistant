@@ -15,7 +15,8 @@ assert.match(setup, /选择学习场景/, "Focus Room setup shows the Innook-sty
 assert.match(setup, /SceneSelector/, "Focus Room setup renders all available scenes");
 assert.match(setup, /Enter Focus Room/, "Focus Room setup exposes the session entry action");
 assert.match(setup, /data-focus-enter/, "Enter Focus Room action is tagged for automation");
-assert.match(setup, /innook-scene-setup/, "Setup uses the Innook sitting-page composition");
+assert.match(setup, /FocusTopicsPanel/, "Setup exposes the multi-topic editor");
+assert.match(setup, /data-focus-topics-toggle/, "Setup target control opens topics queue");
 assert.match(setup, /∞/, "Setup exposes count-up infinity duration");
 assert.match(page, /FocusRoomSetup/, "Focus Room page must render setup before the session scene");
 assert.match(page, /view === "setup"/, "Focus Room page must branch on setup view");
@@ -28,6 +29,6 @@ assert.match(styles, /\.innook-control-rail/, "Innook vertical control rail is s
 assert.match(styles, /\.scene-card-gallery/, "Gallery scene cards are styled");
 assert.match(data, /FOCUS_ROOM_GALLERY_SCENES/, "Gallery scene set is exported for the sitting page");
 assert.match(html, /auth-client\.js/, "Standalone Focus Room loads the shared Synapse auth client");
-assert.match(html, /focus-room-loader-v12/, "Standalone Focus Room loads the cache-busted runtime");
+assert.match(html, /focus-room-loader-v13/, "Standalone Focus Room loads the cache-busted runtime");
 
 console.log("focus-room-navigation-regression: passed");

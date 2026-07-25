@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { FOCUS_ROOM_DURATIONS } from "../data.js";
 import { useFocusRoomStore } from "../hooks/useFocusRoomStore.js";
+import { FocusTopicsPanel } from "./FocusTopicsPanel.jsx";
 import { SceneSelector } from "./SceneSelector.jsx";
 
 const MUSIC_MOODS = [
@@ -27,18 +28,18 @@ export function FocusRoomSetup({ onWorkspace }) {
   const pomodoroDuration = useFocusRoomStore(state => state.pomodoroDuration);
   const timerMode = useFocusRoomStore(state => state.timerMode);
   const musicType = useFocusRoomStore(state => state.musicType);
-  const studyGoal = useFocusRoomStore(state => state.studyGoal);
+  const focusTopics = useFocusRoomStore(state => state.focusTopics);
   const setPomodoroDuration = useFocusRoomStore(state => state.setPomodoroDuration);
   const setTimerMode = useFocusRoomStore(state => state.setTimerMode);
-  const setStudyGoal = useFocusRoomStore(state => state.setStudyGoal);
   const setSound = useFocusRoomStore(state => state.setSound);
   const startSession = useFocusRoomStore(state => state.startSession);
-  const [goalEditorOpen, setGoalEditorOpen] = useState(false);
+  const [topicsOpen, setTopicsOpen] = useState(false);
 
   const activeMood = useMemo(
     () => MUSIC_MOODS.find(mood => mood.musicType === musicType)?.label || "",
     [musicType]
   );
+  const openTopicCount = (focusTopics || []).filter(topic => topic.status !== "done").length;
 
   const selectMood = mood => {
     setSound("musicType", mood.musicType);
@@ -154,12 +155,15 @@ export function FocusRoomSetup({ onWorkspace }) {
 
           <button
             type="button"
-            className={`innook-rail-icon ${goalEditorOpen ? "is-active" : ""}`.trim()}
-            onClick={() => setGoalEditorOpen(open => !open)}
-            aria-label="Edit focus intention"
-            title="Edit focus intention"
+            className={`innook-rail-icon ${topicsOpen ? "is-active" : ""}`.trim()}
+            onClick={() => setTopicsOpen(open => !open)}
+            aria-label="Edit focus topics"
+            aria-expanded={topicsOpen}
+            title="Edit focus topics"
+            data-focus-topics-toggle="true"
           >
             <Target size={16} aria-hidden="true" />
+            {openTopicCount > 1 ? <span className="innook-rail-badge">{openTopicCount}</span> : null}
           </button>
 
           <button
@@ -174,17 +178,10 @@ export function FocusRoomSetup({ onWorkspace }) {
             <ArrowRight size={22} aria-hidden="true" />
           </button>
 
-          {goalEditorOpen ? (
-            <label className="innook-goal-popover">
-              今日目标
-              <textarea
-                value={studyGoal}
-                onChange={event => setStudyGoal(event.target.value)}
-                placeholder="What will you protect this block for?"
-                rows={3}
-                autoFocus
-              />
-            </label>
+          {topicsOpen ? (
+            <div className="innook-goal-popover innook-topics-popover" data-focus-topics-popover="true">
+              <FocusTopicsPanel compact />
+            </div>
           ) : null}
         </aside>
       </div>

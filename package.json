@@ -15,7 +15,7 @@
     "build:focus-room-static": "vite build --config vite.focus-room-static.config.js",
     "preview": "vite preview --host 0.0.0.0 --port 5175 --strictPort",
     "test:frontend": "for test_file in frontend/tests/*.mjs; do node \"$test_file\" || exit 1; done",
-    "test:focus-room": "node frontend/tests/focus-room-integration-regression.mjs && node frontend/tests/focus-room-data-regression.mjs && node frontend/tests/focus-room-audio-regression.mjs && node frontend/tests/focus-room-controller-actions-regression.mjs && node frontend/tests/focus-room-study-tools-regression.mjs && node frontend/tests/focus-room-navigation-regression.mjs && node frontend/tests/focus-room-timer-regression.mjs && node frontend/tests/study-tools-settings-regression.mjs"
+    "test:focus-room": "node frontend/tests/focus-room-integration-regression.mjs && node frontend/tests/focus-room-data-regression.mjs && node frontend/tests/focus-room-audio-regression.mjs && node frontend/tests/focus-room-controller-actions-regression.mjs && node frontend/tests/focus-room-study-tools-regression.mjs && node frontend/tests/focus-room-navigation-regression.mjs && node frontend/tests/focus-room-timer-regression.mjs && node frontend/tests/focus-room-topics-regression.mjs && node frontend/tests/study-tools-settings-regression.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.19",

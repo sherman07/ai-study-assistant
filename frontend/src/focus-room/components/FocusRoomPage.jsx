@@ -37,6 +37,8 @@ function activeSessionSnapshot(state) {
     timerDurationSeconds: state.timerDurationSeconds,
     timerStatus: state.timerStatus,
     studyGoal: state.studyGoal,
+    focusTopics: state.focusTopics,
+    activeTopicId: state.activeTopicId,
     studyPlan: state.studyPlan,
     currentSession: state.currentSession,
     elapsedSeconds: state.elapsedSeconds,

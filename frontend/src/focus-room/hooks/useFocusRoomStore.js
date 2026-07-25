@@ -38,6 +38,13 @@ import {
   questionText,
   sceneById
 } from "../utils.js";
+import {
+  activeFocusTopic,
+  createFocusTopicId,
+  normalizeFocusTopic,
+  normalizeFocusTopics,
+  promoteNextFocusTopic
+} from "../focusTopics.js";
 
 const DEFAULT_AUDIO_CHANNELS = Object.freeze({
   "white-noise": 0, "pink-noise": 0, "brown-noise": 0, "light-rain": 24, "heavy-rain": 0,
@@ -72,6 +79,8 @@ function persistDraftFromState(source) {
     durationMinutes: clampDuration(source.pomodoroDuration),
     durationSeconds: clampDurationSeconds(source.pomodoroDurationSeconds, durationSeconds(source.pomodoroDuration)),
     studyGoal: source.studyGoal,
+    focusTopics: Array.isArray(source.focusTopics) ? source.focusTopics : [],
+    activeTopicId: String(source.activeTopicId || ""),
     studyPlan: normalizeStudyPlanItems(source.studyPlan),
     completedTasks: Array.isArray(source.completedTasks) ? source.completedTasks.filter(Boolean) : [],
     workspaceNotes: String(source.workspaceNotes || ""),
@@ -410,7 +419,7 @@ export const useFocusRoomStore = create((set, get) => {
     timerUpdatedAtMs: null,
     timerRestoredAtMs: null,
     timerDurationSeconds: draftDurationSeconds,
-    studyGoal: String(draft?.studyGoal || "Deep work block"),
+    ...normalizeFocusTopics(draft?.focusTopics, draft?.studyGoal || "Deep work block"),
     studyPlan: [],
     aiPanelOpen: false,
     isIdle: false,
@@ -468,7 +477,10 @@ export const useFocusRoomStore = create((set, get) => {
             snapshot?.pomodoroDurationSeconds,
             state.pomodoroDurationSeconds
           ),
-          studyGoal: String(snapshot?.studyGoal || state.studyGoal || "Deep work block"),
+          ...normalizeFocusTopics(
+            snapshot?.focusTopics || state.focusTopics,
+            snapshot?.studyGoal || state.studyGoal || "Deep work block"
+          ),
           summaryRecord: null,
           ...restored,
           route: "session",
@@ -500,7 +512,10 @@ export const useFocusRoomStore = create((set, get) => {
         pomodoroDuration,
         pomodoroDurationSeconds,
         timerDurationSeconds: pomodoroDurationSeconds,
-        studyGoal: String(draftSettings?.studyGoal || state.studyGoal || "Deep work block"),
+        ...normalizeFocusTopics(
+          draftSettings?.focusTopics || state.focusTopics,
+          draftSettings?.studyGoal || state.studyGoal || "Deep work block"
+        ),
         studyPlan: [],
         completedTasks: [],
         currentSession: null,
@@ -703,7 +718,97 @@ export const useFocusRoomStore = create((set, get) => {
         const studyPlan = state.selectedMaterial
           ? buildPlanForState(state.selectedMaterial, studyGoal, state.pomodoroDuration)
           : [];
-        const next = { studyGoal, studyPlan };
+        const focusTopics = Array.isArray(state.focusTopics) ? state.focusTopics.map(topic => (
+          topic.id === state.activeTopicId || topic.status === "active"
+            ? { ...topic, title: studyGoal || topic.title, status: "active" }
+            : topic
+        )) : normalizeFocusTopics([], studyGoal).focusTopics;
+        const next = {
+          studyGoal,
+          studyPlan,
+          focusTopics,
+          activeTopicId: state.activeTopicId || focusTopics.find(topic => topic.status === "active")?.id || ""
+        };
+        persistDraftFromState({ ...state, ...next });
+        return next;
+      });
+    },
+
+    addFocusTopic(partial = {}) {
+      set(state => {
+        const hasActive = (state.focusTopics || []).some(topic => topic.status === "active");
+        const topic = normalizeFocusTopic({
+          id: createFocusTopicId(),
+          title: partial.title || `Topic ${(state.focusTopics || []).length + 1}`,
+          description: partial.description || "",
+          status: hasActive ? "pending" : "active"
+        }, hasActive ? "pending" : "active");
+        const focusTopics = [...(state.focusTopics || []), topic];
+        const next = {
+          focusTopics,
+          activeTopicId: hasActive ? state.activeTopicId : topic.id,
+          studyGoal: hasActive ? state.studyGoal : topic.title
+        };
+        persistDraftFromState({ ...state, ...next });
+        return next;
+      });
+    },
+
+    updateFocusTopic(topicId, patch = {}) {
+      set(state => {
+        const focusTopics = (state.focusTopics || []).map(topic => {
+          if (topic.id !== topicId) return topic;
+          return normalizeFocusTopic({
+            ...topic,
+            ...patch,
+            id: topic.id,
+            status: topic.status
+          }, topic.status);
+        });
+        const active = activeFocusTopic(focusTopics, state.activeTopicId);
+        const next = {
+          focusTopics,
+          activeTopicId: active?.id || state.activeTopicId || "",
+          studyGoal: active?.title || state.studyGoal
+        };
+        persistDraftFromState({ ...state, ...next });
+        return next;
+      });
+    },
+
+    activateFocusTopic(topicId) {
+      set(state => {
+        const next = promoteNextFocusTopic(state.focusTopics, topicId);
+        persistDraftFromState({ ...state, ...next });
+        return next;
+      });
+    },
+
+    finishFocusTopic(topicId = "") {
+      set(state => {
+        const targetId = String(topicId || state.activeTopicId || "");
+        const marked = (state.focusTopics || []).map(topic => (
+          topic.id === targetId ? { ...topic, status: "done" } : topic
+        ));
+        const next = promoteNextFocusTopic(marked);
+        persistDraftFromState({ ...state, ...next });
+        return next;
+      });
+    },
+
+    removeFocusTopic(topicId) {
+      set(state => {
+        const remaining = (state.focusTopics || []).filter(topic => topic.id !== topicId);
+        if (!remaining.length) {
+          const seeded = normalizeFocusTopics([], state.studyGoal || "Deep work block");
+          persistDraftFromState({ ...state, ...seeded });
+          return seeded;
+        }
+        const removedWasActive = state.activeTopicId === topicId
+          || (state.focusTopics || []).some(topic => topic.id === topicId && topic.status === "active");
+        const next = removedWasActive
+          ? promoteNextFocusTopic(remaining)
+          : normalizeFocusTopics(remaining, state.studyGoal);
         persistDraftFromState({ ...state, ...next });
         return next;
       });

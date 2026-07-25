@@ -8,6 +8,7 @@ import { spring } from "../utils.js";
 import { GlassButton } from "./GlassButton.jsx";
 import { SceneSelector } from "./SceneSelector.jsx";
 import { SoundControlPanel } from "./SoundControlPanel.jsx";
+import { FocusTopicsPanel } from "./FocusTopicsPanel.jsx";
 
 const MIX_CHANNELS = [
   ["white-noise", "White noise"], ["pink-noise", "Pink noise"], ["brown-noise", "Brown noise"],
@@ -117,6 +118,9 @@ function RoomControlPanel({ audioState, scene, onClose }) {
           Change scene &amp; setup
         </GlassButton>
       </div>
+      <section className="room-control-topics" aria-label="Focus topics">
+        <FocusTopicsPanel />
+      </section>
       <div className="room-control-grid">
         <section className="room-control-col room-control-scenes" aria-label="Scenes">
           <h3 className="room-control-section-title">Scenes</h3>

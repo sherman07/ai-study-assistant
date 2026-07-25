@@ -35,9 +35,15 @@ class LegacyControllerLoader {
     if (!response.ok) {
       throw new Error(`Could not load ${fileName}: ${response.status}`);
     }
+    const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+    const source = await response.text();
+    // Vite can return HTML for missing assets with a 200. Reject that early.
+    if (contentType.includes("text/html") || /^\s*</.test(source)) {
+      throw new Error(`Could not load ${fileName}: expected JavaScript, received HTML`);
+    }
     return {
       fileName,
-      source: await response.text()
+      source
     };
   }
 
@@ -123,23 +129,60 @@ class LegacyControllerLoader {
     });
   }
 
-  async loadCombinedController() {
-    if (this.globalScope.__synapseCombinedControllerReady) return;
-    await new Promise(resolve => {
-      const finish = () => {
-        this.globalScope.removeEventListener("synapse-combined-controller-ready", finish);
-        resolve();
+  waitForCombinedController(timeoutMs = 1200) {
+    if (this.globalScope.__synapseCombinedControllerReady) {
+      return Promise.resolve(true);
+    }
+
+    return new Promise(resolve => {
+      let settled = false;
+      const finish = ok => {
+        if (settled) return;
+        settled = true;
+        this.globalScope.removeEventListener("synapse-combined-controller-ready", onReady);
+        clearTimeout(timer);
+        resolve(ok);
       };
-      this.globalScope.addEventListener("synapse-combined-controller-ready", finish, { once: true });
-      if (this.globalScope.__synapseCombinedControllerReady) finish();
+      const onReady = () => finish(true);
+      const timer = setTimeout(() => finish(false), timeoutMs);
+      this.globalScope.addEventListener("synapse-combined-controller-ready", onReady, { once: true });
+      if (this.globalScope.__synapseCombinedControllerReady) finish(true);
     });
+  }
+
+  async assembleAndRunCombinedController() {
+    const definitionSections = await Promise.all(
+      this.definitionFiles.map(fileName => this.fetchSection(fileName))
+    );
+    const bootSection = await this.fetchSection(this.bootFile);
+    const source = [
+      this.combinedSource(definitionSections, bootSection),
+      "globalThis.__synapseCombinedControllerReady = true;",
+      "globalThis.dispatchEvent(new Event('synapse-combined-controller-ready'));"
+    ].join("\n");
+    await this.executeCombinedScript(source);
+  }
+
+  async loadCombinedController() {
+    const ready = await this.waitForCombinedController(1200);
+    if (ready) return;
+    // Vite/dev and incomplete static publishes may omit the prebuilt combined
+    // artifact referenced by index.html. Assemble sections in the browser then.
+    await this.assembleAndRunCombinedController();
+    const assembled = await this.waitForCombinedController(8000);
+    if (!assembled) {
+      throw new Error("Synapse combined controller did not become ready after section assembly.");
+    }
   }
 
   async load() {
     this.globalScope.__synapseConfigureMarkdownHooks = this.configureMarkdownHooks;
     this.exposeUtilities();
-    await this.loadCombinedController();
-    delete this.globalScope.__synapseConfigureMarkdownHooks;
+    try {
+      await this.loadCombinedController();
+    } finally {
+      delete this.globalScope.__synapseConfigureMarkdownHooks;
+    }
   }
 }
 

@@ -11,6 +11,7 @@ const files = [
   "billing-pages.css",
   "billing-result.js",
   "config.js",
+  "focus-room.html",
   "landing-auth.css",
   "landing-auth.js",
   "pricing.js",
@@ -27,6 +28,7 @@ const files = [
 const directories = [
   "assets",
   "logos",
+  "src/focus-room",
   "src/legacy",
   "styles"
 ];

@@ -4440,7 +4440,19 @@ body.focus-room-standalone #focusRoomRoot {
     order: 1;
   }
 
+  .react-focus-room .innook-duration-list {
+    order: 2;
+  }
 
+  .react-focus-room .innook-rail-divider {
+    display: none;
+  }
+
+  .react-focus-room .innook-enter-button,
+  .react-focus-room .innook-control-rail > .innook-rail-icon {
+    order: 3;
+  }
+}
 
 .react-focus-room .innook-scene-panel .scene-selector-wrap {
   position: relative;

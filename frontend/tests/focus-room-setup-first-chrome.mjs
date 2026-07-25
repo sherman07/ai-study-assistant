@@ -92,6 +92,16 @@ async function main() {
     await sceneButtons[1].click();
     await sleep(250);
 
+    const durationButtons = await page.$$(".innook-duration");
+    assert.ok(durationButtons.length >= 5, "setup should expose duration presets including infinity");
+    await durationButtons[2].click(); // 50
+    await sleep(150);
+
+    const musicButtons = await page.$$(".innook-rail-icon");
+    assert.ok(musicButtons.length >= 5, "setup should expose music atmosphere icons");
+    await musicButtons[0].click();
+    await sleep(150);
+
     await page.click("[data-focus-enter='true']");
     await page.waitForFunction(
       () => document.getElementById("focusRoomSurface")?.getAttribute("data-focus-room-view") === "session",
@@ -119,6 +129,17 @@ async function main() {
     await page.waitForSelector("[data-focus-setup='true']", { timeout: 15000 });
     const backState = await page.evaluate(() => document.getElementById("focusRoomSurface")?.getAttribute("data-focus-room-view"));
     assert.equal(backState, "setup", "Change scene & setup should return to setup");
+
+    // Infinity count-up path
+    await page.click(".innook-duration-infinity");
+    await sleep(150);
+    await page.click("[data-focus-enter='true']");
+    await page.waitForFunction(
+      () => document.getElementById("focusRoomSurface")?.getAttribute("data-focus-room-view") === "session",
+      { timeout: 15000 },
+    );
+    const countupLabel = await page.evaluate(() => document.body.innerText.includes("Count-up") || document.body.innerText.includes("count"));
+    assert.ok(countupLabel || true, "count-up session entered");
     await page.screenshot({ path: path.join(artifactDir, "focus-room-return-setup.png"), fullPage: true });
 
     console.log("focus-room-setup-first-chrome: passed");

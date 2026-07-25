@@ -74,4 +74,11 @@ store.getState().returnToSetup();
 assert.equal(store.getState().view, "setup", "Users can return to setup to change scene and settings");
 assert.equal(store.getState().currentSession, null);
 
+store.getState().setTimerMode("countup");
+store.getState().startSession();
+assert.equal(store.getState().view, "session");
+assert.equal(store.getState().timerMode, "countup", "∞ duration should enter the session in count-up mode");
+assert.equal(store.getState().timerDurationSeconds, 0);
+store.getState().returnToSetup();
+
 console.log("focus room pure session regression passed");

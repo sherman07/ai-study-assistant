@@ -7,15 +7,30 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const script = fs.readFileSync(path.join(root, "frontend/theme-bootstrap.js"), "utf8");
 
-function createHarness({ systemDark = false } = {}) {
+function createHarness({ systemDark = false, focusRoomStandalone = false } = {}) {
   const store = new Map();
   const rootElement = { dataset: {}, style: {} };
+<<<<<<< HEAD
   const body = {
     classList: {
       toggle() {},
       contains() { return false; },
       add() {},
       remove() {}
+=======
+  const bodyClasses = new Set(focusRoomStandalone ? ["focus-room-standalone"] : []);
+  const body = {
+    classList: {
+      contains(name) {
+        return bodyClasses.has(name);
+      },
+      toggle(name, force) {
+        if (force === true) bodyClasses.add(name);
+        else if (force === false) bodyClasses.delete(name);
+        else if (bodyClasses.has(name)) bodyClasses.delete(name);
+        else bodyClasses.add(name);
+      }
+>>>>>>> 0c11bea (fix(qa): soft-skip chrome probes and repair theme harness)
     }
   };
   const meta = { content: "" };
@@ -47,6 +62,18 @@ assert.equal(harness.window.SynapseTheme.getPreference(), "system", "System is t
 assert.equal(harness.rootElement.dataset.theme, "light", "System resolves to light when the OS is light");
 assert.equal(harness.rootElement.dataset.themePreference, "system", "Root stores the user preference separately from the resolved theme");
 
+const focusRoomHarness = createHarness({ focusRoomStandalone: true });
+assert.equal(
+  focusRoomHarness.rootElement.dataset.theme,
+  "dark",
+  "Focus Room standalone documents stay dark even when the OS preference is light"
+);
+assert.equal(
+  focusRoomHarness.rootElement.dataset.themePreference,
+  "system",
+  "Focus Room still records the account preference separately from the forced dark resolve"
+);
+
 harness.window.SynapseTheme.setPreference("dark");
 assert.equal(harness.rootElement.dataset.theme, "dark", "Explicit dark applies to the root HTML element");
 assert.equal(JSON.parse(harness.store.get("synapse.account.preferences.v1")).appearance, "dark", "Explicit theme persists in the shared preferences object");
@@ -63,8 +90,13 @@ assert.equal(harness.rootElement.dataset.theme, "light", "Storage synchronizatio
 for (const page of ["index.html", "landing.html", "focus-room.html", "login.html", "pricing.html"]) {
   const html = fs.readFileSync(path.join(root, "frontend", page), "utf8");
   assert.match(html, /theme-bootstrap\.js/, `${page} loads the shared pre-paint theme bootstrap`);
+<<<<<<< HEAD
   assert.match(html, /styles\/00-theme\.css\?v=(?:theme-type-scale-v1|ui-english-v1|notes-source-priority-v1)/, `${page} loads the current semantic theme stylesheet`);
   assert.match(html, /styles\/99-dark-mode\.css\?v=(?:dark-mode-v6|notes-source-priority-v1|notes-source-split-v1|source-preview-instant-v1|source-preview-pages-v1)/, `${page} loads the current dark-mode compatibility layer`);
+=======
+  assert.match(html, /styles\/00-theme\.css\?v=ui-english-v1/, `${page} loads the current semantic theme stylesheet`);
+  assert.match(html, /styles\/99-dark-mode\.css\?v=dark-mode-v6/, `${page} loads the current dark-mode compatibility layer`);
+>>>>>>> 0c11bea (fix(qa): soft-skip chrome probes and repair theme harness)
   if (html.includes("config.js")) {
     assert.match(html, /config\.js\?v=public-auth-session-v4/, `${page} loads the current runtime config`);
   }

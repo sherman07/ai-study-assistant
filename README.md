@@ -7,7 +7,7 @@ Synapse is an AI-powered study website and workspace that turns PDFs, lecture sl
 - `frontend/` - static public website, auth prototype pages, and the study workspace shell.
 - `frontend/src/` - React shell plus the existing legacy controller modules.
 - `backend/` - FastAPI backend for analysis, tutoring, quizzes, flashcards, source previews, contact enquiries, and generated assets.
-- `server/` - Express data API. It can store users and generated notes in Supabase while mirroring compatibility data to MySQL-backed study features.
+- `server/` - Express data API. It uses Supabase for production user and study data, with an optional MySQL fallback for legacy or local deployments.
 - `logos/` and `frontend/logos/` - Synapse logo assets for local root serving and static frontend publishing.
 - `scripts/validate_static_site.mjs` - launch-readiness validation for static HTML.
 - `deploy/` - production runtime notes and service templates.

@@ -19,7 +19,7 @@ assert.equal(data.FOCUS_ROOM_SESSION_KEY, "synapse.focusRoom.sessions.v1");
 assert.ok(data.FOCUS_ROOM_SCENES.length >= 8, "Focus Room should expose a rich Innook-style scene gallery");
 assert.ok(data.FOCUS_ROOM_GALLERY_SCENES.length >= 8, "Sitting page gallery should include at least one full page of scenes");
 assert.ok(data.FOCUS_ROOM_SCENES.every(scene => scene.id && scene.name && scene.image), "each scene should have an image-backed identity");
-assert.ok(data.FOCUS_ROOM_GALLERY_SCENES.some(scene => scene.name === "清晨窗边"), "gallery should include the morning-window sitting card");
+assert.ok(data.FOCUS_ROOM_GALLERY_SCENES.some(scene => scene.name === "Morning Window"), "gallery should include the morning-window sitting card");
 
 globalThis.getSynapseFocusRoomMaterials = () => [];
 globalThis.getSynapseFocusRoomCurrentMaterial = () => null;

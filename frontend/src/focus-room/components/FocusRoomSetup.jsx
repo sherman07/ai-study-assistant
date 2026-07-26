@@ -96,7 +96,7 @@ export function FocusRoomSetup({ onWorkspace }) {
         <section className="innook-scene-panel" aria-labelledby="innook-scene-title">
           <div className="innook-panel-heading">
             <span>STEP 01</span>
-            <h1 id="innook-scene-title">选择学习场景</h1>
+            <h1 id="innook-scene-title">Choose a study scene</h1>
           </div>
           <SceneSelector variant="gallery" />
         </section>

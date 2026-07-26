@@ -11,7 +11,7 @@ const styles = fs.readFileSync(path.join(root, "frontend/styles/09-focus-room.cs
 const html = fs.readFileSync(path.join(root, "frontend/focus-room.html"), "utf8");
 const data = fs.readFileSync(path.join(root, "frontend/src/focus-room/data.js"), "utf8");
 
-assert.match(setup, /选择学习场景/, "Focus Room setup shows the Innook-style scene chooser");
+assert.match(setup, /Choose a study scene/, "Focus Room setup shows the Innook-style scene chooser");
 assert.match(setup, /SceneSelector/, "Focus Room setup renders all available scenes");
 assert.match(setup, /Enter Focus Room/, "Focus Room setup exposes the session entry action");
 assert.match(setup, /data-focus-enter/, "Enter Focus Room action is tagged for automation");
@@ -29,6 +29,6 @@ assert.match(styles, /\.innook-control-rail/, "Innook vertical control rail is s
 assert.match(styles, /\.scene-card-gallery/, "Gallery scene cards are styled");
 assert.match(data, /FOCUS_ROOM_GALLERY_SCENES/, "Gallery scene set is exported for the sitting page");
 assert.match(html, /auth-client\.js/, "Standalone Focus Room loads the shared Synapse auth client");
-assert.match(html, /focus-room-loader-v14/, "Standalone Focus Room loads the cache-busted runtime");
+assert.match(html, /focus-room-loader-v15/, "Standalone Focus Room loads the cache-busted runtime");
 
 console.log("focus-room-navigation-regression: passed");

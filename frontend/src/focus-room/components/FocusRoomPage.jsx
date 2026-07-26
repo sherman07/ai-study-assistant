@@ -66,6 +66,21 @@ export function FocusRoomPage() {
   }, [initializeFocusRoom]);
 
   useEffect(() => {
+    // Keep immersive Focus Room cream-glass independent of account light theme.
+    const root = document.documentElement;
+    const previousTheme = root.dataset.theme;
+    const previousScheme = root.style.colorScheme;
+    root.dataset.theme = "dark";
+    root.style.colorScheme = "dark";
+    document.body?.classList.add("synapse-theme-dark");
+    return () => {
+      if (document.body?.classList.contains("focus-room-standalone")) return;
+      if (previousTheme) root.dataset.theme = previousTheme;
+      root.style.colorScheme = previousScheme;
+    };
+  }, []);
+
+  useEffect(() => {
     if (!persistenceSnapshot?.materialId) return;
     saveFocusRoomActiveSession(persistenceSnapshot.materialId, persistenceSnapshot);
   }, [persistenceSnapshot]);

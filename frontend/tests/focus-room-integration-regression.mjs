@@ -170,7 +170,7 @@ assert.ok(
   "Standalone Focus Room page should redirect direct visitors to the workspace while disabled"
 );
 assert.ok(
-  focusRoomHtml.includes('import("./src/focus-room/static-compatible-loader.js?v=focus-room-loader-v14")'),
+  focusRoomHtml.includes('import("./src/focus-room/static-compatible-loader.js?v=focus-room-loader-v15")'),
   "Standalone Focus Room page should only import the loader after the feature flag allows it"
 );
 assert.ok(
@@ -182,18 +182,18 @@ assert.ok(
   "Standalone Focus Room page should not boot the loader unconditionally while disabled"
 );
 assert.ok(
-  focusRoomHtml.includes("styles/09-focus-room.css?v=ui-contrast-v1"),
+  focusRoomHtml.includes("styles/09-focus-room.css?v=ui-english-v1"),
   "Focus Room HTML should cache-bust the CSS after portal stacking fixes"
 );
 assert.ok(
-  focusRoomHtml.includes("static-compatible-loader.js?v=focus-room-loader-v14"),
+  focusRoomHtml.includes("static-compatible-loader.js?v=focus-room-loader-v15"),
   "Focus Room HTML should cache-bust the standalone loader after boot fixes"
 );
 assert.ok(focusRoomHtml.includes("styles/09-focus-room.css"), "Standalone Focus Room page should load Focus Room styles directly");
 assert.ok(!focusRoomHtml.includes("react@18"), "Standalone Focus Room should rely on Vite/npm React, not CDN React");
 assert.ok(focusRoomStaticLoader.includes("focus-room-static.js"), "Focus Room static loader should import the prebuilt static bundle");
 assert.ok(
-  focusRoomStaticLoader.includes("focus-room-static.js?v=focus-room-static-v14"),
+  focusRoomStaticLoader.includes("focus-room-static.js?v=focus-room-static-v15"),
   "Focus Room loader should cache-bust the static bundle after portal stacking fixes"
 );
 assert.ok(
@@ -215,7 +215,7 @@ assert.ok(
   "Innook brand must stay transparent under light account theme"
 );
 assert.ok(
-  focusStyle.includes("scrollbar-color: rgba(244, 231, 211, .45)"),
+  focusStyle.includes("scrollbar-color: rgba(255, 250, 240, .72)"),
   "Topics queue scrollbar should stay readable on dark glass"
 );
 const themeStyle = read("frontend/styles/00-theme.css");

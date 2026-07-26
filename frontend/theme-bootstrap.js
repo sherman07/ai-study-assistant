@@ -34,6 +34,16 @@
     return mediaQuery?.matches ? "dark" : "light";
   }
 
+  function isFocusRoomStandaloneDocument() {
+    try {
+      const path = String(global.location?.pathname || "");
+      if (/focus-room\.html(?:$|[?#])/i.test(path)) return true;
+    } catch {
+      // Ignore restricted location access in embedded contexts.
+    }
+    return Boolean(documentRef.body?.classList?.contains("focus-room-standalone"));
+  }
+
   function notify(detail) {
     listeners.forEach(listener => listener(detail));
     try {
@@ -45,7 +55,10 @@
 
   function apply(preference = getPreference(), options = {}) {
     const selected = normalisePreference(preference);
-    const resolved = resolve(selected);
+    // Immersive Focus Room chrome is cream-glass on scene photography. Keep it dark
+    // even when the account preference resolves to light, otherwise UA/theme rules
+    // paint brand buttons as opaque white boxes.
+    const resolved = isFocusRoomStandaloneDocument() ? "dark" : resolve(selected);
     const root = documentRef.documentElement;
     if (!root) return resolved;
 
@@ -55,7 +68,7 @@
     documentRef.body?.classList.toggle("synapse-theme-dark", resolved === "dark");
     documentRef.querySelector('meta[name="theme-color"]')?.setAttribute(
       "content",
-      resolved === "dark" ? "#121724" : "#4a7cff"
+      resolved === "dark" ? "#0a111f" : "#4a7cff"
     );
 
     if (!options.silent) notify({ preference: selected, resolved });
@@ -102,4 +115,7 @@
   });
 
   apply(getPreference(), { silent: true });
+  if (documentRef.readyState === "loading") {
+    documentRef.addEventListener("DOMContentLoaded", () => apply(getPreference(), { silent: true }), { once: true });
+  }
 })(window, document);

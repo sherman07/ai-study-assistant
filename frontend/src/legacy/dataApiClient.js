@@ -16,7 +16,11 @@ async function parseJsonResponse(response) {
   const contentType = response.headers?.get?.("content-type") || "";
   const payload = contentType.includes("application/json") ? await response.json() : {};
   if (!response.ok || payload?.ok === false) {
-    throw new Error(payload?.error || `Synapse data API returned HTTP ${response.status}`);
+    const error = new Error(payload?.error || `Synapse data API returned HTTP ${response.status}`);
+    error.status = Number(payload?.status === "degraded" ? 503 : (response.status || 0)) || response.status;
+    error.code = payload?.code || (payload?.status === "degraded" ? "DATABASE_UNAVAILABLE" : "");
+    error.degraded = payload?.status === "degraded" || Number(response.status) === 503;
+    throw error;
   }
   return payload;
 }

@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class SynapseDataApiClient:
-    """Mirror generated study content to the Node/MySQL data API.
+    """Persist generated study content through the Node/Supabase data API.
 
     FastAPI remains responsible for AI analysis. Persistence failures should not
     prevent the frontend from receiving generated notes.

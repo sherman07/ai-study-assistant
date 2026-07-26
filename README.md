@@ -7,7 +7,7 @@ Synapse is an AI-powered study website and workspace that turns PDFs, lecture sl
 - `frontend/` - static public website, auth prototype pages, and the study workspace shell.
 - `frontend/src/` - React shell plus the existing legacy controller modules.
 - `backend/` - FastAPI backend for analysis, tutoring, quizzes, flashcards, source previews, contact enquiries, and generated assets.
-- `server/` - Express data API. It uses Supabase for production user and study data, with an optional MySQL fallback for legacy or local deployments.
+- `server/` - Express data API backed by Supabase for user and study data.
 - `logos/` and `frontend/logos/` - Synapse logo assets for local root serving and static frontend publishing.
 - `scripts/validate_static_site.mjs` - launch-readiness validation for static HTML.
 - `deploy/` - production runtime notes and service templates.
@@ -105,7 +105,7 @@ The auth pages use Supabase Auth when `window.SYNAPSE_SUPABASE_URL` and `window.
 
 Google sign-in uses Supabase OAuth. In Supabase Auth, enable the Google provider, add your Google OAuth client credentials, and allow the local redirect URL `http://127.0.0.1:5175/frontend/index.html` plus your deployed frontend callback URL.
 
-The data API is configured separately in `server/.env`. Keep `MYSQL_PASSWORD`, `SYNAPSE_INTERNAL_API_TOKEN`, and `SUPABASE_SERVICE_ROLE_KEY` out of frontend files and Git. See `server/README.md` for the MySQL + Supabase setup.
+The data API is configured separately in `server/.env`. Keep `SYNAPSE_INTERNAL_API_TOKEN` and `SUPABASE_SERVICE_ROLE_KEY` out of frontend files and Git. See `server/README.md` for the Supabase setup.
 
 Edit or replace `frontend/config.js` during deployment with your public backend, Supabase, and Stripe Price ID values. `frontend/config.example.js` shows the same shape with filled example placeholders.
 
@@ -166,12 +166,11 @@ Start the Vite frontend:
 npm run dev
 ```
 
-Start the MySQL data API in another terminal when you want durable app data:
+Start the Supabase-backed data API in another terminal when you want durable app data:
 
 ```bash
 cd server
 npm install
-npm run db:setup
 npm run dev
 ```
 

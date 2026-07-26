@@ -4,7 +4,7 @@ Synapse has two separate parts:
 
 - Frontend: browser UI, usually served from `frontend/`.
 - Backend: FastAPI API on port `8001`, required for analysis, tutor, quiz, flashcards, source previews, and generated assets.
-- Data API: Express API on port `3001`, required for durable MySQL users, generated content records, focus sessions, flashcards, study rooms, and progress.
+- Data API: Express API on port `3001`, required for durable Supabase users, generated content records, focus sessions, flashcards, study rooms, and progress.
 
 If the frontend shows `Cannot reach the Synapse backend at http://127.0.0.1:8001`, the backend process is not running or is not reachable from the browser.
 
@@ -123,14 +123,10 @@ Set these for the Express data API service only:
 ```env
 SYNAPSE_DATA_API_PORT=3001
 SYNAPSE_DATA_CORS_ORIGINS=https://your-frontend-domain.com
-MYSQL_HOST=your-private-mysql-host
-MYSQL_PORT=3306
-MYSQL_DATABASE=synapse
-MYSQL_USER=synapse_app
-MYSQL_PASSWORD=your-secret-password
 ALLOW_LOCAL_DEMO_AUTH=false
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_ANON_KEY=your-public-anon-key
+SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
 SYNAPSE_INTERNAL_API_TOKEN=the_same_long_random_internal_token
 ```
 

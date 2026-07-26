@@ -54,7 +54,7 @@ The current seams that must be investigated explicitly are:
 1. **FastAPI assembly:** `backend/app.py` creates the application, then `AppSectionLoader` executes an ordered list of `backend/app_sections/*.py` files into one shared global namespace. This can be a useful temporary modular monolith, but it is not equivalent to independent modules. Check ordering dependencies, hidden globals, route collisions, startup side effects, importability, error ownership, and whether a section can be tested without booting the entire app.
 2. **Frontend ownership:** `frontend/src/main.js` mounts a React shell, then loads a legacy controller assembled from multiple JavaScript files. React components call `window` functions through compatibility bridges, while legacy code owns DOM mutation, storage, requests, and much of the feature state. Check React/legacy ownership, DOM-ID contracts, global function collisions, boot races, duplicate event listeners, cleanup, and whether new code is making the migration seam better or worse.
 3. **Service boundary:** the FastAPI service and the Express data API both participate in content, account, billing, and persistence behavior. Map which service owns each route, identity, authorization decision, schema, side effect, and fallback. Detect duplicate or contradictory implementations rather than assuming two services are automatically future-proof.
-4. **Persistence boundary:** browser localStorage/IndexedDB, FastAPI runtime files/cache, MySQL, and optional Supabase storage all exist in the product. Check source-of-truth rules, idempotency, ownership isolation, schema/version migration, stale data recovery, deletion/export completeness, and behavior when one store is unavailable.
+4. **Persistence boundary:** browser localStorage/IndexedDB, FastAPI runtime files/cache, and Supabase storage all exist in the product. Check source-of-truth rules, idempotency, ownership isolation, schema/version migration, stale data recovery, deletion/export completeness, and behavior when one store is unavailable.
 5. **Build/runtime boundary:** Vite has multiple HTML entry points and a separate Focus Room static build, while some pages load React, Bootstrap, icons, MathJax, and runtime scripts from CDNs. Check dev/prod parity, asset copying, cache-busting, duplicate page variants, dependency duplication, and whether a deployment can be reproduced from a clean checkout.
 
 For every architecture finding, distinguish:
@@ -70,7 +70,7 @@ Initial repository facts to verify rather than blindly trust:
 - The frontend currently contains many Node-based regression scripts, including source-structure assertions, but no obvious Playwright, Puppeteer, Cypress, Testing Library, or axe browser suite. Treat this as a coverage gap, not as proof that the UI works.
 - The backend has a large application module plus large ordered section files; the section loader is a deliberate compatibility mechanism but increases hidden coupling risk.
 - The frontend has a React shell, React/legacy compatibility helpers, dynamically combined legacy controller sections, CDN React for some static pages, and npm/Vite React for builds. Test for runtime duplication and dev/prod drift.
-- FastAPI and Express both expose persistence/account/billing/content-adjacent behavior, while browser storage and optional MySQL/Supabase storage add more authorities. Require an explicit ownership matrix before expanding a duplicate path.
+- FastAPI and Express both expose persistence/account/billing/content-adjacent behavior, while browser storage and Supabase storage add more authorities. Require an explicit ownership matrix before expanding a duplicate path.
 - The repository has multiple HTML entry points and copied/static runtime assets. A successful Vite build alone does not prove every direct URL works.
 
 ## 3. Non-negotiable safety rules
@@ -303,7 +303,7 @@ Specific checks:
 - Preserve summary, sections, visuals, source identity, title, language, mind map, and generated tools where intended.
 - Refresh and browser restart should recover committed state without resurrecting deleted/aborted work.
 - Test two-tab conflicts where feasible; avoid silent overwrites or cross-user leakage.
-- Verify fallback behavior when the data API/MySQL/Supabase is unavailable.
+- Verify fallback behavior when the data API or Supabase is unavailable.
 
 ### Phase 4 — usability and accessibility review
 
@@ -415,7 +415,7 @@ Check that:
 
 - the frontend never depends on database details or service-specific fallback quirks;
 - internal service calls authenticate separately from browser user calls;
-- identity and ownership checks are consistent across FastAPI, Express, MySQL, Supabase, browser storage, and cached assets;
+- identity and ownership checks are consistent across FastAPI, Express, Supabase, browser storage, and cached assets;
 - writes are idempotent, retries do not duplicate records or charges, and deletes/exports cover every store;
 - a degraded store produces an explicit capability state rather than silent divergence;
 - a schema change has a compatibility window, migration/rollback plan, fixture coverage, and an owner.

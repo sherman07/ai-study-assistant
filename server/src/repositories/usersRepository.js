@@ -1,7 +1,6 @@
-import { createPool } from "../db/pool.js";
-import { firstSupabaseRow, supabaseRequest, supabaseStorageEnabled } from "../supabase/rest.js";
+import { firstSupabaseRow, supabaseRequest } from "../supabase/rest.js";
 import { stableUserId } from "../utils/ids.js";
-import { cleanString, jsonString, jsonValue, nullableString } from "../utils/validators.js";
+import { cleanString, jsonValue, nullableString } from "../utils/validators.js";
 
 function normalizeIdentity(identity = {}) {
   const provider = cleanString(identity.auth_provider || identity.authProvider || "anonymous", 60) || "anonymous";
@@ -85,122 +84,13 @@ function supabaseUserPatch(patch = {}) {
   return next;
 }
 
-async function mysqlUpsertUser(identity = {}) {
-  const user = normalizeIdentity(identity);
-  await createPool().execute(
-    `INSERT INTO users (
-      id, auth_provider, auth_subject, email, display_name, auth_mode, role, metadata_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      email = VALUES(email),
-      display_name = VALUES(display_name),
-      auth_mode = VALUES(auth_mode),
-      role = VALUES(role),
-      metadata_json = VALUES(metadata_json)`,
-    [
-      user.id,
-      user.auth_provider,
-      user.auth_subject,
-      user.email,
-      user.display_name,
-      user.auth_mode,
-      user.role,
-      jsonString(user.metadata_json, {})
-    ]
-  );
-  return mysqlGetUserByProviderSubject(user.auth_provider, user.auth_subject);
-}
 
-async function mysqlGetUserByProviderSubject(provider, subject) {
-  const [rows] = await createPool().execute(
-    "SELECT * FROM users WHERE auth_provider = ? AND auth_subject = ? LIMIT 1",
-    [provider, subject]
-  );
-  return rows[0] ? mapUser(rows[0]) : null;
-}
 
-async function mysqlGetUserById(userId) {
-  const [rows] = await createPool().execute("SELECT * FROM users WHERE id = ? LIMIT 1", [userId]);
-  return rows[0] ? mapUser(rows[0]) : null;
-}
 
-async function mysqlGetUserByStripeCustomerId(customerId) {
-  const [rows] = await createPool().execute(
-    "SELECT * FROM users WHERE stripe_customer_id = ? LIMIT 1",
-    [cleanString(customerId, 255)]
-  );
-  return rows[0] ? mapUser(rows[0]) : null;
-}
 
-async function mysqlGetUserByStripeSubscriptionId(subscriptionId) {
-  const [rows] = await createPool().execute(
-    "SELECT * FROM users WHERE stripe_subscription_id = ? LIMIT 1",
-    [cleanString(subscriptionId, 255)]
-  );
-  return rows[0] ? mapUser(rows[0]) : null;
-}
 
-async function mysqlPatchUser(userId, patch = {}) {
-  const fields = [];
-  const values = [];
-  if (patch.email !== undefined) {
-    fields.push("email = ?");
-    values.push(nullableString(patch.email, 255));
-  }
-  if (patch.displayName !== undefined || patch.display_name !== undefined) {
-    fields.push("display_name = ?");
-    values.push(nullableString(patch.displayName || patch.display_name, 255));
-  }
-  if (patch.role !== undefined) {
-    fields.push("role = ?");
-    values.push(cleanString(patch.role, 80) || "student");
-  }
-  if (patch.metadata !== undefined) {
-    fields.push("metadata_json = ?");
-    values.push(jsonString(patch.metadata, {}));
-  }
-  if (!fields.length) return mysqlGetUserById(userId);
-  values.push(userId);
-  await createPool().execute(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`, values);
-  return mysqlGetUserById(userId);
-}
 
-async function mysqlUpdateUserStripeCustomer(userId, stripeCustomerId) {
-  await createPool().execute(
-    "UPDATE users SET stripe_customer_id = ? WHERE id = ?",
-    [nullableString(stripeCustomerId, 255), cleanString(userId, 80)]
-  );
-  return mysqlGetUserById(userId);
-}
 
-async function mysqlUpdateUserSubscription(userId, patch = {}) {
-  const fields = [];
-  const values = [];
-  if (patch.stripeCustomerId !== undefined || patch.stripe_customer_id !== undefined) {
-    fields.push("stripe_customer_id = ?");
-    values.push(nullableString(patch.stripeCustomerId || patch.stripe_customer_id, 255));
-  }
-  if (patch.stripeSubscriptionId !== undefined || patch.stripe_subscription_id !== undefined) {
-    fields.push("stripe_subscription_id = ?");
-    values.push(nullableString(patch.stripeSubscriptionId || patch.stripe_subscription_id, 255));
-  }
-  if (patch.plan !== undefined) {
-    fields.push("plan = ?");
-    values.push(cleanString(patch.plan, 80) || "free");
-  }
-  if (patch.subscriptionStatus !== undefined || patch.subscription_status !== undefined) {
-    fields.push("subscription_status = ?");
-    values.push(cleanString(patch.subscriptionStatus || patch.subscription_status, 80) || "inactive");
-  }
-  if (patch.currentPeriodEnd !== undefined || patch.current_period_end !== undefined) {
-    fields.push("current_period_end = ?");
-    values.push(patch.currentPeriodEnd || patch.current_period_end || null);
-  }
-  if (!fields.length) return mysqlGetUserById(userId);
-  values.push(cleanString(userId, 80));
-  await createPool().execute(`UPDATE users SET ${fields.join(", ")} WHERE id = ?`, values);
-  return mysqlGetUserById(userId);
-}
 
 async function supabaseSelectSingle(query = {}) {
   const payload = await supabaseRequest("GET", "users", {
@@ -248,125 +138,28 @@ async function supabaseGetUserByStripeSubscriptionId(subscriptionId) {
   return supabaseSelectSingle({ stripe_subscription_id: `eq.${cleanString(subscriptionId, 255)}` });
 }
 
-async function mirrorMysql(operation, label) {
-  try {
-    return await operation();
-  } catch (error) {
-    console.warn(`[storage] MySQL ${label} mirror failed: ${error.message}`);
-    return null;
-  }
-}
 
 async function upsertUser(identity = {}) {
-  if (!supabaseStorageEnabled()) {
-    return mysqlUpsertUser(identity);
-  }
-
-  let supabaseUser = null;
-  let supabaseError = null;
-  try {
-    supabaseUser = await supabaseUpsertUser(identity);
-  } catch (error) {
-    supabaseError = error;
-    console.warn(`[storage] Supabase user upsert failed: ${error.message}`);
-  }
-
-  const mysqlUser = await mirrorMysql(() => mysqlUpsertUser(identity), "user upsert");
-  if (supabaseUser) return supabaseUser;
-  if (mysqlUser) return mysqlUser;
-  throw supabaseError || new Error("Could not persist user.");
+  return supabaseUpsertUser(identity);
 }
-
 async function getUserById(userId) {
-  if (supabaseStorageEnabled()) {
-    try {
-      const user = await supabaseGetUserById(userId);
-      if (user) return user;
-    } catch (error) {
-      console.warn(`[storage] Supabase user lookup by id failed: ${error.message}`);
-    }
-  }
-  return mysqlGetUserById(userId);
+  return supabaseGetUserById(userId);
 }
-
 async function getUserByStripeCustomerId(customerId) {
-  if (supabaseStorageEnabled()) {
-    try {
-      const user = await supabaseGetUserByStripeCustomerId(customerId);
-      if (user) return user;
-    } catch (error) {
-      console.warn(`[storage] Supabase user lookup by Stripe customer failed: ${error.message}`);
-    }
-  }
-  return mysqlGetUserByStripeCustomerId(customerId);
+  return supabaseGetUserByStripeCustomerId(customerId);
 }
-
 async function getUserByStripeSubscriptionId(subscriptionId) {
-  if (supabaseStorageEnabled()) {
-    try {
-      const user = await supabaseGetUserByStripeSubscriptionId(subscriptionId);
-      if (user) return user;
-    } catch (error) {
-      console.warn(`[storage] Supabase user lookup by Stripe subscription failed: ${error.message}`);
-    }
-  }
-  return mysqlGetUserByStripeSubscriptionId(subscriptionId);
+  return supabaseGetUserByStripeSubscriptionId(subscriptionId);
 }
-
 async function patchUser(userId, patch = {}) {
-  if (!supabaseStorageEnabled()) {
-    return mysqlPatchUser(userId, patch);
-  }
-
-  let supabaseUser = null;
-  try {
-    supabaseUser = await supabasePatchUser(userId, patch);
-  } catch (error) {
-    console.warn(`[storage] Supabase user patch failed: ${error.message}`);
-  }
-
-  const mysqlUser = await mirrorMysql(() => mysqlPatchUser(userId, patch), "user patch");
-  return supabaseUser || mysqlUser || getUserById(userId);
+  return supabasePatchUser(userId, patch);
 }
-
 async function updateUserStripeCustomer(userId, stripeCustomerId) {
-  if (!supabaseStorageEnabled()) {
-    return mysqlUpdateUserStripeCustomer(userId, stripeCustomerId);
-  }
-
-  let supabaseUser = null;
-  try {
-    supabaseUser = await supabasePatchUser(userId, { stripe_customer_id: stripeCustomerId });
-  } catch (error) {
-    console.warn(`[storage] Supabase Stripe customer update failed: ${error.message}`);
-  }
-
-  const mysqlUser = await mirrorMysql(
-    () => mysqlUpdateUserStripeCustomer(userId, stripeCustomerId),
-    "Stripe customer update"
-  );
-  return supabaseUser || mysqlUser || getUserById(userId);
+  return supabasePatchUser(userId, { stripe_customer_id: stripeCustomerId });
 }
-
 async function updateUserSubscription(userId, patch = {}) {
-  if (!supabaseStorageEnabled()) {
-    return mysqlUpdateUserSubscription(userId, patch);
-  }
-
-  let supabaseUser = null;
-  try {
-    supabaseUser = await supabasePatchUser(userId, patch);
-  } catch (error) {
-    console.warn(`[storage] Supabase subscription update failed: ${error.message}`);
-  }
-
-  const mysqlUser = await mirrorMysql(
-    () => mysqlUpdateUserSubscription(userId, patch),
-    "subscription update"
-  );
-  return supabaseUser || mysqlUser || getUserById(userId);
+  return supabasePatchUser(userId, patch);
 }
-
 export {
   getUserById,
   getUserByStripeCustomerId,

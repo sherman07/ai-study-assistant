@@ -1471,14 +1471,14 @@ def database_status() -> Dict[str, Any]:
         status = synapse_database.status()
         return {
             "ok": True,
-            "database": "mysql-data-api",
+            "database": "supabase-data-api",
             "data_api_reachable": bool(status.get("ok")),
             "data_api_status": status.get("status", "unknown"),
         }
     except Exception as error:
         return {
             "ok": False,
-            "database": "mysql-data-api",
+            "database": "supabase-data-api",
             "error": "Data API status check failed.",
         }
 

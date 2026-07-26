@@ -70,11 +70,9 @@ test("learning repository exposes the durable subject, session, and message oper
   assert.equal(typeof listLearningEvidence, "function");
 });
 
-test("learning persistence is provisioned for both supported database backends", () => {
-  const mysqlSchema = readFileSync(new URL("../src/db/schema.sql", import.meta.url), "utf8");
+test("learning persistence is provisioned in Supabase", () => {
   const supabaseSchema = readFileSync(new URL("../src/db/supabase-schema.sql", import.meta.url), "utf8");
   for (const table of ["learner_profiles", "learning_subjects", "learning_sessions", "learning_messages", "learning_evidence"]) {
-    assert.match(mysqlSchema, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}`, "i"));
     assert.match(supabaseSchema, new RegExp(`create table if not exists public\\.${table}`, "i"));
   }
 });

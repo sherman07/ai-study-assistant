@@ -1,7 +1,6 @@
-import { createPool } from "../db/pool.js";
-import { firstSupabaseRow, supabaseRequest, supabaseStorageEnabled } from "../supabase/rest.js";
+import { firstSupabaseRow, supabaseRequest } from "../supabase/rest.js";
 import { randomId } from "../utils/ids.js";
-import { cleanString, firstValue, jsonString, jsonValue, limitValue, nullableString, numberValue } from "../utils/validators.js";
+import { cleanString, firstValue, jsonValue, limitValue, nullableString, numberValue } from "../utils/validators.js";
 
 function mapProgress(row = {}) {
   return {
@@ -33,78 +32,10 @@ function rowFromPayload(userId, payload = {}) {
   };
 }
 
-async function mysqlCreateProgress(userId, payload = {}) {
-  const row = rowFromPayload(userId, payload);
-  const [existing] = await createPool().execute(
-    "SELECT user_id FROM progress_records WHERE id = ? LIMIT 1",
-    [row.id]
-  );
-  if (existing[0] && existing[0].user_id !== userId) {
-    const error = new Error("Progress record id is not available.");
-    error.status = 403;
-    throw error;
-  }
-  await createPool().execute(
-    `INSERT INTO progress_records (
-      id, user_id, study_room_id, entity_type, entity_id, metric_type, score, status, payload_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      study_room_id = VALUES(study_room_id),
-      entity_type = VALUES(entity_type),
-      entity_id = VALUES(entity_id),
-      metric_type = VALUES(metric_type),
-      score = VALUES(score),
-      status = VALUES(status),
-      payload_json = VALUES(payload_json)`,
-    [row.id, row.user_id, row.study_room_id, row.entity_type, row.entity_id, row.metric_type, row.score, row.status, jsonString(row.payload_json, {})]
-  );
-  return mysqlGetProgress(userId, row.id);
-}
 
-async function mysqlListProgress(userId, limit = 50) {
-  const safeLimit = limitValue(limit);
-  const [rows] = await createPool().execute(
-    `SELECT * FROM progress_records WHERE user_id = ? ORDER BY updated_at DESC LIMIT ${safeLimit}`,
-    [userId]
-  );
-  return rows.map(mapProgress);
-}
 
-async function mysqlGetProgress(userId, progressId) {
-  const [rows] = await createPool().execute(
-    "SELECT * FROM progress_records WHERE user_id = ? AND id = ? LIMIT 1",
-    [userId, cleanString(progressId, 96)]
-  );
-  return rows[0] ? mapProgress(rows[0]) : null;
-}
 
-async function mysqlPatchProgress(userId, progressId, patch = {}) {
-  const current = await mysqlGetProgress(userId, progressId);
-  if (!current) return null;
-  return mysqlCreateProgress(userId, { ...current.payload, ...current, ...patch, id: current.id });
-}
 
-async function mysqlDeleteProgress(userId, progressId) {
-  const [result] = await createPool().execute(
-    "DELETE FROM progress_records WHERE user_id = ? AND id = ?",
-    [userId, cleanString(progressId, 96)]
-  );
-  return result.affectedRows > 0;
-}
-
-function supabaseProgressRow(row = {}) {
-  return {
-    id: row.id,
-    user_id: row.user_id,
-    study_room_id: row.study_room_id,
-    entity_type: row.entity_type,
-    entity_id: row.entity_id,
-    metric_type: row.metric_type,
-    score: row.score,
-    status: row.status,
-    payload_json: row.payload_json
-  };
-}
 
 async function supabaseExistingProgress(progressId) {
   const payload = await supabaseRequest("GET", "progress_records", {
@@ -177,67 +108,20 @@ async function supabaseDeleteProgress(userId, progressId) {
   return Array.isArray(rows) ? rows.length > 0 : Boolean(rows);
 }
 
-async function mirrorMysql(operation, label) {
-  try {
-    return await operation();
-  } catch (error) {
-    console.warn(`[storage] MySQL ${label} mirror failed: ${error.message}`);
-    return null;
-  }
-}
 
 async function createProgress(userId, payload = {}) {
-  if (!supabaseStorageEnabled()) return mysqlCreateProgress(userId, payload);
-  const supabaseItem = await supabaseCreateProgress(userId, payload);
-  await mirrorMysql(() => mysqlCreateProgress(userId, payload), "progress upsert");
-  return supabaseItem;
+  return supabaseCreateProgress(userId, payload);
 }
-
 async function listProgress(userId, limit = 50) {
-  if (supabaseStorageEnabled()) {
-    try {
-      return await supabaseListProgress(userId, limit);
-    } catch (error) {
-      console.warn(`[storage] Supabase progress list failed: ${error.message}`);
-    }
-  }
-  return mysqlListProgress(userId, limit);
+  return supabaseListProgress(userId, limit);
 }
-
 async function getProgress(userId, progressId) {
-  if (supabaseStorageEnabled()) {
-    try {
-      const item = await supabaseGetProgress(userId, progressId);
-      if (item) return item;
-    } catch (error) {
-      console.warn(`[storage] Supabase progress get failed: ${error.message}`);
-    }
-  }
-  return mysqlGetProgress(userId, progressId);
+  return supabaseGetProgress(userId, progressId);
 }
-
 async function patchProgress(userId, progressId, patch = {}) {
-  if (!supabaseStorageEnabled()) return mysqlPatchProgress(userId, progressId, patch);
-  let supabaseItem = null;
-  try {
-    supabaseItem = await supabasePatchProgress(userId, progressId, patch);
-  } catch (error) {
-    console.warn(`[storage] Supabase progress patch failed: ${error.message}`);
-  }
-  const mysqlItem = await mirrorMysql(() => mysqlPatchProgress(userId, progressId, patch), "progress patch");
-  return supabaseItem || mysqlItem || getProgress(userId, progressId);
+  return supabasePatchProgress(userId, progressId, patch);
 }
-
 async function deleteProgress(userId, progressId) {
-  if (!supabaseStorageEnabled()) return mysqlDeleteProgress(userId, progressId);
-  let deleted = false;
-  try {
-    deleted = await supabaseDeleteProgress(userId, progressId);
-  } catch (error) {
-    console.warn(`[storage] Supabase progress delete failed: ${error.message}`);
-  }
-  const mysqlDeleted = await mirrorMysql(() => mysqlDeleteProgress(userId, progressId), "progress delete");
-  return deleted || Boolean(mysqlDeleted);
+  return supabaseDeleteProgress(userId, progressId);
 }
-
 export { createProgress, deleteProgress, getProgress, listProgress, patchProgress };

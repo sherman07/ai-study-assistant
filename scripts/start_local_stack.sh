@@ -104,7 +104,7 @@ start_backend
 start_frontend
 
 if ! wait_for_http "http://127.0.0.1:3001/health" "Data API"; then
-  echo "Data API is running in degraded mode or MySQL is unavailable. Continuing without durable MySQL-backed app data."
+  echo "Data API is running in degraded mode or Supabase is unavailable. Continuing without durable app data."
 fi
 wait_for_http "http://127.0.0.1:8001/health" "Backend"
 wait_for_http "http://127.0.0.1:5175/frontend/index.html" "Frontend"

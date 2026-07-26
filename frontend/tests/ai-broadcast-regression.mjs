@@ -27,7 +27,6 @@ const appShell = read("frontend/src/react/components/AppShell.js");
 const analysisStage = read("frontend/src/react/components/AnalysisStage.js");
 const styleRoot = read("frontend/style.css");
 const loader = read("frontend/src/legacy/loadLegacyController.js");
-const mysqlSchema = read("server/src/db/schema.sql");
 const supabaseSchema = read("server/src/db/supabase-schema.sql");
 const repository = read("server/src/repositories/broadcastJobsRepository.js");
 const routes = read("server/src/routes/broadcastJobs.js");
@@ -59,7 +58,6 @@ assert.ok(loader.includes(legacyControllerAssetVersion), "controller script URL 
 assert.ok(legacyController.includes(`CONTROLLER_VERSION = "${legacyControllerAssetVersion}"`), "legacy controller sections should use the settings cache key");
 assert.ok(app.includes('"/api/broadcast-jobs"'), "Express app should mount broadcast job routes");
 
-assert.ok(mysqlSchema.includes("CREATE TABLE IF NOT EXISTS broadcast_jobs"), "MySQL schema should create broadcast_jobs");
 assert.ok(supabaseSchema.includes("broadcast_jobs"), "Supabase schema should create broadcast_jobs");
 
 for (const token of [
@@ -71,7 +69,6 @@ for (const token of [
   "source_references_json",
   "audio_metadata_json"
 ]) {
-  assert.ok(mysqlSchema.includes(token), `MySQL schema should include ${token}`);
   assert.ok(supabaseSchema.includes(token), `Supabase schema should include ${token}`);
 }
 

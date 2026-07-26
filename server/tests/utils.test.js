@@ -18,10 +18,10 @@ test("stableUserId is deterministic and scoped by provider", () => {
   assert.notEqual(stableUserId("local_demo", "abc"), stableUserId("supabase", "abc"));
 });
 
-test("health reports Supabase as the active store instead of an implied MySQL mirror", () => {
+test("health reports Supabase as the only persistence store", () => {
   const appSource = fs.readFileSync(path.join(serverRoot, "src/app.js"), "utf8");
-  assert.ok(appSource.includes('supabaseStorageEnabled() ? "supabase" : "mysql"'));
-  assert.doesNotMatch(appSource, /supabase\+mysql-mirror/);
+  assert.ok(appSource.includes('database: "supabase"'));
+  assert.doesNotMatch(appSource, /mysql/i);
 });
 
 test("validators clamp and sanitize public input", () => {
@@ -38,7 +38,7 @@ test("progress payload validation rejects malformed input", () => {
   assert.equal(validateProgressPayload({ score: "not-a-number" }).error, "Progress score must be a number.");
 });
 
-test("repository list queries inline sanitized LIMIT values", () => {
+test("repository list queries clamp request limits before querying Supabase", () => {
   const files = [
     "flashcardsRepository.js",
     "focusSessionsRepository.js",
@@ -50,8 +50,7 @@ test("repository list queries inline sanitized LIMIT values", () => {
   for (const file of files) {
     const source = fs.readFileSync(path.join(repositoryDir, file), "utf8");
     assert.match(source, /const safeLimit = limitValue\(/, `${file} should clamp the requested limit`);
-    assert.doesNotMatch(source, /LIMIT\s+\?/i, `${file} should not bind LIMIT as a placeholder`);
-    assert.match(source, /LIMIT \$\{safeLimit\}/, `${file} should inline only the sanitized integer limit`);
+    assert.match(source, /limit:\s*safeLimit/, `${file} should send only the sanitized integer limit to Supabase`);
   }
 });
 
@@ -134,11 +133,9 @@ test("Render blueprint deploys Python AI backend and Node data API separately", 
   assert.ok(renderYamlSource.includes("startCommand: npm start"), "Node data API should use its package start script");
 });
 
-test("Render blueprint keeps optional MySQL connection values server-side", () => {
+test("Render blueprint does not provision an unused MySQL service", () => {
   const renderBlueprint = fs.readFileSync(path.join(repoRoot, "render.yaml"), "utf8");
-  for (const key of ["MYSQL_HOST", "MYSQL_PORT", "MYSQL_DATABASE", "MYSQL_USER", "MYSQL_PASSWORD"]) {
-    assert.match(renderBlueprint, new RegExp(`- key: ${key}\\n\\s+sync: false`));
-  }
+  assert.doesNotMatch(renderBlueprint, /MYSQL_/);
 });
 
 test("Render AI backend keeps analysis within a safe request budget", () => {
@@ -203,7 +200,7 @@ test("Render AI backend skips PDF page rendering on the free instance", () => {
 
 test("stripe billing routes verify webhooks and keep secrets server-side", () => {
   const routeSource = fs.readFileSync(path.join(serverRoot, "src/routes/billing.js"), "utf8");
-  const schemaSource = fs.readFileSync(path.join(serverRoot, "src/db/schema.sql"), "utf8");
+  const schemaSource = fs.readFileSync(path.join(serverRoot, "src/db/supabase-schema.sql"), "utf8");
   const configSource = fs.readFileSync(path.join(serverRoot, "src/config.js"), "utf8");
   const generatedContentRoute = fs.readFileSync(path.join(serverRoot, "src/routes/generatedContent.js"), "utf8");
 
@@ -219,9 +216,9 @@ test("stripe billing routes verify webhooks and keep secrets server-side", () =>
   for (const field of [
     "stripe_customer_id",
     "stripe_subscription_id",
-    "plan VARCHAR(80)",
-    "subscription_status VARCHAR(80)",
-    "current_period_end DATETIME"
+    "plan text",
+    "subscription_status text",
+    "current_period_end timestamptz"
   ]) {
     assert.ok(schemaSource.includes(field), `users schema should include ${field}`);
   }
@@ -250,12 +247,12 @@ test("Supabase storage wiring is present for users and study histories", () => {
 
   assert.ok(configSource.includes("SUPABASE_SERVICE_ROLE_KEY"), "server config should read the Supabase service-role key");
   assert.ok(configSource.includes("SUPABASE_DB_SCHEMA"), "server config should allow a Supabase schema override");
-  assert.ok(usersRepositorySource.includes("supabaseStorageEnabled"), "users repository should support Supabase-backed storage");
-  assert.ok(generatedRepositorySource.includes("supabaseStorageEnabled"), "generated-content repository should support Supabase-backed storage");
-  assert.ok(focusRepositorySource.includes("supabaseStorageEnabled"), "focus sessions repository should support Supabase-backed storage");
-  assert.ok(flashcardsRepositorySource.includes("supabaseStorageEnabled"), "flashcards repository should support Supabase-backed storage");
-  assert.ok(progressRepositorySource.includes("supabaseStorageEnabled"), "progress repository should support Supabase-backed storage");
-  assert.ok(studyRoomsRepositorySource.includes("supabaseStorageEnabled"), "study rooms repository should support Supabase-backed storage");
+  assert.ok(usersRepositorySource.includes("supabaseRequest"), "users repository should use Supabase storage");
+  assert.ok(generatedRepositorySource.includes("supabaseRequest"), "generated-content repository should use Supabase storage");
+  assert.ok(focusRepositorySource.includes("supabaseRequest"), "focus sessions repository should use Supabase storage");
+  assert.ok(flashcardsRepositorySource.includes("supabaseRequest"), "flashcards repository should use Supabase storage");
+  assert.ok(progressRepositorySource.includes("supabaseRequest"), "progress repository should use Supabase storage");
+  assert.ok(studyRoomsRepositorySource.includes("supabaseRequest"), "study rooms repository should use Supabase storage");
   for (const table of [
     "users",
     "generated_contents",

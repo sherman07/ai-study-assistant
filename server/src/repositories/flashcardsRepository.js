@@ -1,12 +1,10 @@
-import { createPool } from "../db/pool.js";
-import { firstSupabaseRow, supabaseRequest, supabaseStorageEnabled } from "../supabase/rest.js";
+import { firstSupabaseRow, supabaseRequest } from "../supabase/rest.js";
 import { randomId } from "../utils/ids.js";
 import {
   allowedValue,
   cleanString,
   firstValue,
   intValue,
-  jsonString,
   jsonValue,
   limitValue,
   nullableString
@@ -42,205 +40,16 @@ function mapCard(row = {}) {
   };
 }
 
-async function mysqlCreateDeck(userId, payload = {}) {
-  const id = cleanString(payload.id, 96) || randomId("deck");
-  if (payload.id) {
-    const [existing] = await createPool().execute(
-      "SELECT user_id FROM flashcard_decks WHERE id = ? LIMIT 1",
-      [id]
-    );
-    if (existing[0] && existing[0].user_id !== userId) {
-      const error = new Error("Flashcard deck id is not available.");
-      error.status = 403;
-      throw error;
-    }
-  }
-  await createPool().execute(
-    `INSERT INTO flashcard_decks (id, user_id, generated_content_id, study_room_id, title, language, settings_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE
-      generated_content_id = VALUES(generated_content_id),
-      study_room_id = VALUES(study_room_id),
-      title = VALUES(title),
-      language = VALUES(language),
-      settings_json = VALUES(settings_json)`,
-    [
-      id,
-      userId,
-      nullableString(firstValue(payload, ["generated_content_id", "generatedContentId"]), 96),
-      nullableString(firstValue(payload, ["study_room_id", "studyRoomId"]), 96),
-      cleanString(payload.title || "Flashcards", 500) || "Flashcards",
-      nullableString(payload.language || payload.preferred_language, 80),
-      jsonString(payload.settings || payload.settings_json || {}, {})
-    ]
-  );
-  if (Array.isArray(payload.cards)) {
-    for (let index = 0; index < payload.cards.length; index += 1) {
-      await mysqlCreateCard(userId, { ...payload.cards[index], deckId: id, cardOrder: index });
-    }
-  }
-  return mysqlGetDeck(userId, id, { includeCards: true });
-}
 
-async function mysqlListDecks(userId, limit = 50) {
-  const safeLimit = limitValue(limit);
-  const [rows] = await createPool().execute(
-    `SELECT * FROM flashcard_decks WHERE user_id = ? ORDER BY updated_at DESC LIMIT ${safeLimit}`,
-    [userId]
-  );
-  return rows.map(mapDeck);
-}
 
-async function mysqlGetDeck(userId, deckId, { includeCards = false } = {}) {
-  const [rows] = await createPool().execute(
-    "SELECT * FROM flashcard_decks WHERE user_id = ? AND id = ? LIMIT 1",
-    [userId, cleanString(deckId, 96)]
-  );
-  if (!rows[0]) return null;
-  const deck = mapDeck(rows[0]);
-  if (includeCards) {
-    deck.cards = await mysqlListCards(userId, deck.id, 500);
-  }
-  return deck;
-}
 
-async function mysqlPatchDeck(userId, deckId, patch = {}) {
-  const current = await mysqlGetDeck(userId, deckId);
-  if (!current) return null;
-  return mysqlCreateDeck(userId, { ...current.settings, ...current, ...patch, id: current.id });
-}
 
-async function mysqlDeleteDeck(userId, deckId) {
-  const [result] = await createPool().execute(
-    "DELETE FROM flashcard_decks WHERE user_id = ? AND id = ?",
-    [userId, cleanString(deckId, 96)]
-  );
-  return result.affectedRows > 0;
-}
 
-async function mysqlUserOwnsDeck(userId, deckId) {
-  const [rows] = await createPool().execute(
-    "SELECT id FROM flashcard_decks WHERE user_id = ? AND id = ? LIMIT 1",
-    [userId, cleanString(deckId, 96)]
-  );
-  return Boolean(rows[0]);
-}
 
-async function mysqlCreateCard(userId, payload = {}) {
-  const deckId = cleanString(firstValue(payload, ["deck_id", "deckId"]), 96);
-  if (!deckId || !(await mysqlUserOwnsDeck(userId, deckId))) return null;
-  const id = cleanString(payload.id, 96) || randomId("card");
-  const values = [
-    cleanString(payload.front || payload.term || payload.question, 8000),
-    cleanString(payload.back || payload.answer || payload.definition, 8000),
-    nullableString(payload.hint, 2000),
-    nullableString(firstValue(payload, ["source_reference", "sourceReference"]), 4000),
-    payload.difficulty ? allowedValue(payload.difficulty, ["easy", "medium", "hard"], "medium") : null,
-    jsonString(payload.tags || payload.tags_json || [], []),
-    intValue(firstValue(payload, ["card_order", "cardOrder"]), 0)
-  ];
-  const [existing] = await createPool().execute(
-    `SELECT c.deck_id, d.user_id FROM flashcards c
-     JOIN flashcard_decks d ON d.id = c.deck_id
-     WHERE c.id = ?
-     LIMIT 1`,
-    [id]
-  );
-  if (existing[0] && existing[0].user_id !== userId) {
-    const error = new Error("Flashcard id is not available.");
-    error.status = 403;
-    throw error;
-  }
-  if (existing[0]) {
-    await createPool().execute(
-      `UPDATE flashcards
-       SET deck_id = ?, front = ?, back = ?, hint = ?, source_reference = ?,
-           difficulty = ?, tags_json = ?, card_order = ?
-       WHERE id = ?`,
-      [deckId, ...values, id]
-    );
-    return mysqlGetCard(userId, id);
-  }
-  await createPool().execute(
-    `INSERT INTO flashcards (id, deck_id, front, back, hint, source_reference, difficulty, tags_json, card_order)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
-    [id, deckId, ...values]
-  );
-  return mysqlGetCard(userId, id);
-}
 
-async function mysqlListCards(userId, deckId = "", limit = 200) {
-  const safeLimit = limitValue(limit, 200, 500);
-  const params = [userId];
-  let where = "d.user_id = ?";
-  if (deckId) {
-    where += " AND c.deck_id = ?";
-    params.push(cleanString(deckId, 96));
-  }
-  const [rows] = await createPool().execute(
-    `SELECT c.* FROM flashcards c
-     JOIN flashcard_decks d ON d.id = c.deck_id
-     WHERE ${where}
-     ORDER BY c.card_order ASC, c.created_at ASC
-     LIMIT ${safeLimit}`,
-    params
-  );
-  return rows.map(mapCard);
-}
 
-async function mysqlGetCard(userId, cardId) {
-  const [rows] = await createPool().execute(
-    `SELECT c.* FROM flashcards c
-     JOIN flashcard_decks d ON d.id = c.deck_id
-     WHERE d.user_id = ? AND c.id = ?
-     LIMIT 1`,
-    [userId, cleanString(cardId, 96)]
-  );
-  return rows[0] ? mapCard(rows[0]) : null;
-}
 
-async function mysqlPatchCard(userId, cardId, patch = {}) {
-  const current = await mysqlGetCard(userId, cardId);
-  if (!current) return null;
-  return mysqlCreateCard(userId, { ...current, ...patch, id: current.id, deckId: current.deckId });
-}
 
-async function mysqlDeleteCard(userId, cardId) {
-  const [result] = await createPool().execute(
-    `DELETE c FROM flashcards c
-     JOIN flashcard_decks d ON d.id = c.deck_id
-     WHERE d.user_id = ? AND c.id = ?`,
-    [userId, cleanString(cardId, 96)]
-  );
-  return result.affectedRows > 0;
-}
-
-function supabaseDeckRow(userId, payload = {}, id = "") {
-  return {
-    id,
-    user_id: userId,
-    generated_content_id: nullableString(firstValue(payload, ["generated_content_id", "generatedContentId"]), 96),
-    study_room_id: nullableString(firstValue(payload, ["study_room_id", "studyRoomId"]), 96),
-    title: cleanString(payload.title || "Flashcards", 500) || "Flashcards",
-    language: nullableString(payload.language || payload.preferred_language, 80),
-    settings_json: payload.settings || payload.settings_json || {}
-  };
-}
-
-function supabaseCardRow(payload = {}, id = "", deckId = "") {
-  return {
-    id,
-    deck_id: deckId,
-    front: cleanString(payload.front || payload.term || payload.question, 8000),
-    back: cleanString(payload.back || payload.answer || payload.definition, 8000),
-    hint: nullableString(payload.hint, 2000),
-    source_reference: nullableString(firstValue(payload, ["source_reference", "sourceReference"]), 4000),
-    difficulty: payload.difficulty ? allowedValue(payload.difficulty, ["easy", "medium", "hard"], "medium") : null,
-    tags_json: payload.tags || payload.tags_json || [],
-    card_order: intValue(firstValue(payload, ["card_order", "cardOrder"]), 0)
-  };
-}
 
 async function supabaseDeckRowById(deckId) {
   const rows = await supabaseRequest("GET", "flashcard_decks", {
@@ -411,123 +220,37 @@ async function supabaseDeleteCard(userId, cardId) {
   return Array.isArray(rows) ? rows.length > 0 : Boolean(rows);
 }
 
-async function mirrorMysql(operation, label) {
-  try {
-    return await operation();
-  } catch (error) {
-    console.warn(`[storage] MySQL ${label} mirror failed: ${error.message}`);
-    return null;
-  }
-}
 
 async function createDeck(userId, payload = {}) {
-  if (!supabaseStorageEnabled()) return mysqlCreateDeck(userId, payload);
-  const supabaseItem = await supabaseCreateDeck(userId, payload);
-  await mirrorMysql(() => mysqlCreateDeck(userId, payload), "flashcard-deck upsert");
-  return supabaseItem;
+  return supabaseCreateDeck(userId, payload);
 }
-
 async function listDecks(userId, limit = 50) {
-  if (supabaseStorageEnabled()) {
-    try {
-      return await supabaseListDecks(userId, limit);
-    } catch (error) {
-      console.warn(`[storage] Supabase flashcard-deck list failed: ${error.message}`);
-    }
-  }
-  return mysqlListDecks(userId, limit);
+  return supabaseListDecks(userId, limit);
 }
-
 async function getDeck(userId, deckId, { includeCards = false } = {}) {
-  if (supabaseStorageEnabled()) {
-    try {
-      const deck = await supabaseGetDeck(userId, deckId, { includeCards });
-      if (deck) return deck;
-    } catch (error) {
-      console.warn(`[storage] Supabase flashcard-deck get failed: ${error.message}`);
-    }
-  }
-  return mysqlGetDeck(userId, deckId, { includeCards });
+  return supabaseGetDeck(userId, deckId, { includeCards });
 }
-
 async function patchDeck(userId, deckId, patch = {}) {
-  if (!supabaseStorageEnabled()) return mysqlPatchDeck(userId, deckId, patch);
-  let supabaseItem = null;
-  try {
-    supabaseItem = await supabasePatchDeck(userId, deckId, patch);
-  } catch (error) {
-    console.warn(`[storage] Supabase flashcard-deck patch failed: ${error.message}`);
-  }
-  const mysqlItem = await mirrorMysql(() => mysqlPatchDeck(userId, deckId, patch), "flashcard-deck patch");
-  return supabaseItem || mysqlItem || getDeck(userId, deckId);
+  return supabasePatchDeck(userId, deckId, patch);
 }
-
 async function deleteDeck(userId, deckId) {
-  if (!supabaseStorageEnabled()) return mysqlDeleteDeck(userId, deckId);
-  let deleted = false;
-  try {
-    deleted = await supabaseDeleteDeck(userId, deckId);
-  } catch (error) {
-    console.warn(`[storage] Supabase flashcard-deck delete failed: ${error.message}`);
-  }
-  const mysqlDeleted = await mirrorMysql(() => mysqlDeleteDeck(userId, deckId), "flashcard-deck delete");
-  return deleted || Boolean(mysqlDeleted);
+  return supabaseDeleteDeck(userId, deckId);
 }
-
 async function createCard(userId, payload = {}) {
-  if (!supabaseStorageEnabled()) return mysqlCreateCard(userId, payload);
-  const supabaseItem = await supabaseCreateCard(userId, payload);
-  await mirrorMysql(() => mysqlCreateCard(userId, payload), "flashcard upsert");
-  return supabaseItem;
+  return supabaseCreateCard(userId, payload);
 }
-
 async function listCards(userId, deckId = "", limit = 200) {
-  if (supabaseStorageEnabled()) {
-    try {
-      return await supabaseListCards(userId, deckId, limit);
-    } catch (error) {
-      console.warn(`[storage] Supabase flashcard list failed: ${error.message}`);
-    }
-  }
-  return mysqlListCards(userId, deckId, limit);
+  return supabaseListCards(userId, deckId, limit);
 }
-
 async function getCard(userId, cardId) {
-  if (supabaseStorageEnabled()) {
-    try {
-      const card = await supabaseGetCard(userId, cardId);
-      if (card) return card;
-    } catch (error) {
-      console.warn(`[storage] Supabase flashcard get failed: ${error.message}`);
-    }
-  }
-  return mysqlGetCard(userId, cardId);
+  return supabaseGetCard(userId, cardId);
 }
-
 async function patchCard(userId, cardId, patch = {}) {
-  if (!supabaseStorageEnabled()) return mysqlPatchCard(userId, cardId, patch);
-  let supabaseItem = null;
-  try {
-    supabaseItem = await supabasePatchCard(userId, cardId, patch);
-  } catch (error) {
-    console.warn(`[storage] Supabase flashcard patch failed: ${error.message}`);
-  }
-  const mysqlItem = await mirrorMysql(() => mysqlPatchCard(userId, cardId, patch), "flashcard patch");
-  return supabaseItem || mysqlItem || getCard(userId, cardId);
+  return supabasePatchCard(userId, cardId, patch);
 }
-
 async function deleteCard(userId, cardId) {
-  if (!supabaseStorageEnabled()) return mysqlDeleteCard(userId, cardId);
-  let deleted = false;
-  try {
-    deleted = await supabaseDeleteCard(userId, cardId);
-  } catch (error) {
-    console.warn(`[storage] Supabase flashcard delete failed: ${error.message}`);
-  }
-  const mysqlDeleted = await mirrorMysql(() => mysqlDeleteCard(userId, cardId), "flashcard delete");
-  return deleted || Boolean(mysqlDeleted);
+  return supabaseDeleteCard(userId, cardId);
 }
-
 export {
   createCard,
   createDeck,

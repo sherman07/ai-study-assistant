@@ -1,7 +1,6 @@
-import { createPool } from "../db/pool.js";
-import { firstSupabaseRow, supabaseRequest, supabaseStorageEnabled } from "../supabase/rest.js";
+import { firstSupabaseRow, supabaseRequest } from "../supabase/rest.js";
 import { randomId } from "../utils/ids.js";
-import { allowedValue, cleanString, intValue, jsonString, jsonValue, limitValue, nullableString } from "../utils/validators.js";
+import { allowedValue, cleanString, intValue, jsonValue, limitValue, nullableString } from "../utils/validators.js";
 
 const LEARNING_INTENTIONS = ["hobby", "skill", "project", "assessment"];
 const MESSAGE_ROLES = ["user", "assistant"];
@@ -177,132 +176,15 @@ function evidenceRow(evidence) {
   };
 }
 
-async function mirrorMysql(operation, label) {
-  try {
-    return await operation();
-  } catch (error) {
-    console.warn(`[storage] MySQL ${label} mirror failed: ${error.message}`);
-    return null;
-  }
-}
 
-async function mysqlGetSubject(userId, subjectId) {
-  const [rows] = await createPool().execute(
-    "SELECT * FROM learning_subjects WHERE user_id = ? AND id = ? LIMIT 1",
-    [cleanString(userId, 120), cleanString(subjectId, 120)]
-  );
-  return rows[0] ? mapSubject(rows[0]) : null;
-}
 
-async function mysqlCreateSubject(userId, payload = {}) {
-  const subject = normalizeSubject(payload, userId);
-  const [existing] = await createPool().execute("SELECT user_id FROM learning_subjects WHERE id = ? LIMIT 1", [subject.id]);
-  if (existing[0] && existing[0].user_id !== userId) {
-    const error = new Error("Learning subject id is not available.");
-    error.status = 403;
-    throw error;
-  }
-  const row = subjectRow(subject);
-  await createPool().execute(
-    `INSERT INTO learning_subjects (id, user_id, title, intention, goal, status, summary, current_session_id, current_unit_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE title = VALUES(title), intention = VALUES(intention), goal = VALUES(goal),
-       status = VALUES(status), summary = VALUES(summary), current_session_id = VALUES(current_session_id),
-       current_unit_id = VALUES(current_unit_id)`,
-    [row.id, row.user_id, row.title, row.intention, row.goal, row.status, row.summary, row.current_session_id, row.current_unit_id]
-  );
-  return mysqlGetSubject(userId, subject.id);
-}
 
-async function mysqlListSubjects(userId, limit = 50) {
-  const safeLimit = limitValue(limit, 50, 100);
-  const [rows] = await createPool().execute(
-    `SELECT * FROM learning_subjects WHERE user_id = ? ORDER BY updated_at DESC LIMIT ${safeLimit}`,
-    [cleanString(userId, 120)]
-  );
-  return rows.map(mapSubject);
-}
 
-async function mysqlCreateSession(userId, subjectId, payload = {}) {
-  if (!(await mysqlGetSubject(userId, subjectId))) return null;
-  const session = normalizeSession(payload, userId, subjectId);
-  const row = sessionRow(session);
-  await createPool().execute(
-    `INSERT INTO learning_sessions (id, user_id, subject_id, available_time_minutes, active_objective, status, summary)
-     VALUES (?, ?, ?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE available_time_minutes = VALUES(available_time_minutes), active_objective = VALUES(active_objective),
-       status = VALUES(status), summary = VALUES(summary)`,
-    [row.id, row.user_id, row.subject_id, row.available_time_minutes, row.active_objective, row.status, row.summary]
-  );
-  await createPool().execute("UPDATE learning_subjects SET current_session_id = ? WHERE id = ? AND user_id = ?", [session.id, subjectId, userId]);
-  const [rows] = await createPool().execute("SELECT * FROM learning_sessions WHERE id = ? AND user_id = ? LIMIT 1", [session.id, userId]);
-  return rows[0] ? mapSession(rows[0]) : null;
-}
 
-async function mysqlListSessions(userId, subjectId, limit = 50) {
-  if (!(await mysqlGetSubject(userId, subjectId))) return [];
-  const safeLimit = limitValue(limit, 50, 100);
-  const [rows] = await createPool().execute(
-    `SELECT * FROM learning_sessions WHERE user_id = ? AND subject_id = ? ORDER BY updated_at DESC LIMIT ${safeLimit}`,
-    [cleanString(userId, 120), cleanString(subjectId, 120)]
-  );
-  return rows.map(mapSession);
-}
 
-async function mysqlListMessages(userId, sessionId, limit = 100) {
-  const safeLimit = limitValue(limit, 100, 200);
-  const [rows] = await createPool().execute(
-    `SELECT m.* FROM learning_messages m JOIN learning_sessions s ON s.id = m.session_id
-     WHERE s.user_id = ? AND m.session_id = ? ORDER BY m.sequence_number ASC LIMIT ${safeLimit}`,
-    [cleanString(userId, 120), cleanString(sessionId, 120)]
-  );
-  return rows.map(mapMessage);
-}
 
-async function mysqlCreateEvidence(userId, payload = {}) {
-  const evidence = normalizeEvidence(payload, userId);
-  if (!(await mysqlGetSubject(userId, evidence.subjectId))) return null;
-  const row = evidenceRow(evidence);
-  await createPool().execute(
-    `INSERT INTO learning_evidence (id, user_id, subject_id, session_id, evidence_type, status, label, score, payload_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE status = VALUES(status), label = VALUES(label), score = VALUES(score), payload_json = VALUES(payload_json)`,
-    [row.id, row.user_id, row.subject_id, row.session_id, row.evidence_type, row.status, row.label, row.score, jsonString(row.payload_json, {})]
-  );
-  const [rows] = await createPool().execute("SELECT * FROM learning_evidence WHERE id = ? AND user_id = ? LIMIT 1", [evidence.id, userId]);
-  return rows[0] ? mapEvidence(rows[0]) : null;
-}
 
-async function mysqlListEvidence(userId, subjectId, limit = 50) {
-  const safeLimit = limitValue(limit, 50, 100);
-  const [rows] = await createPool().execute(
-    `SELECT * FROM learning_evidence WHERE user_id = ? AND subject_id = ? ORDER BY created_at DESC LIMIT ${safeLimit}`,
-    [cleanString(userId, 120), cleanString(subjectId, 120)]
-  );
-  return rows.map(mapEvidence);
-}
 
-async function mysqlAppendMessage(userId, sessionId, payload = {}) {
-  const [sessions] = await createPool().execute("SELECT id FROM learning_sessions WHERE id = ? AND user_id = ? LIMIT 1", [sessionId, userId]);
-  if (!sessions[0]) return null;
-  const message = normalizeMessage(payload);
-  if (message.idempotencyKey) {
-    const [existing] = await createPool().execute(
-      "SELECT * FROM learning_messages WHERE session_id = ? AND idempotency_key = ? LIMIT 1",
-      [sessionId, message.idempotencyKey]
-    );
-    if (existing[0]) return mapMessage(existing[0]);
-  }
-  const [sequenceRows] = await createPool().execute("SELECT COALESCE(MAX(sequence_number), 0) + 1 AS next_sequence FROM learning_messages WHERE session_id = ?", [sessionId]);
-  const sequence = Number(sequenceRows[0]?.next_sequence || 1);
-  await createPool().execute(
-    `INSERT INTO learning_messages (id, session_id, sequence_number, role, content, turn_status, idempotency_key, decision_json)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [message.id, sessionId, sequence, message.role, message.content, message.turnStatus, message.idempotencyKey, jsonString(message.decision, {})]
-  );
-  const [rows] = await createPool().execute("SELECT * FROM learning_messages WHERE id = ? LIMIT 1", [message.id]);
-  return rows[0] ? mapMessage(rows[0]) : null;
-}
 
 async function supabaseGetSubject(userId, subjectId) {
   const rows = await supabaseRequest("GET", "learning_subjects", { query: { select: "*", user_id: `eq.${cleanString(userId, 120)}`, id: `eq.${cleanString(subjectId, 120)}`, limit: 1 } });
@@ -400,61 +282,29 @@ async function supabaseAppendMessage(userId, sessionId, payload = {}) {
 }
 
 async function createLearningSubject(userId, payload = {}) {
-  if (!supabaseStorageEnabled()) return mysqlCreateSubject(userId, payload);
-  const item = await supabaseCreateSubject(userId, payload);
-  await mirrorMysql(() => mysqlCreateSubject(userId, { ...payload, id: item.id }), "learning subject upsert");
-  return item;
+  return supabaseCreateSubject(userId, payload);
 }
-
 async function listLearningSubjects(userId, limit = 50) {
-  if (supabaseStorageEnabled()) {
-    try { return await supabaseListSubjects(userId, limit); } catch (error) { console.warn(`[storage] Supabase learning subject list failed: ${error.message}`); }
-  }
-  return mysqlListSubjects(userId, limit);
+  return supabaseListSubjects(userId, limit);
 }
-
 async function createLearningSession(userId, subjectId, payload = {}) {
-  if (!supabaseStorageEnabled()) return mysqlCreateSession(userId, subjectId, payload);
-  const item = await supabaseCreateSession(userId, subjectId, payload);
-  if (item) await mirrorMysql(() => mysqlCreateSession(userId, subjectId, { ...payload, id: item.id }), "learning session upsert");
-  return item;
+  return supabaseCreateSession(userId, subjectId, payload);
 }
-
 async function listLearningSessions(userId, subjectId, limit = 50) {
-  if (supabaseStorageEnabled()) {
-    try { return await supabaseListSessions(userId, subjectId, limit); } catch (error) { console.warn(`[storage] Supabase learning session list failed: ${error.message}`); }
-  }
-  return mysqlListSessions(userId, subjectId, limit);
+  return supabaseListSessions(userId, subjectId, limit);
 }
-
 async function listLearningMessages(userId, sessionId, limit = 100) {
-  if (supabaseStorageEnabled()) {
-    try { return await supabaseListMessages(userId, sessionId, limit); } catch (error) { console.warn(`[storage] Supabase learning message list failed: ${error.message}`); }
-  }
-  return mysqlListMessages(userId, sessionId, limit);
+  return supabaseListMessages(userId, sessionId, limit);
 }
-
 async function appendLearningMessage(userId, sessionId, payload = {}) {
-  if (!supabaseStorageEnabled()) return mysqlAppendMessage(userId, sessionId, payload);
-  const item = await supabaseAppendMessage(userId, sessionId, payload);
-  if (item) await mirrorMysql(() => mysqlAppendMessage(userId, sessionId, { ...payload, id: item.id }), "learning message append");
-  return item;
+  return supabaseAppendMessage(userId, sessionId, payload);
 }
-
 async function createLearningEvidence(userId, payload = {}) {
-  if (!supabaseStorageEnabled()) return mysqlCreateEvidence(userId, payload);
-  const item = await supabaseCreateEvidence(userId, payload);
-  if (item) await mirrorMysql(() => mysqlCreateEvidence(userId, { ...payload, id: item.id }), "learning evidence upsert");
-  return item;
+  return supabaseCreateEvidence(userId, payload);
 }
-
 async function listLearningEvidence(userId, subjectId, limit = 50) {
-  if (supabaseStorageEnabled()) {
-    try { return await supabaseListEvidence(userId, subjectId, limit); } catch (error) { console.warn(`[storage] Supabase learning evidence list failed: ${error.message}`); }
-  }
-  return mysqlListEvidence(userId, subjectId, limit);
+  return supabaseListEvidence(userId, subjectId, limit);
 }
-
 export {
   LEARNING_INTENTIONS,
   MESSAGE_ROLES,

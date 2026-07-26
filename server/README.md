@@ -12,7 +12,7 @@ The frontend calls this API over HTTP. It never connects directly to Supabase or
 This repo supports a Supabase-first storage model with a local MySQL fallback:
 
 - Users, generated-note history, study rooms, focus sessions, flashcards, and progress can be stored in Supabase using the server-side Service Role key.
-- Writes are mirrored to MySQL when MySQL is configured, which keeps local development and older deployments compatible.
+- MySQL is an alternative fallback when Supabase storage is not configured; the service does not dual-write or mirror records between the two databases.
 - If Supabase storage is not configured, the API falls back to MySQL-only behavior.
 
 ## Local Setup
@@ -152,7 +152,7 @@ Configure the Stripe Customer Portal in the Stripe Dashboard before using “Man
 ## Production Notes
 
 - Use Supabase for users, generated contents, and learning-history tables when you want cloud-backed account and study data.
-- Keep MySQL configured only if you need the compatibility mirror or local fallback.
+- Keep MySQL configured only if you need the legacy/local fallback. For a managed production instance, set `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, and `MYSQL_PASSWORD` as server-only secrets.
 - Set `ALLOW_LOCAL_DEMO_AUTH=false` before accepting real accounts.
 - Configure `SUPABASE_URL` and `SUPABASE_ANON_KEY` for bearer-token verification.
 - Configure `SUPABASE_SERVICE_ROLE_KEY` on the server only if you want Supabase-backed storage.

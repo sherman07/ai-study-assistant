@@ -42,7 +42,10 @@ function createApp() {
   app.use("/api/billing/webhook", express.raw({ type: "application/json" }), billingWebhookRouter);
 
   app.get("/health", async (_req, res) => {
-    const storageMode = supabaseStorageEnabled() ? "supabase+mysql-mirror" : "mysql";
+    // Repositories select Supabase when it is configured; MySQL is a legacy
+    // fallback, not a second write target. Keep the health response truthful
+    // so operations can distinguish a working primary store from a mirror.
+    const storageMode = supabaseStorageEnabled() ? "supabase" : "mysql";
     const supabase = {
       auth_configured: Boolean(config.supabaseUrl && config.supabaseAnonKey),
       storage_configured: supabaseStorageEnabled(),

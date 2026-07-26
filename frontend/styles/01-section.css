@@ -2311,6 +2311,13 @@ body.mobile-assistant-open::before {
   margin: 0;
 }
 
+.history-empty-degraded {
+  margin: 0;
+  color: var(--color-text-secondary, #5b657a);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
 .history-empty-cta {
   justify-self: start;
   border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--color-border-default, #d7e3f8));

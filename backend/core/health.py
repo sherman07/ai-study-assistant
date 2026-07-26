@@ -16,6 +16,19 @@ class HealthReporter:
         except Exception:
             return default
 
+    def _configured_secret(self, name: str) -> bool:
+        """True when a secret-like setting is present and not an example placeholder."""
+        value = self._get(name) or ""
+        if not value:
+            return False
+        checker = self.namespace.get("is_placeholder_env_value")
+        if callable(checker):
+            try:
+                return not checker(value)
+            except Exception:
+                return bool(value)
+        return bool(value)
+
     def backend_status(self) -> dict:
         max_visual_images = self._get("MAX_VISUAL_IMAGES_PER_SOURCE")
         email_config_error = self._call("synapse_email_config_error", "not_available")
@@ -23,8 +36,8 @@ class HealthReporter:
             "status": "ok",
             "api_key_loaded": bool(self._call("has_text_ai")),
             "text_provider": self._get("AI_TEXT_PROVIDER", "openai"),
-            "openai_api_key_loaded": bool(self._get("OPENAI_API_KEY")),
-            "gemini_api_key_loaded": bool(self._get("GEMINI_API_KEY")),
+            "openai_api_key_loaded": bool(self._call("has_openai")),
+            "gemini_api_key_loaded": self._configured_secret("GEMINI_API_KEY"),
             "gemini_auth_mode": self._get("GEMINI_AUTH_MODE"),
             "gemini_project_id_loaded": bool(self._get("GEMINI_PROJECT_ID")),
             "gemini_location": self._get("GEMINI_LOCATION"),

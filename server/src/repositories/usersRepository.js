@@ -1,4 +1,5 @@
-import { firstSupabaseRow, supabaseRequest } from "../supabase/rest.js";
+import { databaseUnavailableError, isDatabaseUnavailableError } from "../middleware/errors.js";
+import { firstSupabaseRow, supabaseRequest, supabaseStorageEnabled } from "../supabase/rest.js";
 import { stableUserId } from "../utils/ids.js";
 import { cleanString, jsonValue, nullableString } from "../utils/validators.js";
 
@@ -84,14 +85,6 @@ function supabaseUserPatch(patch = {}) {
   return next;
 }
 
-
-
-
-
-
-
-
-
 async function supabaseSelectSingle(query = {}) {
   const payload = await supabaseRequest("GET", "users", {
     query: {
@@ -138,28 +131,45 @@ async function supabaseGetUserByStripeSubscriptionId(subscriptionId) {
   return supabaseSelectSingle({ stripe_subscription_id: `eq.${cleanString(subscriptionId, 255)}` });
 }
 
-
 async function upsertUser(identity = {}) {
-  return supabaseUpsertUser(identity);
+  if (!supabaseStorageEnabled()) {
+    throw databaseUnavailableError(new Error("Supabase storage is not configured."));
+  }
+
+  try {
+    return await supabaseUpsertUser(identity);
+  } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      throw databaseUnavailableError(error);
+    }
+    throw error;
+  }
 }
+
 async function getUserById(userId) {
   return supabaseGetUserById(userId);
 }
+
 async function getUserByStripeCustomerId(customerId) {
   return supabaseGetUserByStripeCustomerId(customerId);
 }
+
 async function getUserByStripeSubscriptionId(subscriptionId) {
   return supabaseGetUserByStripeSubscriptionId(subscriptionId);
 }
+
 async function patchUser(userId, patch = {}) {
   return supabasePatchUser(userId, patch);
 }
+
 async function updateUserStripeCustomer(userId, stripeCustomerId) {
   return supabasePatchUser(userId, { stripe_customer_id: stripeCustomerId });
 }
+
 async function updateUserSubscription(userId, patch = {}) {
   return supabasePatchUser(userId, patch);
 }
+
 export {
   getUserById,
   getUserByStripeCustomerId,

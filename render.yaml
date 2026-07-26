@@ -105,21 +105,6 @@ services:
         sync: false
       - key: SUPABASE_DB_SCHEMA
         value: public
-      # Optional legacy fallback. Set these server-only secrets only when a
-      # managed MySQL instance has been provisioned; Supabase is the primary
-      # production store when its Service Role key is configured.
-      - key: MYSQL_HOST
-        sync: false
-      - key: MYSQL_PORT
-        sync: false
-      - key: MYSQL_DATABASE
-        sync: false
-      - key: MYSQL_USER
-        sync: false
-      - key: MYSQL_PASSWORD
-        sync: false
-      - key: MYSQL_CONNECTION_LIMIT
-        value: "10"
       - key: SYNAPSE_INTERNAL_API_TOKEN
         sync: false
       - key: STRIPE_SECRET_KEY

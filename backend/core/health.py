@@ -44,7 +44,7 @@ class HealthReporter:
             "openai_timeout_seconds": self._get("OPENAI_TIMEOUT_SECONDS"),
             "analysis_max_seconds": self._get("ANALYSIS_MAX_SECONDS"),
             "cache_version": self._get("CACHE_VERSION"),
-            "data_api": "mysql",
+            "data_api": "supabase",
             "public_backend_base_url": self._get("PUBLIC_BACKEND_BASE_URL"),
             "supabase_url_loaded": bool(self._get("SUPABASE_URL")),
             "supabase_anon_key_loaded": bool(self._get("SUPABASE_ANON_KEY")),

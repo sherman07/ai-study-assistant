@@ -5,15 +5,14 @@ This service is the persistence layer for Synapse. It is separate from the FastA
 - FastAPI on `8001`: AI analysis, extraction, tutor, quizzes, timelines, generated assets.
 - Express data API on `3001`: users, generated content records, study rooms, focus sessions, flashcards, progress.
 
-The frontend calls this API over HTTP. It never connects directly to Supabase or MySQL.
+The frontend calls this API over HTTP. It never connects directly to Supabase.
 
 ## Storage Mode
 
-This repo supports a Supabase-first storage model with a local MySQL fallback:
+This service uses Supabase as its single persistence store:
 
-- Users, generated-note history, study rooms, focus sessions, flashcards, and progress can be stored in Supabase using the server-side Service Role key.
-- MySQL is an alternative fallback when Supabase storage is not configured; the service does not dual-write or mirror records between the two databases.
-- If Supabase storage is not configured, the API falls back to MySQL-only behavior.
+- Users, generated-note history, study rooms, focus sessions, flashcards, and progress are stored in Supabase using the server-side Service Role key.
+- The API reports a degraded health status if Supabase is not configured or reachable.
 
 ## Local Setup
 
@@ -35,33 +34,10 @@ npm install
 
 Run the `source` command again in each new terminal tab before using `npm`.
 
-Create a local MySQL database and app user. If the MySQL CLI is available:
-
-```sql
-CREATE DATABASE IF NOT EXISTS synapse CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER IF NOT EXISTS 'synapse_app'@'localhost' IDENTIFIED BY 'replace_with_a_strong_password';
-GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, INDEX, ALTER, REFERENCES ON synapse.* TO 'synapse_app'@'localhost';
-FLUSH PRIVILEGES;
-```
-
-On this Mac the MySQL CLI may be available as `/usr/local/mysql/bin/mysql` even when `mysql` is not on `PATH`.
-
-Copy the env template and fill in your real local password:
+Copy the env template and add your Supabase credentials:
 
 ```bash
 cp .env.example .env
-```
-
-Run the schema with Node/mysql2, not the MySQL CLI:
-
-```bash
-npm run db:setup
-```
-
-To clear local test accounts and generated app data from MySQL:
-
-```bash
-npm run db:reset
 ```
 
 Start the data API:
@@ -78,7 +54,7 @@ curl http://127.0.0.1:3001/health
 
 ## Supabase Setup
 
-Add Supabase for account storage, generated-note history, and study-tool history.
+Configure Supabase for account storage, generated-note history, and study-tool history.
 
 1. In Supabase, open the SQL Editor and run [`server/src/db/supabase-schema.sql`](/Users/zhenghui/Desktop/Synapse-ai-study-assistant/server/src/db/supabase-schema.sql).
 2. In `server/.env`, set:
@@ -152,11 +128,11 @@ Configure the Stripe Customer Portal in the Stripe Dashboard before using “Man
 ## Production Notes
 
 - Use Supabase for users, generated contents, and learning-history tables when you want cloud-backed account and study data.
-- Keep MySQL configured only if you need the legacy/local fallback. For a managed production instance, set `MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_DATABASE`, `MYSQL_USER`, and `MYSQL_PASSWORD` as server-only secrets.
+- Supabase is the only persistence service required in production.
 - Set `ALLOW_LOCAL_DEMO_AUTH=false` before accepting real accounts.
 - Configure `SUPABASE_URL` and `SUPABASE_ANON_KEY` for bearer-token verification.
 - Configure `SUPABASE_SERVICE_ROLE_KEY` on the server only if you want Supabase-backed storage.
 - Configure Stripe secrets and price IDs in server-side environment variables only.
 - Restrict `SYNAPSE_DATA_CORS_ORIGINS` to deployed frontend origins.
 - Store all secrets in the platform secret manager.
-- Use TLS between public clients and the API; keep MySQL private.
+- Use TLS between public clients and the API.

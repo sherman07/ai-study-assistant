@@ -1,5 +1,4 @@
-import { createPool } from "../db/pool.js";
-import { firstSupabaseRow, supabaseRequest, supabaseStorageEnabled } from "../supabase/rest.js";
+import { firstSupabaseRow, supabaseRequest } from "../supabase/rest.js";
 import { randomId, shortHash } from "../utils/ids.js";
 import {
   boolValue,
@@ -114,102 +113,12 @@ function supabaseGeneratedContentRow(row = {}) {
   };
 }
 
-async function mysqlUpsertGeneratedContent(userId, payload = {}) {
-  const row = rowFromGeneratedResult(userId, payload);
-  await createPool().execute(
-    `INSERT INTO generated_contents (
-      id, user_id, source_fingerprint, client_fingerprint, title, summary, language,
-      detail_level, prompt_mode, source_count, cached, sections_json, connections_json,
-      mind_map_json, visual_gallery_json, sources_json, full_result_json
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      client_fingerprint = VALUES(client_fingerprint),
-      title = VALUES(title),
-      summary = VALUES(summary),
-      language = VALUES(language),
-      detail_level = VALUES(detail_level),
-      prompt_mode = VALUES(prompt_mode),
-      source_count = VALUES(source_count),
-      cached = VALUES(cached),
-      sections_json = VALUES(sections_json),
-      connections_json = VALUES(connections_json),
-      mind_map_json = VALUES(mind_map_json),
-      visual_gallery_json = VALUES(visual_gallery_json),
-      sources_json = VALUES(sources_json),
-      full_result_json = VALUES(full_result_json)`,
-    [
-      row.id,
-      row.user_id,
-      row.source_fingerprint,
-      row.client_fingerprint,
-      row.title,
-      row.summary,
-      row.language,
-      row.detail_level,
-      row.prompt_mode,
-      row.source_count,
-      row.cached ? 1 : 0,
-      jsonString(row.sections_json, {}),
-      jsonString(row.connections_json, []),
-      jsonString(row.mind_map_json, {}),
-      jsonString(row.visual_gallery_json, []),
-      jsonString(row.sources_json, []),
-      jsonString(row.full_result_json, {})
-    ]
-  );
-  return mysqlGetGeneratedContent(userId, row.id);
-}
 
-async function mysqlListGeneratedContent(userId, limit = 50, options = {}) {
-  const safeLimit = limitValue(limit);
-  const columns = options.includeSummary === false
-    ? "id, user_id, source_fingerprint, client_fingerprint, title, language, detail_level, prompt_mode, source_count, cached, created_at, updated_at"
-    : "id, user_id, source_fingerprint, client_fingerprint, title, summary, language, detail_level, prompt_mode, source_count, cached, sections_json, connections_json, mind_map_json, visual_gallery_json, sources_json, created_at, updated_at";
-  const [rows] = await createPool().execute(
-    `SELECT ${columns}
-    FROM generated_contents
-    WHERE user_id = ?
-    ORDER BY updated_at DESC
-    LIMIT ${safeLimit}`,
-    [userId]
-  );
-  return rows.map(row => mapGeneratedContent(row, options));
-}
 
-async function mysqlGetGeneratedContent(userId, contentId) {
-  const [rows] = await createPool().execute(
-    "SELECT * FROM generated_contents WHERE user_id = ? AND id = ? LIMIT 1",
-    [userId, cleanString(contentId, 96)]
-  );
-  return rows[0] ? mapGeneratedContent(rows[0], { includeFull: true }) : null;
-}
 
-async function mysqlPatchGeneratedContent(userId, contentId, patch = {}) {
-  const current = await mysqlGetGeneratedContent(userId, contentId);
-  if (!current) return null;
-  return mysqlUpsertGeneratedContent(userId, { ...current, ...patch, id: current.id });
-}
 
-async function mysqlDeleteGeneratedContent(userId, contentId) {
-  const [result] = await createPool().execute(
-    "DELETE FROM generated_contents WHERE user_id = ? AND id = ?",
-    [userId, cleanString(contentId, 96)]
-  );
-  return result.affectedRows > 0;
-}
 
-async function mysqlExportGeneratedContent(userId) {
-  const [rows] = await createPool().execute(
-    "SELECT * FROM generated_contents WHERE user_id = ? ORDER BY updated_at DESC",
-    [userId]
-  );
-  return rows.map(row => mapGeneratedContent(row, { includeFull: true }));
-}
 
-async function mysqlDeleteGeneratedContentForUser(userId) {
-  const [result] = await createPool().execute("DELETE FROM generated_contents WHERE user_id = ?", [userId]);
-  return result.affectedRows || 0;
-}
 
 async function supabaseUpsertGeneratedContent(userId, payload = {}) {
   const row = rowFromGeneratedResult(userId, payload);
@@ -331,129 +240,28 @@ async function supabaseDeleteGeneratedContentForUser(userId) {
   return Array.isArray(rows) ? rows.length : 0;
 }
 
-async function mirrorMysql(operation, label) {
-  try {
-    return await operation();
-  } catch (error) {
-    console.warn(`[storage] MySQL ${label} mirror failed: ${error.message}`);
-    return null;
-  }
-}
 
 async function upsertGeneratedContent(userId, payload = {}) {
-  if (!supabaseStorageEnabled()) {
-    return mysqlUpsertGeneratedContent(userId, payload);
-  }
-
-  let supabaseItem = null;
-  let supabaseError = null;
-  try {
-    supabaseItem = await supabaseUpsertGeneratedContent(userId, payload);
-  } catch (error) {
-    supabaseError = error;
-    console.warn(`[storage] Supabase generated-content upsert failed: ${error.message}`);
-  }
-
-  const mysqlItem = await mirrorMysql(
-    () => mysqlUpsertGeneratedContent(userId, payload),
-    "generated-content upsert"
-  );
-  if (supabaseItem) return supabaseItem;
-  if (mysqlItem) return mysqlItem;
-  throw supabaseError || new Error("Could not persist generated content.");
+  return supabaseUpsertGeneratedContent(userId, payload);
 }
-
 async function listGeneratedContent(userId, limit = 50, options = {}) {
-  if (supabaseStorageEnabled()) {
-    try {
-      return await supabaseListGeneratedContent(userId, limit, options);
-    } catch (error) {
-      console.warn(`[storage] Supabase generated-content list failed: ${error.message}`);
-    }
-  }
-  return mysqlListGeneratedContent(userId, limit, options);
+  return supabaseListGeneratedContent(userId, limit, options);
 }
-
 async function getGeneratedContent(userId, contentId) {
-  if (supabaseStorageEnabled()) {
-    try {
-      const item = await supabaseGetGeneratedContent(userId, contentId);
-      if (item) return item;
-    } catch (error) {
-      console.warn(`[storage] Supabase generated-content get failed: ${error.message}`);
-    }
-  }
-  return mysqlGetGeneratedContent(userId, contentId);
+  return supabaseGetGeneratedContent(userId, contentId);
 }
-
 async function patchGeneratedContent(userId, contentId, patch = {}) {
-  if (!supabaseStorageEnabled()) {
-    return mysqlPatchGeneratedContent(userId, contentId, patch);
-  }
-
-  let supabaseItem = null;
-  try {
-    supabaseItem = await supabasePatchGeneratedContent(userId, contentId, patch);
-  } catch (error) {
-    console.warn(`[storage] Supabase generated-content patch failed: ${error.message}`);
-  }
-
-  const mysqlItem = await mirrorMysql(
-    () => mysqlPatchGeneratedContent(userId, contentId, patch),
-    "generated-content patch"
-  );
-  return supabaseItem || mysqlItem || getGeneratedContent(userId, contentId);
+  return supabasePatchGeneratedContent(userId, contentId, patch);
 }
-
 async function deleteGeneratedContent(userId, contentId) {
-  if (!supabaseStorageEnabled()) {
-    return mysqlDeleteGeneratedContent(userId, contentId);
-  }
-
-  let deleted = false;
-  try {
-    deleted = await supabaseDeleteGeneratedContent(userId, contentId);
-  } catch (error) {
-    console.warn(`[storage] Supabase generated-content delete failed: ${error.message}`);
-  }
-
-  const mysqlDeleted = await mirrorMysql(
-    () => mysqlDeleteGeneratedContent(userId, contentId),
-    "generated-content delete"
-  );
-  return deleted || Boolean(mysqlDeleted);
+  return supabaseDeleteGeneratedContent(userId, contentId);
 }
-
 async function exportGeneratedContent(userId) {
-  if (supabaseStorageEnabled()) {
-    try {
-      return await supabaseExportGeneratedContent(userId);
-    } catch (error) {
-      console.warn(`[storage] Supabase generated-content export failed: ${error.message}`);
-    }
-  }
-  return mysqlExportGeneratedContent(userId);
+  return supabaseExportGeneratedContent(userId);
 }
-
 async function deleteGeneratedContentForUser(userId) {
-  if (!supabaseStorageEnabled()) {
-    return mysqlDeleteGeneratedContentForUser(userId);
-  }
-
-  let deletedCount = 0;
-  try {
-    deletedCount = await supabaseDeleteGeneratedContentForUser(userId);
-  } catch (error) {
-    console.warn(`[storage] Supabase generated-content delete-user failed: ${error.message}`);
-  }
-
-  const mysqlDeleted = await mirrorMysql(
-    () => mysqlDeleteGeneratedContentForUser(userId),
-    "generated-content delete-user"
-  );
-  return deletedCount || Number(mysqlDeleted || 0);
+  return supabaseDeleteGeneratedContentForUser(userId);
 }
-
 export {
   deleteGeneratedContent,
   deleteGeneratedContentForUser,

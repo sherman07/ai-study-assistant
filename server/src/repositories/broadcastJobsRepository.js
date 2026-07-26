@@ -1,12 +1,10 @@
-import { createPool } from "../db/pool.js";
-import { firstSupabaseRow, supabaseRequest, supabaseStorageEnabled } from "../supabase/rest.js";
+import { firstSupabaseRow, supabaseRequest } from "../supabase/rest.js";
 import { randomId } from "../utils/ids.js";
 import {
   allowedValue,
   cleanString,
   firstValue,
   intValue,
-  jsonString,
   jsonValue,
   limitValue,
   nullableString
@@ -140,151 +138,10 @@ function rowFromPayload(userId, payload = {}, existing = {}) {
   };
 }
 
-async function mysqlUpsertBroadcastJob(userId, payload = {}, existing = {}) {
-  const row = rowFromPayload(userId, payload, existing);
-  await createPool().execute(
-    `INSERT INTO broadcast_jobs (
-      id, user_id, source_id, note_id, source_fingerprint, title, status, style,
-      length_minutes, custom_length_minutes, voice_format, depth, language,
-      progress_message, progress_percent, script_model, tts_provider, tts_model,
-      plan_json, script_json, validation_json, transcript_json, chapters_json,
-      key_ideas_json, source_references_json, audio_url, audio_metadata_json,
-      error_message, cancelled_at, completed_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    ON DUPLICATE KEY UPDATE
-      source_id = VALUES(source_id),
-      note_id = VALUES(note_id),
-      source_fingerprint = VALUES(source_fingerprint),
-      title = VALUES(title),
-      status = VALUES(status),
-      style = VALUES(style),
-      length_minutes = VALUES(length_minutes),
-      custom_length_minutes = VALUES(custom_length_minutes),
-      voice_format = VALUES(voice_format),
-      depth = VALUES(depth),
-      language = VALUES(language),
-      progress_message = VALUES(progress_message),
-      progress_percent = VALUES(progress_percent),
-      script_model = VALUES(script_model),
-      tts_provider = VALUES(tts_provider),
-      tts_model = VALUES(tts_model),
-      plan_json = VALUES(plan_json),
-      script_json = VALUES(script_json),
-      validation_json = VALUES(validation_json),
-      transcript_json = VALUES(transcript_json),
-      chapters_json = VALUES(chapters_json),
-      key_ideas_json = VALUES(key_ideas_json),
-      source_references_json = VALUES(source_references_json),
-      audio_url = VALUES(audio_url),
-      audio_metadata_json = VALUES(audio_metadata_json),
-      error_message = VALUES(error_message),
-      cancelled_at = VALUES(cancelled_at),
-      completed_at = VALUES(completed_at)`,
-    [
-      row.id,
-      row.user_id,
-      row.source_id,
-      row.note_id,
-      row.source_fingerprint,
-      row.title,
-      row.status,
-      row.style,
-      row.length_minutes,
-      row.custom_length_minutes,
-      row.voice_format,
-      row.depth,
-      row.language,
-      row.progress_message,
-      row.progress_percent,
-      row.script_model,
-      row.tts_provider,
-      row.tts_model,
-      jsonString(row.plan_json, {}),
-      jsonString(row.script_json, {}),
-      jsonString(row.validation_json, {}),
-      jsonString(row.transcript_json, []),
-      jsonString(row.chapters_json, []),
-      jsonString(row.key_ideas_json, []),
-      jsonString(row.source_references_json, []),
-      row.audio_url,
-      jsonString(row.audio_metadata_json, {}),
-      row.error_message,
-      row.cancelled_at,
-      row.completed_at
-    ]
-  );
-  return mysqlGetBroadcastJob(userId, row.id);
-}
 
-async function mysqlListBroadcastJobs(userId, limit = 50) {
-  const safeLimit = limitValue(limit, 50, 100);
-  const [rows] = await createPool().execute(
-    `SELECT * FROM broadcast_jobs WHERE user_id = ? ORDER BY updated_at DESC LIMIT ${safeLimit}`,
-    [userId]
-  );
-  return rows.map(mapBroadcastJob);
-}
 
-async function mysqlGetBroadcastJob(userId, jobId) {
-  const [rows] = await createPool().execute(
-    "SELECT * FROM broadcast_jobs WHERE user_id = ? AND id = ? LIMIT 1",
-    [userId, cleanString(jobId, 96)]
-  );
-  return rows[0] ? mapBroadcastJob(rows[0]) : null;
-}
 
-async function mysqlPatchBroadcastJob(userId, jobId, patch = {}) {
-  const current = await mysqlGetBroadcastJob(userId, jobId);
-  if (!current) return null;
-  return mysqlUpsertBroadcastJob(userId, { ...current, ...patch, id: current.id }, {
-    id: current.id,
-    status: current.status,
-    title: current.title
-  });
-}
 
-async function mysqlDeleteBroadcastJob(userId, jobId) {
-  const [result] = await createPool().execute(
-    "DELETE FROM broadcast_jobs WHERE user_id = ? AND id = ?",
-    [userId, cleanString(jobId, 96)]
-  );
-  return result.affectedRows > 0;
-}
-
-function supabaseBroadcastRow(row = {}) {
-  return {
-    id: row.id,
-    user_id: row.user_id,
-    source_id: row.source_id,
-    note_id: row.note_id,
-    source_fingerprint: row.source_fingerprint,
-    title: row.title,
-    status: row.status,
-    style: row.style,
-    length_minutes: row.length_minutes,
-    custom_length_minutes: row.custom_length_minutes,
-    voice_format: row.voice_format,
-    depth: row.depth,
-    language: row.language,
-    progress_message: row.progress_message,
-    progress_percent: row.progress_percent,
-    script_model: row.script_model,
-    tts_provider: row.tts_provider,
-    tts_model: row.tts_model,
-    plan_json: row.plan_json,
-    script_json: row.script_json,
-    validation_json: row.validation_json,
-    transcript_json: row.transcript_json,
-    chapters_json: row.chapters_json,
-    key_ideas_json: row.key_ideas_json,
-    source_references_json: row.source_references_json,
-    audio_url: row.audio_url,
-    audio_metadata_json: row.audio_metadata_json,
-    error_message: row.error_message,
-    cancelled_at: row.cancelled_at,
-    completed_at: row.completed_at
-  };
-}
 
 async function supabaseUpsertBroadcastJob(userId, payload = {}, existing = {}) {
   const row = rowFromPayload(userId, payload, existing);
@@ -339,80 +196,24 @@ async function supabaseDeleteBroadcastJob(userId, jobId) {
   return Array.isArray(rows) ? rows.length > 0 : Boolean(rows);
 }
 
-async function mirrorMysql(operation, label) {
-  try {
-    return await operation();
-  } catch (error) {
-    console.warn(`[storage] MySQL ${label} mirror failed: ${error.message}`);
-    return null;
-  }
-}
 
 async function createBroadcastJob(userId, payload = {}) {
-  const initialPayload = {
+  return supabaseUpsertBroadcastJob(userId, {
     status: "queued",
     progressMessage: "Queued for AI Broadcast studio generation",
     progressPercent: 4,
     ...payload
-  };
-  if (!supabaseStorageEnabled()) return mysqlUpsertBroadcastJob(userId, initialPayload);
-
-  let supabaseItem = null;
-  let supabaseError = null;
-  try {
-    supabaseItem = await supabaseUpsertBroadcastJob(userId, initialPayload);
-  } catch (error) {
-    supabaseError = error;
-    console.warn(`[storage] Supabase broadcast job create failed: ${error.message}`);
-  }
-  const mysqlItem = await mirrorMysql(
-    () => mysqlUpsertBroadcastJob(userId, initialPayload),
-    "broadcast job create"
-  );
-  if (supabaseItem) return supabaseItem;
-  if (mysqlItem) return mysqlItem;
-  throw supabaseError || new Error("Could not persist broadcast job.");
+  });
 }
-
 async function listBroadcastJobs(userId, limit = 50) {
-  if (supabaseStorageEnabled()) {
-    try {
-      return await supabaseListBroadcastJobs(userId, limit);
-    } catch (error) {
-      console.warn(`[storage] Supabase broadcast job list failed: ${error.message}`);
-    }
-  }
-  return mysqlListBroadcastJobs(userId, limit);
+  return supabaseListBroadcastJobs(userId, limit);
 }
-
 async function getBroadcastJob(userId, jobId) {
-  if (supabaseStorageEnabled()) {
-    try {
-      const item = await supabaseGetBroadcastJob(userId, jobId);
-      if (item) return item;
-    } catch (error) {
-      console.warn(`[storage] Supabase broadcast job get failed: ${error.message}`);
-    }
-  }
-  return mysqlGetBroadcastJob(userId, jobId);
+  return supabaseGetBroadcastJob(userId, jobId);
 }
-
 async function patchBroadcastJob(userId, jobId, patch = {}) {
-  if (!supabaseStorageEnabled()) return mysqlPatchBroadcastJob(userId, jobId, patch);
-
-  let supabaseItem = null;
-  try {
-    supabaseItem = await supabasePatchBroadcastJob(userId, jobId, patch);
-  } catch (error) {
-    console.warn(`[storage] Supabase broadcast job patch failed: ${error.message}`);
-  }
-  const mysqlItem = await mirrorMysql(
-    () => mysqlPatchBroadcastJob(userId, jobId, patch),
-    "broadcast job patch"
-  );
-  return supabaseItem || mysqlItem || getBroadcastJob(userId, jobId);
+  return supabasePatchBroadcastJob(userId, jobId, patch);
 }
-
 async function cancelBroadcastJob(userId, jobId) {
   return patchBroadcastJob(userId, jobId, {
     status: "cancelled",
@@ -433,21 +234,8 @@ async function retryBroadcastJob(userId, jobId) {
 }
 
 async function deleteBroadcastJob(userId, jobId) {
-  if (!supabaseStorageEnabled()) return mysqlDeleteBroadcastJob(userId, jobId);
-
-  let deleted = false;
-  try {
-    deleted = await supabaseDeleteBroadcastJob(userId, jobId);
-  } catch (error) {
-    console.warn(`[storage] Supabase broadcast job delete failed: ${error.message}`);
-  }
-  const mysqlDeleted = await mirrorMysql(
-    () => mysqlDeleteBroadcastJob(userId, jobId),
-    "broadcast job delete"
-  );
-  return deleted || Boolean(mysqlDeleted);
+  return supabaseDeleteBroadcastJob(userId, jobId);
 }
-
 export {
   BROADCAST_SCRIPT_MODEL,
   BROADCAST_STATUSES,

@@ -2,7 +2,6 @@ import cors from "cors";
 import express from "express";
 import helmet from "helmet";
 import { config } from "./config.js";
-import { checkDatabase } from "./db/pool.js";
 import { errorHandler, notFound } from "./middleware/errors.js";
 import { billingRouter, billingWebhookRouter } from "./routes/billing.js";
 import { broadcastJobsRouter } from "./routes/broadcastJobs.js";
@@ -42,25 +41,13 @@ function createApp() {
   app.use("/api/billing/webhook", express.raw({ type: "application/json" }), billingWebhookRouter);
 
   app.get("/health", async (_req, res) => {
-    // Repositories select Supabase when it is configured; MySQL is a legacy
-    // fallback, not a second write target. Keep the health response truthful
-    // so operations can distinguish a working primary store from a mirror.
-    const storageMode = supabaseStorageEnabled() ? "supabase" : "mysql";
     const supabase = {
       auth_configured: Boolean(config.supabaseUrl && config.supabaseAnonKey),
       storage_configured: supabaseStorageEnabled(),
       schema: config.supabaseDbSchema || "public",
       connected: false
     };
-    let mysqlConnected = false;
     let supabaseConnected = false;
-
-    try {
-      await checkDatabase();
-      mysqlConnected = true;
-    } catch {
-      mysqlConnected = false;
-    }
 
     if (supabase.storage_configured) {
       try {
@@ -71,12 +58,11 @@ function createApp() {
     }
 
     supabase.connected = supabaseConnected;
-    if (mysqlConnected || supabaseConnected) {
+    if (supabaseConnected) {
       res.json({
         ok: true,
         status: "ok",
-        database: storageMode,
-        mysql: { connected: mysqlConnected },
+        database: "supabase",
         supabase
       });
       return;
@@ -85,8 +71,7 @@ function createApp() {
     res.status(503).json({
       ok: false,
       status: "degraded",
-      database: storageMode,
-      mysql: { connected: false },
+      database: "supabase",
       supabase,
       error: "Database connection unavailable."
     });

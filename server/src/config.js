@@ -48,14 +48,6 @@ const config = {
     webhookSecret: envString("STRIPE_WEBHOOK_SECRET"),
     priceProMonthly: envString("STRIPE_PRICE_PRO_MONTHLY"),
     priceProYearly: envString("STRIPE_PRICE_PRO_YEARLY")
-  },
-  mysql: {
-    host: envString("MYSQL_HOST", "127.0.0.1"),
-    port: envInt("MYSQL_PORT", 3306),
-    database: envString("MYSQL_DATABASE", "synapse"),
-    user: envString("MYSQL_USER", "synapse_app"),
-    password: envString("MYSQL_PASSWORD"),
-    connectionLimit: envInt("MYSQL_CONNECTION_LIMIT", 10)
   }
 };
 

@@ -1069,17 +1069,19 @@ async function runGenerationJobAnalysis(jobId, context = {}) {
     progress: 18,
     message: "Reading sources and preparing context"
   });
-  const formData = new FormData();
-  files.forEach(file => formData.append("files", file));
-
-  formData.append("links", JSON.stringify(sourceLinks));
-  formData.append("free_text", parsedSources.freeText);
-  formData.append("preferred_language", outputLanguageSetting);
-  formData.append("detail_level", detailLevelValue);
-  formData.append("prompt_mode", promptModeValue);
-  formData.append("note_length", noteLengthValue);
-  formData.append("ai_provider", aiProviderValue);
-  formData.append("client_fingerprint", currentSourceFingerprint);
+  const buildAnalyzeFormData = () => {
+    const formData = new FormData();
+    files.forEach(file => formData.append("files", file));
+    formData.append("links", JSON.stringify(sourceLinks));
+    formData.append("free_text", parsedSources.freeText);
+    formData.append("preferred_language", outputLanguageSetting);
+    formData.append("detail_level", detailLevelValue);
+    formData.append("prompt_mode", promptModeValue);
+    formData.append("note_length", noteLengthValue);
+    formData.append("ai_provider", aiProviderValue);
+    formData.append("client_fingerprint", currentSourceFingerprint);
+    return formData;
+  };
 
   try {
     const abortController = typeof AbortController !== "undefined" ? new AbortController() : null;
@@ -1103,15 +1105,44 @@ async function runGenerationJobAnalysis(jobId, context = {}) {
       progress: 34,
       message: "Generating tutor-style study notes"
     });
-    const response = await apiClient.fetchWithRetry("/analyze", {
-      method: "POST",
-      body: formData,
-      timeoutMs: ANALYSIS_TIMEOUT_MS,
-      signal: abortController?.signal
-    }, {
-      attempts: 3,
-      retryDelayMs: 3000
-    });
+    let keepAliveId = null;
+    if (typeof window !== "undefined" && window.setInterval) {
+      keepAliveId = window.setInterval(() => {
+        apiClient.fetch("/healthz", { method: "GET", timeoutMs: 12000 }).catch(() => {});
+      }, 25000);
+    }
+    let response;
+    try {
+      response = await apiClient.fetchWithRetry("/analyze", () => ({
+        method: "POST",
+        body: buildAnalyzeFormData(),
+        timeoutMs: ANALYSIS_TIMEOUT_MS,
+        signal: abortController?.signal
+      }), {
+        attempts: 4,
+        retryDelayMs: 4000,
+        retryOnConnectionError: true,
+        onRetry: ({ attempt, totalAttempts, reason }) => {
+          upsertGenerationJob({
+            jobId,
+            status: "generating",
+            progress: Math.min(48, 34 + attempt * 3),
+            message: `Hosted service interrupted (${reason}). Retrying analysis ${attempt + 1}/${totalAttempts}…`
+          });
+        }
+      });
+    } catch (error) {
+      if (error?.name === "ApiConnectionError" && error.code !== "cancelled" && error.code !== "timeout") {
+        throw new Error(
+          typeof apiClient.analysisInterruptedMessage === "function"
+            ? apiClient.analysisInterruptedMessage()
+            : error.message
+        );
+      }
+      throw error;
+    } finally {
+      if (keepAliveId) window.clearInterval(keepAliveId);
+    }
 
     let data = null;
     try {

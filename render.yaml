@@ -10,6 +10,8 @@ services:
     healthCheckPath: /healthz
     autoDeployTrigger: commit
     envVars:
+      # Secrets stay sync:false so OpenAI / service-role / internal tokens never
+      # appear in git. Only boolean "loaded" flags are exposed via /health.
       - key: OPENAI_API_KEY
         sync: false
       - key: AI_TEXT_PROVIDER
@@ -24,10 +26,13 @@ services:
         value: https://synapse-ai-study-assistant-tutor.vercel.app/frontend
       - key: SUPABASE_URL
         value: https://yoopvoutgfhnldhmqmip.supabase.co
+      # Public anon/publishable key only (safe in browser). Service role stays secret.
       - key: SUPABASE_ANON_KEY
         value: sb_publishable_WhUSmLHyEZ7E_-R9_sjbPA_5KVgHzXF
       - key: SUPABASE_SERVICE_ROLE_KEY
         sync: false
+      # Hosted request budget stays under the platform proxy window (~100s).
+      # Local defaults may be higher (e.g. 300s); production must finish faster.
       - key: OPENAI_TIMEOUT_SECONDS
         value: "75"
       - key: ANALYSIS_MAX_SECONDS

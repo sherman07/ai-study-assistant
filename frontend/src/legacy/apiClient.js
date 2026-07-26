@@ -1,8 +1,9 @@
 class ApiConnectionError extends Error {
-  constructor(message, { cause } = {}) {
+  constructor(message, { cause, code } = {}) {
     super(message);
     this.name = "ApiConnectionError";
     this.cause = cause;
+    this.code = code || "connection_error";
   }
 }
 
@@ -91,6 +92,14 @@ class SynapseApiClient {
     ].join(" ");
   }
 
+  analysisInterruptedMessage() {
+    return [
+      "Synapse lost the connection while analysing your materials.",
+      "This is usually a temporary hosted-service interruption, not missing files.",
+      "Click Retry — your uploaded files and links are kept in this browser when possible."
+    ].join(" ");
+  }
+
   async requestHeaders(headers = {}) {
     const win = browserWindow();
     const next = headersToObject(headers);
@@ -143,10 +152,22 @@ class SynapseApiClient {
     try {
       return await this.fetchImpl(url, fetchOptions);
     } catch (error) {
-      if (controller?.signal?.aborted) {
-        throw new ApiConnectionError(this.timeoutMessage(timeoutLimit), { cause: error });
+      if (controller?.signal?.aborted && !callerSignal?.aborted) {
+        throw new ApiConnectionError(this.timeoutMessage(timeoutLimit), {
+          cause: error,
+          code: "timeout"
+        });
       }
-      throw new ApiConnectionError(this.connectionMessage(), { cause: error });
+      if (callerSignal?.aborted) {
+        throw new ApiConnectionError("Analysis was cancelled.", {
+          cause: error,
+          code: "cancelled"
+        });
+      }
+      throw new ApiConnectionError(this.connectionMessage(), {
+        cause: error,
+        code: "unreachable"
+      });
     } finally {
       if (timeoutId) browserWindow().clearTimeout(timeoutId);
       if (callerSignal && abortFromCaller) {
@@ -173,7 +194,8 @@ class SynapseApiClient {
         });
         if (response?.ok) return response;
         lastError = new ApiConnectionError(
-          `Synapse hosted service returned ${response?.status || "an unexpected status"} while preparing your analysis.`
+          `Synapse hosted service returned ${response?.status || "an unexpected status"} while preparing your analysis.`,
+          { code: "warmup_status" }
         );
       } catch (error) {
         lastError = error;
@@ -186,26 +208,59 @@ class SynapseApiClient {
       }
     }
 
-    throw lastError || new ApiConnectionError(this.connectionMessage());
+    throw lastError || new ApiConnectionError(this.connectionMessage(), { code: "warmup_failed" });
   }
 
   isRetryableResponse(response) {
     return [502, 503, 504].includes(Number(response?.status));
   }
 
-  async fetchWithRetry(path, options = {}, { attempts = 3, retryDelayMs = 3000 } = {}) {
+  isRetryableConnectionError(error) {
+    if (!(error instanceof ApiConnectionError)) return false;
+    if (error.code === "cancelled" || error.code === "timeout") return false;
+    return true;
+  }
+
+  async fetchWithRetry(path, options = {}, {
+    attempts = 3,
+    retryDelayMs = 3000,
+    retryOnConnectionError = true,
+    onRetry
+  } = {}) {
     const totalAttempts = Math.max(1, Math.floor(Number(attempts) || 1));
     let response = null;
+    let lastError = null;
 
     for (let attempt = 0; attempt < totalAttempts; attempt += 1) {
-      response = await this.fetch(path, options);
-      if (!this.isRetryableResponse(response) || attempt === totalAttempts - 1) return response;
+      try {
+        // Rebuild FormData-friendly request each attempt when a factory is provided.
+        const attemptOptions = typeof options === "function" ? options(attempt) : options;
+        response = await this.fetch(path, attemptOptions);
+        if (!this.isRetryableResponse(response) || attempt === totalAttempts - 1) return response;
+        onRetry?.({
+          attempt: attempt + 1,
+          totalAttempts,
+          reason: `HTTP ${response.status}`
+        });
+      } catch (error) {
+        lastError = error;
+        const canRetry = retryOnConnectionError
+          && this.isRetryableConnectionError(error)
+          && attempt < totalAttempts - 1;
+        if (!canRetry) throw error;
+        onRetry?.({
+          attempt: attempt + 1,
+          totalAttempts,
+          reason: error?.code || "connection_error"
+        });
+      }
 
       if (retryDelayMs > 0) {
         await new Promise(resolve => browserWindow().setTimeout(resolve, retryDelayMs));
       }
     }
 
+    if (lastError) throw lastError;
     return response;
   }
 }

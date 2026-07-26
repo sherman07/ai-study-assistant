@@ -79,6 +79,31 @@ const analysisResponse = await renderWakeClient.fetchWithRetry(
 assert.equal(analysisResponse.ok, true, "analysis should recover after Render wake-up 503 responses");
 assert.equal(analysisCalls, 3, "analysis should retry transient Render wake-up responses");
 
+let droppedCalls = 0;
+const droppedClient = new SynapseApiClient("https://synapse-ai-backend.example.com", {
+  fetchImpl: () => {
+    droppedCalls += 1;
+    if (droppedCalls < 3) return Promise.reject(new TypeError("network unavailable"));
+    return Promise.resolve({
+      ok: true,
+      status: 200,
+      headers: { get: () => "application/json" }
+    });
+  }
+});
+const recovered = await droppedClient.fetchWithRetry(
+  "/analyze",
+  { method: "POST", body: "retry after drop" },
+  { attempts: 4, retryDelayMs: 0, retryOnConnectionError: true }
+);
+assert.equal(recovered.ok, true, "analysis should retry when the hosted connection drops mid-request");
+assert.equal(droppedCalls, 3, "connection drops should be retried before failing the job");
+assert.match(
+  droppedClient.analysisInterruptedMessage(),
+  /lost the connection while analysing/i,
+  "users should see an analysis-interruption message instead of a cold-start-only hint"
+);
+
 const uploadControllerSource = await readFile(
   new URL("../src/legacy/controller_sections/01_uploadedfiles.js", import.meta.url),
   "utf8"
@@ -87,6 +112,16 @@ assert.match(
   uploadControllerSource,
   /await apiClient\.warmup\(\{[\s\S]*?attempts: 16,[\s\S]*?retryDelayMs: 5000,[\s\S]*?timeoutMs: 75000,[\s\S]*?maxWaitMs: 90000[\s\S]*?\}\);/,
   "a cold Render service needs a bounded full wake-up window before the upload is marked failed"
+);
+assert.match(
+  uploadControllerSource,
+  /fetchWithRetry\("\/analyze",\s*\(\)\s*=>/,
+  "analyze retries must rebuild the multipart upload body on each attempt"
+);
+assert.match(
+  uploadControllerSource,
+  /analysisInterruptedMessage/,
+  "failed mid-analysis connections should use the clearer interruption message"
 );
 
 console.log("api client production connection regression passed");

@@ -25,7 +25,7 @@ def download_youtube_media(url: str) -> Optional[str]:
     return next((path for path in candidates if os.path.exists(path) and os.path.getsize(path) > 0), None)
 
 
-def analyse_youtube_url(url: str) -> Tuple[str, List[dict], dict]:
+def analyse_youtube_url(url: str, captions_only: bool = False) -> Tuple[str, List[dict], dict]:
     canonical_url = canonicalize_youtube_watch_url(url)
     metadata = fetch_youtube_metadata(canonical_url)
     transcript = fetch_youtube_caption_transcript(canonical_url)
@@ -36,7 +36,10 @@ def analyse_youtube_url(url: str) -> Tuple[str, List[dict], dict]:
 
     extract_frames = os.getenv("YOUTUBE_EXTRACT_FRAMES", "0").lower() in {"1", "true", "yes"}
     needs_audio_fallback = len(transcript.strip()) < 500
-    if yt_dlp is not None and (extract_frames or needs_audio_fallback):
+    # Multi-file requests already have PPTX/PDF evidence. Skip the expensive
+    # yt-dlp download/transcribe path so analysis stays inside the request budget.
+    allow_media_download = not captions_only
+    if allow_media_download and yt_dlp is not None and (extract_frames or needs_audio_fallback):
         media_path = download_youtube_media(canonical_url)
     if media_path:
         try:

@@ -94,6 +94,12 @@ const SOURCE_STORE_CONFIG = {
   storeName: SOURCE_DB_STORE,
   errorLabel: "source cache"
 };
+const UPLOAD_RETRY_STORE_CONFIG = {
+  dbName: "synapse.upload.retry.v1",
+  version: 1,
+  storeName: "uploadRetry",
+  errorLabel: "upload retry cache"
+};
 const NOTE_LENGTH_DESCRIPTIONS = {
   quick_review: "Low content depth: core answer, key source anchors, and fastest revision value.",
   standard_notes: "Balanced content depth: source concepts, reasoning, examples, and revision use.",
@@ -1322,9 +1328,155 @@ function setGeneratingState(isGenerating) {
   else resetGenerateButton();
 }
 
-function retryGenerationJobFromUpload(job = {}) {
+function resolveUploadedFilesForRetry(fileNames = []) {
+  const names = (Array.isArray(fileNames) ? fileNames : []).map(name => String(name || "Uploaded source"));
+  if (!names.length || !Array.isArray(uploadedFiles) || !uploadedFiles.length) return [];
+  const used = new Set();
+  const matched = [];
+  for (const name of names) {
+    const index = uploadedFiles.findIndex((file, fileIndex) => {
+      if (used.has(fileIndex)) return false;
+      return String(file?.name || "Uploaded source") === name;
+    });
+    if (index < 0) return [];
+    used.add(index);
+    matched.push(uploadedFiles[index]);
+  }
+  return matched;
+}
+
+async function saveUploadRetryPayload(jobId, context = {}) {
+  const id = String(jobId || "");
+  if (!id || typeof indexedDB === "undefined") return;
+  const files = Array.isArray(context.files) ? context.files : [];
+  const serializedFiles = [];
+  for (const file of files) {
+    if (!file) continue;
+    serializedFiles.push({
+      name: String(file.name || "Uploaded source"),
+      type: String(file.type || "application/octet-stream"),
+      lastModified: Number(file.lastModified || Date.now()),
+      buffer: await file.arrayBuffer()
+    });
+  }
+  const db = await openUploadRetryDb();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(UPLOAD_RETRY_STORE_CONFIG.storeName, "readwrite");
+      tx.objectStore(UPLOAD_RETRY_STORE_CONFIG.storeName).put({
+        id: `job:${id}`,
+        updatedAt: Date.now(),
+        sourceLinks: Array.isArray(context.sourceLinks) ? context.sourceLinks : [],
+        uploadedLinks: Array.isArray(context.uploadedLinks) ? context.uploadedLinks : [],
+        freeText: String(context.freeText || ""),
+        rawSource: String(context.rawSource || ""),
+        files: serializedFiles
+      });
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error("Failed to save upload retry payload."));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+function openUploadRetryDb() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(UPLOAD_RETRY_STORE_CONFIG.dbName, UPLOAD_RETRY_STORE_CONFIG.version);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(UPLOAD_RETRY_STORE_CONFIG.storeName)) {
+        const store = db.createObjectStore(UPLOAD_RETRY_STORE_CONFIG.storeName, { keyPath: "id" });
+        store.createIndex("updatedAt", "updatedAt", { unique: false });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error || new Error("Failed to open upload retry cache."));
+  });
+}
+
+async function loadUploadRetryPayload(jobId) {
+  const id = String(jobId || "");
+  if (!id || typeof indexedDB === "undefined") return null;
+  const db = await openUploadRetryDb();
+  try {
+    const record = await new Promise((resolve, reject) => {
+      const tx = db.transaction(UPLOAD_RETRY_STORE_CONFIG.storeName, "readonly");
+      const request = tx.objectStore(UPLOAD_RETRY_STORE_CONFIG.storeName).get(`job:${id}`);
+      request.onsuccess = () => resolve(request.result || null);
+      request.onerror = () => reject(request.error || new Error("Failed to load upload retry payload."));
+    });
+    if (!record) return null;
+    const files = (Array.isArray(record.files) ? record.files : []).map(entry => new File(
+      [entry.buffer],
+      String(entry.name || "Uploaded source"),
+      {
+        type: String(entry.type || "application/octet-stream"),
+        lastModified: Number(entry.lastModified || Date.now())
+      }
+    ));
+    return {
+      sourceLinks: Array.isArray(record.sourceLinks) ? record.sourceLinks : [],
+      uploadedLinks: Array.isArray(record.uploadedLinks) ? record.uploadedLinks : [],
+      freeText: String(record.freeText || ""),
+      rawSource: String(record.rawSource || ""),
+      files
+    };
+  } finally {
+    db.close();
+  }
+}
+
+async function clearUploadRetryPayload(jobId) {
+  const id = String(jobId || "");
+  if (!id || typeof indexedDB === "undefined") return;
+  const db = await openUploadRetryDb();
+  try {
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(UPLOAD_RETRY_STORE_CONFIG.storeName, "readwrite");
+      tx.objectStore(UPLOAD_RETRY_STORE_CONFIG.storeName).delete(`job:${id}`);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error || new Error("Failed to clear upload retry payload."));
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function retryGenerationJobFromUpload(job = {}) {
   const request = job.request || {};
-  if (request.hasFiles) return false;
+  const retained = typeof runtimeGenerationJobRetryPayloads !== "undefined"
+    ? runtimeGenerationJobRetryPayloads.get(job.jobId)
+    : null;
+  let files = Array.isArray(retained?.files) ? [...retained.files] : [];
+  let sourceLinks = uniqueSourceLinks(
+    retained?.sourceLinks || request.sourceLinks || []
+  );
+  let uploadedLinks = Array.isArray(retained?.uploadedLinks)
+    ? [...retained.uploadedLinks]
+    : (Array.isArray(request.uploadedLinks) ? [...request.uploadedLinks] : []);
+  let freeText = retained?.freeText ?? request.freeText ?? "";
+  let rawSource = retained?.rawSource ?? request.rawSource ?? "";
+
+  if (request.hasFiles && !files.length) {
+    files = resolveUploadedFilesForRetry(request.fileNames);
+  }
+  if (request.hasFiles && !files.length) {
+    const restored = await loadUploadRetryPayload(job.jobId);
+    if (restored?.files?.length) {
+      files = restored.files;
+      if (!sourceLinks.length) sourceLinks = uniqueSourceLinks(restored.sourceLinks || []);
+      if (!uploadedLinks.length) uploadedLinks = Array.isArray(restored.uploadedLinks) ? restored.uploadedLinks : [];
+      if (!freeText) freeText = restored.freeText || "";
+      if (!rawSource) rawSource = restored.rawSource || "";
+    }
+  }
+  if (request.hasFiles && !files.length) return false;
+
+  if (files.length) uploadedFiles = [...files];
+  uploadedLinks = [...uploadedLinks];
+  if (sourceInput && rawSource) sourceInput.value = rawSource;
+
   upsertGenerationJob({
     jobId: job.jobId,
     status: "queued",
@@ -1335,11 +1487,15 @@ function retryGenerationJobFromUpload(job = {}) {
   openGenerationJob(job.jobId);
   enqueueGenerationJobRun(job.jobId, {
     ...request,
+    rawSource,
+    freeText,
+    sourceLinks,
+    uploadedLinks,
     parsedSources: {
-      links: Array.isArray(request.sourceLinks) ? request.sourceLinks : [],
-      freeText: request.freeText || ""
+      links: sourceLinks,
+      freeText
     },
-    files: []
+    files: [...files]
   });
   return true;
 }

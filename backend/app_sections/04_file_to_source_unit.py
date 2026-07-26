@@ -90,9 +90,9 @@ def file_to_source_unit(name: str, content_type: str, data: bytes) -> Tuple[List
     return parts, source_meta
 
 
-def link_to_source_unit(url: str) -> Tuple[List[dict], dict]:
+def link_to_source_unit(url: str, captions_only: bool = False) -> Tuple[List[dict], dict]:
     if get_youtube_video_id(url):
-        transcript, frame_parts, meta = analyse_youtube_url(url)
+        transcript, frame_parts, meta = analyse_youtube_url(url, captions_only=captions_only)
         parts = [{
             "type": "text",
             "text": (

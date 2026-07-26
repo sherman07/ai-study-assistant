@@ -3,6 +3,7 @@ const GENERATION_JOB_STATUSES = new Set(["queued", "analysing", "generating", "c
 const ACTIVE_GENERATION_STATUSES = new Set(["queued", "analysing", "generating"]);
 const runtimeGenerationJobContexts = new Map();
 const runtimeGenerationJobControllers = new Map();
+const runtimeGenerationJobRetryPayloads = new Map();
 let activeGenerationJobId = "";
 let runningGenerationJobId = "";
 
@@ -72,7 +73,7 @@ function recoverGenerationJobsOnBoot() {
       progress: Math.max(job.progress || 0, 100),
       message: "Generation was interrupted",
       error: job.request?.hasFiles
-        ? "The page refreshed before this job finished. Re-upload the source files, then click Generate AI again."
+        ? "Generation was interrupted. Use Retry to continue with the sources already attached to this job."
         : "The page refreshed before this job finished. Use Retry to start it again.",
       updatedAt: new Date().toISOString()
     });
@@ -201,6 +202,11 @@ function deleteGenerationJob(jobId) {
   if (controller) controller.abort();
   runtimeGenerationJobControllers.delete(id);
   runtimeGenerationJobContexts.delete(id);
+  runtimeGenerationJobControllers.delete(id);
+  runtimeGenerationJobRetryPayloads.delete(id);
+  if (typeof clearUploadRetryPayload === "function") {
+    Promise.resolve(clearUploadRetryPayload(id)).catch(() => {});
+  }
   setGenerationJobs(getGenerationJobs().filter(job => job.jobId !== id));
   if (activeGenerationJobId === id) {
     clearActiveGenerationJob();
@@ -287,6 +293,10 @@ function cancelGenerationJob(jobId) {
   if (controller) controller.abort();
   runtimeGenerationJobContexts.delete(id);
   runtimeGenerationJobControllers.delete(id);
+  runtimeGenerationJobRetryPayloads.delete(id);
+  if (typeof clearUploadRetryPayload === "function") {
+    Promise.resolve(clearUploadRetryPayload(id)).catch(() => {});
+  }
   upsertGenerationJob({
     jobId: id,
     status: "cancelled",
@@ -297,15 +307,29 @@ function cancelGenerationJob(jobId) {
   processGenerationJobQueue();
 }
 
-function retryGenerationJob(jobId) {
+async function retryGenerationJob(jobId) {
   const job = getGenerationJob(jobId);
   if (!job) return;
-  if (typeof retryGenerationJobFromUpload === "function" && retryGenerationJobFromUpload(job)) return;
+  if (typeof retryGenerationJobFromUpload === "function") {
+    try {
+      const retried = await retryGenerationJobFromUpload(job);
+      if (retried) return;
+    } catch (error) {
+      upsertGenerationJob({
+        jobId: job.jobId,
+        status: "failed",
+        message: "Retry could not restart this job",
+        error: error?.message || "Synapse could not retry this generation."
+      });
+      openGenerationJob(job.jobId);
+      return;
+    }
+  }
   upsertGenerationJob({
     jobId: job.jobId,
     status: "failed",
-    message: "Retry needs the original uploaded files in this browser tab.",
-    error: "Re-upload the source files, then click Generate AI again."
+    message: "Retry needs the original uploaded files in this browser.",
+    error: "The original files are no longer available in this browser. Add the same files again, then click Generate AI."
   });
   openGenerationJob(job.jobId);
 }
@@ -313,6 +337,18 @@ function retryGenerationJob(jobId) {
 function enqueueGenerationJobRun(jobId, context) {
   if (!jobId || !context) return;
   runtimeGenerationJobContexts.set(jobId, context);
+  if (Array.isArray(context.files) && context.files.length) {
+    runtimeGenerationJobRetryPayloads.set(jobId, {
+      ...context,
+      files: [...context.files]
+    });
+    if (typeof saveUploadRetryPayload === "function") {
+      Promise.resolve(saveUploadRetryPayload(jobId, {
+        ...context,
+        files: [...context.files]
+      })).catch(error => console.warn("Could not persist upload retry payload:", error));
+    }
+  }
   processGenerationJobQueue();
 }
 
@@ -334,6 +370,19 @@ function processGenerationJobQueue() {
       });
     })
     .finally(() => {
+      const finished = getGenerationJob(nextJob.jobId);
+      const context = runtimeGenerationJobContexts.get(nextJob.jobId);
+      if (finished?.status === "failed" && context) {
+        runtimeGenerationJobRetryPayloads.set(nextJob.jobId, {
+          ...context,
+          files: Array.isArray(context.files) ? [...context.files] : []
+        });
+      } else if (finished?.status === "completed" || finished?.status === "cancelled") {
+        runtimeGenerationJobRetryPayloads.delete(nextJob.jobId);
+        if (typeof clearUploadRetryPayload === "function") {
+          Promise.resolve(clearUploadRetryPayload(nextJob.jobId)).catch(() => {});
+        }
+      }
       runtimeGenerationJobContexts.delete(nextJob.jobId);
       runtimeGenerationJobControllers.delete(nextJob.jobId);
       if (runningGenerationJobId === nextJob.jobId) runningGenerationJobId = "";

@@ -759,6 +759,21 @@ class EmbeddedYoutubeSafetyTests(unittest.TestCase):
             else:
                 backend_app_module.ENABLE_YOUTUBE_YTDLP_FALLBACK = previous_value
 
+    def test_analyse_youtube_url_captions_only_skips_media_download(self):
+        with patch.object(backend_app_module, "fetch_youtube_metadata", return_value={"title": "Sample lecture", "channel": "Synapse", "duration": "10:00"}), \
+             patch.object(backend_app_module, "fetch_youtube_caption_transcript", return_value="A" * 80), \
+             patch.object(backend_app_module, "download_youtube_media") as download_media, \
+             patch.object(backend_app_module, "yt_dlp", object()):
+            transcript, frames, meta = backend_app_module.analyse_youtube_url(
+                "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+                captions_only=True,
+            )
+
+        download_media.assert_not_called()
+        self.assertEqual(frames, [])
+        self.assertIn("Sample lecture", transcript)
+        self.assertEqual(meta.get("transcript_status"), "unavailable")
+
 
 class SourceStrictNotesTests(unittest.TestCase):
     def test_source_strict_validation_rebuilds_required_sections_and_dedupes_repeat(self):

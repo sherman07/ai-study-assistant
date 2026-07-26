@@ -174,6 +174,14 @@ async def analyze_materials(
         except Exception:
             parsed_links = []
 
+        has_file_sources = any(
+            str(unit.get("source_identity") or "").startswith("file:")
+            for unit in source_units
+        )
+        # Prefer captions-only YouTube extraction when files already provide
+        # study evidence, or when the remaining budget is too tight for yt-dlp.
+        youtube_captions_only = has_file_sources or analysis_remaining_seconds() < 45
+
         for url in parsed_links:
             if not isinstance(url, str) or not url.strip():
                 continue
@@ -184,7 +192,11 @@ async def analyze_materials(
                 if key in seen_youtube_sources:
                     continue
                 seen_youtube_sources.add(key)
-            parts, meta = await run_blocking(link_to_source_unit, cleaned_url)
+            parts, meta = await run_blocking(
+                link_to_source_unit,
+                cleaned_url,
+                youtube_captions_only if get_youtube_video_id(cleaned_url) else False,
+            )
             content_parts.extend(parts)
             source_units.append(meta)
             title_candidates.append(meta.get("title_candidate") or meta.get("display_name") or "")
@@ -194,7 +206,7 @@ async def analyze_materials(
             if not key or key in seen_youtube_sources:
                 continue
             seen_youtube_sources.add(key)
-            parts, meta = await run_blocking(link_to_source_unit, url)
+            parts, meta = await run_blocking(link_to_source_unit, url, youtube_captions_only)
             meta["display_name"] = f"YouTube link from pasted text: {meta.get('title_candidate') or url}"
             content_parts.extend(parts)
             source_units.append(meta)

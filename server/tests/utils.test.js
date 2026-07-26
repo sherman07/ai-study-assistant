@@ -143,12 +143,12 @@ test("Render AI backend keeps analysis within a safe request budget", () => {
 
   assert.match(
     renderYamlSource,
-    /^      - key: ANALYSIS_MAX_SECONDS\n        value: "55"/m,
+    /^      - key: ANALYSIS_MAX_SECONDS\n        value: "95"/m,
     "Render analysis should leave headroom before the platform can terminate a long request"
   );
   assert.match(
     renderYamlSource,
-    /^      - key: OPENAI_TIMEOUT_SECONDS\n        value: "45"/m,
+    /^      - key: OPENAI_TIMEOUT_SECONDS\n        value: "75"/m,
     "OpenAI calls should time out before the Render analysis budget"
   );
   assert.match(
@@ -185,6 +185,11 @@ test("Render AI backend uses a lightweight PPTX path on the free instance", () =
     renderYamlSource,
     /^      - key: ENABLE_PPTX_EMBEDDED_IMAGE_EXTRACTION\n        value: "false"/m,
     "Render should avoid embedding every PPTX image in the analysis request"
+  );
+  assert.match(
+    renderYamlSource,
+    /^      - key: ENABLE_YOUTUBE_YTDLP_FALLBACK\n        value: "false"/m,
+    "Render multi-source requests should skip expensive yt-dlp downloads on the free instance"
   );
 });
 

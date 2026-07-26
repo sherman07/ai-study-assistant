@@ -18,6 +18,12 @@ test("stableUserId is deterministic and scoped by provider", () => {
   assert.notEqual(stableUserId("local_demo", "abc"), stableUserId("supabase", "abc"));
 });
 
+test("health reports Supabase as the active store instead of an implied MySQL mirror", () => {
+  const appSource = fs.readFileSync(path.join(serverRoot, "src/app.js"), "utf8");
+  assert.ok(appSource.includes('supabaseStorageEnabled() ? "supabase" : "mysql"'));
+  assert.doesNotMatch(appSource, /supabase\+mysql-mirror/);
+});
+
 test("validators clamp and sanitize public input", () => {
   assert.equal(cleanString(" hello\nworld ", 20), "hello world");
   assert.equal(allowedValue("PUBLIC", ["private", "shared", "public"], "private"), "public");
@@ -126,6 +132,13 @@ test("Render blueprint deploys Python AI backend and Node data API separately", 
   assert.ok(renderYamlSource.includes("rootDir: server"), "Node data API should build from the server directory");
   assert.ok(renderYamlSource.includes("buildCommand: npm ci --omit=dev"), "Node data API should install production npm dependencies");
   assert.ok(renderYamlSource.includes("startCommand: npm start"), "Node data API should use its package start script");
+});
+
+test("Render blueprint keeps optional MySQL connection values server-side", () => {
+  const renderBlueprint = fs.readFileSync(path.join(repoRoot, "render.yaml"), "utf8");
+  for (const key of ["MYSQL_HOST", "MYSQL_PORT", "MYSQL_DATABASE", "MYSQL_USER", "MYSQL_PASSWORD"]) {
+    assert.match(renderBlueprint, new RegExp(`- key: ${key}\\n\\s+sync: false`));
+  }
 });
 
 test("Render AI backend keeps analysis within a safe request budget", () => {

@@ -2,7 +2,7 @@ import { Fragment, h, icon, legacyAction } from "../runtime.js";
 import { MobileNavigation } from "./MobileNavigation.js?v=ai-broadcast-v19";
 import { HistoryNavigation } from "./HistoryNavigation.js?v=ai-broadcast-v19";
 import { UploadStage } from "./UploadStage.js?v=ai-broadcast-v19";
-import { CompanionWorkspace } from "./CompanionWorkspace.js?v=ai-broadcast-v19";
+import { CompanionWorkspace } from "./CompanionWorkspace.js?v=companion-practice-v1";
 import { AnalysisStage } from "./AnalysisStage.js?v=ai-broadcast-v19";
 import { AssistantPanel, OpenAssistantButton } from "./AssistantPanel.js?v=ai-broadcast-v19";
 

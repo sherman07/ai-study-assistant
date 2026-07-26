@@ -79,7 +79,7 @@ for (const page of [loginPage, signupPage, forgotPage, resetPage, verifyPage, wo
   assert.ok(page.includes("config.js?v=public-auth-session-v4"), "Public pages must bypass cached pre-fix runtime config");
   assert.ok(page.includes("auth-client.js?v=public-auth-session-v3"), "Public pages must bypass cached pre-fix auth client code");
 }
-assert.ok(workspacePage.includes("style.css?v=type-scale-v1"), "Workspace should bypass cached pre-fix contrast styles");
+assert.ok(workspacePage.includes("style.css?v=companion-practice-v1"), "Workspace should bypass cached pre-fix contrast styles");
 assert.ok(forgotPage.includes("data-testid=\"reset-success\""), "Forgot password should expose a success state");
 assert.ok(resetPage.includes("data-testid=\"reset-password-success\""), "Reset password should expose a success state");
 assert.ok(authClientScript.includes("/api/auth/request-password-reset"), "Password recovery should use the Synapse backend email endpoint");

@@ -61,6 +61,40 @@ class LearningCompanionEndpointTests(unittest.TestCase):
         self.assertFalse(payload["requires_research"])
         self.assertEqual(payload["research_query"], "")
         self.assertIn("aperture", payload["reply"].lower())
+        self.assertIn("suggested_tools", payload)
+        self.assertIsInstance(payload["suggested_tools"], list)
+
+    def test_companion_returns_suggested_tools_when_learner_asks_for_quiz(self):
+        model_reply = '''{
+          "reply": "Great — I can quiz you on aperture once we confirm one point.",
+          "state": "practice",
+          "mastery": 20,
+          "suggested_actions": ["Ask a simpler question"],
+          "suggested_tools": [{"id":"quiz","label":"Quiz me","reason":"Learner asked for a quiz"}]
+        }'''
+        with patch("backend.app.require_text_ai"), patch("backend.app.generate_chat", return_value=model_reply):
+            response = TestClient(app).post("/learning-companion/respond", json={
+                "subject": {"title": "Photography", "intention": "skill"},
+                "message": "Quiz me on aperture",
+                "messages": [],
+            })
+
+        self.assertEqual(response.status_code, 200)
+        tools = response.json()["suggested_tools"]
+        self.assertTrue(any(tool["id"] == "quiz" for tool in tools))
+
+    def test_companion_infers_flashcards_tool_when_model_omits_it(self):
+        model_reply = '{"reply":"I can turn this into flashcards.","state":"practice","mastery":25}'
+        with patch("backend.app.require_text_ai"), patch("backend.app.generate_chat", return_value=model_reply):
+            response = TestClient(app).post("/learning-companion/respond", json={
+                "subject": {"title": "Photography", "intention": "skill"},
+                "message": "Make flashcards from what we covered",
+                "messages": [],
+            })
+
+        self.assertEqual(response.status_code, 200)
+        tools = response.json()["suggested_tools"]
+        self.assertTrue(any(tool["id"] == "flashcards" for tool in tools))
 
     def test_companion_rejects_invalid_learning_intentions_before_model_invocation(self):
         with patch("backend.app.require_text_ai"), patch("backend.app.generate_chat", side_effect=AssertionError("model should not run")):

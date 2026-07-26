@@ -1,4 +1,22 @@
 LEARNING_COMPANION_INTENTIONS = {"hobby", "skill", "project", "assessment"}
+LEARNING_COMPANION_TOOL_IDS = {
+    "quiz",
+    "flashcards",
+    "teachback",
+    "keypoints",
+    "broadcast",
+    "quiz_from_notes",
+    "cards_from_notes",
+}
+LEARNING_COMPANION_TOOL_LABELS = {
+    "quiz": "Quiz me",
+    "flashcards": "Flashcards",
+    "teachback": "Teach-back",
+    "keypoints": "Key points",
+    "broadcast": "AI Broadcast",
+    "quiz_from_notes": "Quiz from notes",
+    "cards_from_notes": "Cards from notes",
+}
 
 
 def learning_companion_history(items: Any) -> List[dict]:
@@ -36,6 +54,81 @@ def learning_companion_research_request(message: str, subject_title: str) -> Tup
     if not requires_research:
         return False, ""
     return True, truncate_text(normalise_space(f"{subject_title} {message}"), 280)
+
+
+def _companion_tool_id(value: Any) -> str:
+    raw = normalise_space(str(value or "")).lower().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "quiz_me": "quiz",
+        "practice_quiz": "quiz",
+        "flash_cards": "flashcards",
+        "flashcard": "flashcards",
+        "cards": "flashcards",
+        "teach_back": "teachback",
+        "check_understanding": "teachback",
+        "key_points": "keypoints",
+        "summary": "keypoints",
+        "ai_broadcast": "broadcast",
+        "podcast": "broadcast",
+        "notes_quiz": "quiz_from_notes",
+        "quiz_notes": "quiz_from_notes",
+        "notes_flashcards": "cards_from_notes",
+        "flashcards_from_notes": "cards_from_notes",
+        "cards_notes": "cards_from_notes",
+    }
+    tool_id = aliases.get(raw, raw)
+    return tool_id if tool_id in LEARNING_COMPANION_TOOL_IDS else ""
+
+
+def normalise_companion_suggested_tools(raw_tools: Any, message: str = "") -> List[dict]:
+    """Keep companion practice buttons AI-gated; never invent a permanent dock."""
+    tools: List[dict] = []
+    seen = set()
+    for item in raw_tools if isinstance(raw_tools, list) else []:
+        if isinstance(item, dict):
+            tool_id = _companion_tool_id(item.get("id") or item.get("tool") or item.get("type"))
+            label = normalise_space(str(item.get("label") or LEARNING_COMPANION_TOOL_LABELS.get(tool_id, "")))
+            reason = truncate_text(normalise_space(str(item.get("reason") or "")), 160)
+        else:
+            tool_id = _companion_tool_id(item)
+            label = LEARNING_COMPANION_TOOL_LABELS.get(tool_id, "")
+            reason = ""
+        if not tool_id or tool_id in seen:
+            continue
+        seen.add(tool_id)
+        tools.append({
+            "id": tool_id,
+            "label": label or LEARNING_COMPANION_TOOL_LABELS[tool_id],
+            "reason": reason,
+        })
+        if len(tools) >= 4:
+            break
+
+    # Soft intent recovery when the learner explicitly asked for a practice tool
+    # but the model omitted suggested_tools.
+    lowered = normalise_space(message).lower()
+    intent_map = (
+        (("quiz me", "give me a quiz", "practice questions", "test me"), "quiz"),
+        (("flashcard", "flash card", "make cards"), "flashcards"),
+        (("teach-back", "teach back", "check my understanding"), "teachback"),
+        (("key points", "revision sheet", "summarize our chat"), "keypoints"),
+        (("broadcast", "podcast", "listen to this"), "broadcast"),
+        (("quiz from notes", "quiz my notes"), "quiz_from_notes"),
+        (("cards from notes", "flashcards from notes"), "cards_from_notes"),
+    )
+    for phrases, tool_id in intent_map:
+        if tool_id in seen:
+            continue
+        if any(phrase in lowered for phrase in phrases):
+            seen.add(tool_id)
+            tools.append({
+                "id": tool_id,
+                "label": LEARNING_COMPANION_TOOL_LABELS[tool_id],
+                "reason": "Learner requested this practice tool.",
+            })
+        if len(tools) >= 4:
+            break
+    return tools
 
 
 @app.post("/learning-companion/respond")
@@ -113,6 +206,10 @@ Companion rules:
 - Keep any internal diagnosis private. Do not mention hidden state, mastery scoring, or diagnosis labels in the learner-facing reply.
 - For time-sensitive questions, use only the sourced research context above and say when no source was available. Do not invent citations or claim a source says more than it does.
 - End with exactly one clear next action unless the learner has demonstrated stable mastery.
+- Practice tools are AI-gated. Only fill suggested_tools when the learner is ready for practice or clearly asks for a quiz, flashcards, teach-back, key points, AI broadcast, or notes-based practice. Otherwise return an empty suggested_tools array.
+- Never suggest every tool at once. Prefer at most 1-3 tools that fit the current turn.
+- Flashcards and quizzes generated from the companion conversation are separate from Materials class tools, even though they reuse the same generation backends.
+- Use quiz_from_notes / cards_from_notes only when uploaded notes are clearly relevant.
 
 Current instruction: {current_instruction}
 
@@ -127,7 +224,10 @@ Return JSON only:
   "hint": "short hint if useful",
   "exercise": {{"type":"short_answer | explain | example | compare | apply | correct_mistake","question":"...","expected_answer":"..."}},
   "can_end": false,
-  "suggested_actions": ["Give me a hint", "Ask a simpler question", "Give me an example"]
+  "suggested_actions": ["Give me a hint", "Ask a simpler question", "Give me an example"],
+  "suggested_tools": [
+    {{"id":"quiz|flashcards|teachback|keypoints|broadcast|quiz_from_notes|cards_from_notes","label":"button label","reason":"why this tool helps now"}}
+  ]
 }}
 """
         require_text_ai()
@@ -146,6 +246,10 @@ Return JSON only:
             parsed = {}
         fallback = f"Let's begin with {title}. What do you already understand about it, in your own words?"
         decision = normalise_voice_tutor_json(parsed, fallback, message, history)
+        suggested_tools = normalise_companion_suggested_tools(
+            parsed.get("suggested_tools") if isinstance(parsed, dict) else [],
+            message,
+        )
         decision.update({
             "subject_title": title,
             "intention": intention,
@@ -156,6 +260,7 @@ Return JSON only:
                 {"title": item.get("title"), "url": item.get("url")}
                 for item in research_results[:MAX_TUTOR_SEARCH_RESULTS]
             ],
+            "suggested_tools": suggested_tools,
         })
         return decision
     except Exception as error:

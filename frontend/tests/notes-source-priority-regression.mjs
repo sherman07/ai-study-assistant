@@ -75,7 +75,7 @@ assert.ok(
   "workspace styles should cache-bust after the notes/source priority pass"
 );
 assert.ok(
-  index.includes("synapse-legacy-controller-combined.js?v=source-preview-pages-v1"),
+  index.includes("synapse-legacy-controller-combined.js?v=upload-job-retry-v1"),
   "legacy controller should cache-bust after background preview preload"
 );
 

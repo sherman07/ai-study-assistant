@@ -811,16 +811,105 @@ if (linkInput) {
   });
 }
 
+const UPLOAD_ACCEPT_EXTENSIONS = new Set([
+  "pdf", "txt", "md", "docx", "pptx", "png", "jpg", "jpeg", "webp",
+  "mp3", "m4a", "wav", "mp4", "webm"
+]);
+const UPLOAD_ACCEPT_MIME_PREFIXES = [
+  "image/",
+  "audio/",
+  "video/",
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+];
+const CLIENT_MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
+
+function uploadFileExtension(file) {
+  const name = String(file?.name || "");
+  const dot = name.lastIndexOf(".");
+  return dot >= 0 ? name.slice(dot + 1).toLowerCase() : "";
+}
+
+function isAcceptedUploadFile(file) {
+  if (!file || !file.name) return false;
+  const ext = uploadFileExtension(file);
+  if (ext && UPLOAD_ACCEPT_EXTENSIONS.has(ext)) return true;
+  const mime = String(file.type || "").toLowerCase();
+  if (!mime) return Boolean(ext && UPLOAD_ACCEPT_EXTENSIONS.has(ext));
+  return UPLOAD_ACCEPT_MIME_PREFIXES.some(prefix => (
+    prefix.endsWith("/") ? mime.startsWith(prefix) : mime === prefix
+  ));
+}
+
+function uploadFileDedupeKey(file) {
+  return [
+    String(file?.name || "").toLowerCase(),
+    Number(file?.size || 0),
+    Number(file?.lastModified || 0)
+  ].join("::");
+}
+
 function addFiles(files) {
-  const nextFiles = Array.isArray(files) ? files.filter(file => file && file.name) : [];
-  if (!nextFiles.length) {
+  const candidates = Array.isArray(files) ? files.filter(file => file && file.name) : [];
+  if (!candidates.length) {
     setUploadStatus("error", "We could not read that upload. Choose a file and try again.");
     flashUploadState("error");
     return;
   }
-  uploadedFiles.push(...nextFiles);
-  renderFilePreview();
-  setUploadStatus("success", `${nextFiles.length} file${nextFiles.length === 1 ? "" : "s"} ready. Review the list below, then click Analyze materials.`);
+
+  const existingKeys = new Set(uploadedFiles.map(uploadFileDedupeKey));
+  const accepted = [];
+  const rejected = [];
+  const duplicates = [];
+
+  for (const file of candidates) {
+    const key = uploadFileDedupeKey(file);
+    if (existingKeys.has(key)) {
+      duplicates.push(file.name);
+      continue;
+    }
+    if (!isAcceptedUploadFile(file)) {
+      rejected.push(`${file.name} (unsupported type)`);
+      continue;
+    }
+    if (Number(file.size || 0) > CLIENT_MAX_UPLOAD_BYTES) {
+      rejected.push(`${file.name} (over 100 MB)`);
+      continue;
+    }
+    if (Number(file.size || 0) <= 0) {
+      rejected.push(`${file.name} (empty file)`);
+      continue;
+    }
+    existingKeys.add(key);
+    accepted.push(file);
+  }
+
+  if (accepted.length) {
+    uploadedFiles.push(...accepted);
+    renderFilePreview();
+  } else {
+    renderFilePreview();
+  }
+
+  if (!accepted.length && (rejected.length || duplicates.length)) {
+    const parts = [];
+    if (rejected.length) parts.push(`Could not add: ${rejected.slice(0, 3).join(", ")}`);
+    if (duplicates.length) parts.push(`Already added: ${duplicates.slice(0, 3).join(", ")}`);
+    setUploadStatus("error", `${parts.join(". ")}. Use PDF, PPTX, DOCX, images, audio, video, or text under 100 MB.`);
+    flashUploadState("error");
+    return;
+  }
+
+  const notes = [];
+  if (accepted.length) {
+    notes.push(`${accepted.length} file${accepted.length === 1 ? "" : "s"} ready. Review the list below, then click Analyze materials.`);
+  }
+  if (duplicates.length) notes.push(`Skipped ${duplicates.length} duplicate${duplicates.length === 1 ? "" : "s"}.`);
+  if (rejected.length) notes.push(`Skipped ${rejected.length} unsupported or oversize file${rejected.length === 1 ? "" : "s"}.`);
+  setUploadStatus("success", notes.join(" "));
   flashUploadState("success");
 }
 
@@ -990,7 +1079,15 @@ function generationSourceTitle(files = [], rawSource = "", sourceLinks = []) {
   return text ? shorten(text, 68) : "Study material";
 }
 
+let generationSubmitInFlight = false;
+
 async function startGenerationJobFromCurrentUpload() {
+  if (generationSubmitInFlight) {
+    return typeof findActiveGenerationJobByNoteId === "function"
+      ? findActiveGenerationJobByNoteId(currentSourceFingerprint)
+      : null;
+  }
+
   const rawSource = sourceInput ? sourceInput.value.trim() : "";
   const parsedSources = parseMixedSources(rawSource);
   const sourceLinks = uniqueSourceLinks([...uploadedLinks, ...parsedSources.links]);
@@ -1001,44 +1098,51 @@ async function startGenerationJobFromCurrentUpload() {
     return;
   }
 
-  currentSourceFingerprint = await buildClientFingerprint(rawSource, sourceLinks);
-  const existingJob = typeof findActiveGenerationJobByNoteId === "function"
-    ? findActiveGenerationJobByNoteId(currentSourceFingerprint)
-    : null;
-  if (existingJob) {
-    openGenerationJob(existingJob.jobId);
-    updateGenerateButtonForCurrentJob();
-    return existingJob;
-  }
+  generationSubmitInFlight = true;
+  setGenerateButtonForJob({ status: "generating" });
+  try {
+    currentSourceFingerprint = await buildClientFingerprint(rawSource, sourceLinks);
+    const existingJob = typeof findActiveGenerationJobByNoteId === "function"
+      ? findActiveGenerationJobByNoteId(currentSourceFingerprint)
+      : null;
+    if (existingJob) {
+      openGenerationJob(existingJob.jobId);
+      updateGenerateButtonForCurrentJob();
+      return existingJob;
+    }
 
-  const request = {
-    rawSource,
-    freeText: parsedSources.freeText,
-    sourceLinks,
-    uploadedLinks: [...uploadedLinks],
-    fileNames: uploadedFiles.map(file => file.name || "Uploaded source"),
-    hasFiles: uploadedFiles.length > 0,
-    preferredLanguage: preferredLanguage ? preferredLanguage.value : "auto",
-    detailLevel: detailLevel ? detailLevel.value : "auto",
-    promptMode: promptMode ? promptMode.value : "professor_mode",
-    noteLength: noteLengthSelect ? noteLengthSelect.value : "standard_notes",
-    aiProvider: aiProvider ? normaliseAiProvider(aiProvider.value) : "",
-    clientFingerprint: currentSourceFingerprint
-  };
-  const job = createGenerationJob({
-    noteId: currentSourceFingerprint,
-    classId: currentSourceFingerprint,
-    sourceTitle: generationSourceTitle(uploadedFiles, rawSource, sourceLinks),
-    request
-  });
-  openGenerationJob(job.jobId);
-  setGenerateButtonForJob(job);
-  enqueueGenerationJobRun(job.jobId, {
-    ...request,
-    parsedSources,
-    files: [...uploadedFiles]
-  });
-  return job;
+    const request = {
+      rawSource,
+      freeText: parsedSources.freeText,
+      sourceLinks,
+      uploadedLinks: [...uploadedLinks],
+      fileNames: uploadedFiles.map(file => file.name || "Uploaded source"),
+      hasFiles: uploadedFiles.length > 0,
+      preferredLanguage: preferredLanguage ? preferredLanguage.value : "auto",
+      detailLevel: detailLevel ? detailLevel.value : "auto",
+      promptMode: promptMode ? promptMode.value : "professor_mode",
+      noteLength: noteLengthSelect ? noteLengthSelect.value : "standard_notes",
+      aiProvider: aiProvider ? normaliseAiProvider(aiProvider.value) : "",
+      clientFingerprint: currentSourceFingerprint
+    };
+    const job = createGenerationJob({
+      noteId: currentSourceFingerprint,
+      classId: currentSourceFingerprint,
+      sourceTitle: generationSourceTitle(uploadedFiles, rawSource, sourceLinks),
+      request
+    });
+    openGenerationJob(job.jobId);
+    setGenerateButtonForJob(job);
+    enqueueGenerationJobRun(job.jobId, {
+      ...request,
+      parsedSources,
+      files: [...uploadedFiles]
+    });
+    return job;
+  } finally {
+    generationSubmitInFlight = false;
+    updateGenerateButtonForCurrentJob();
+  }
 }
 
 async function runGenerationJobAnalysis(jobId, context = {}) {

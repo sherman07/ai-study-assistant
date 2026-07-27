@@ -74,6 +74,8 @@ assert.ok(
 
 for (const token of [
   "openGenerationJob",
+  "openCompletedGenerationResult",
+  "openCompletedGenerationResultNow",
   "cancelGenerationJob",
   "retryGenerationJob"
 ]) {
@@ -83,6 +85,7 @@ for (const token of [
 assert.ok(styles.includes(".generation-job-panel"), "job progress panel should be styled");
 assert.ok(styles.includes(".history-job-status"), "sidebar job status should be styled");
 assert.ok(styles.includes(".history-job-retry"), "failed sidebar retry action should be styled");
+assert.ok(styles.includes(".generation-job-panel.is-completed"), "completed job panel should have success styling");
 assert.ok(
   jobsController.includes('"generation-job-state"'),
   "job progress view should set a dedicated layout state"
@@ -108,5 +111,24 @@ for (const token of [
     `active generation progress should preserve the Synapse loader treatment: ${token}`
   );
 }
+
+for (const token of [
+  "scheduleCompletedGenerationReveal",
+  "openCompletedGenerationResult",
+  "openCompletedGenerationResultNow",
+  "Opening your study notes",
+  "Open notes",
+  "COMPLETED_GENERATION_REVEAL_DELAY_MS"
+]) {
+  assert.ok(
+    jobsController.includes(token),
+    `completed generation should auto-open notes after a brief success beat: ${token}`
+  );
+}
+
+assert.ok(
+  !uploadController.includes("showAnalysisView({ scrollToTop: true });\n      renderSections();"),
+  "completed jobs should not jump straight into notes before the success beat"
+);
 
 console.log("background generation jobs regression passed");

@@ -66,11 +66,11 @@ assert.ok(
   "layout should know when the source viewer is open"
 );
 assert.ok(
-  index.includes("style.css?v=notes-source-priority-v1"),
+  index.includes("style.css?v=notes-source-priority-v2"),
   "workspace styles should cache-bust after the notes/source priority pass"
 );
 assert.ok(
-  index.includes("synapse-legacy-controller-combined.js?v=notes-source-priority-v1"),
+  index.includes("synapse-legacy-controller-combined.js?v=notes-source-priority-v2"),
   "legacy controller should cache-bust after background preview preload"
 );
 

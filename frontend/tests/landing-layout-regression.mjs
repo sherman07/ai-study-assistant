@@ -127,9 +127,9 @@ for (const requiredCopy of [
 
 const landingCss = read("frontend/src/landing/landing.css");
 assert.ok(landingCss.includes("--primary: #4a7cff"), "landing CSS must keep #4a7cff as the primary token");
-assert.ok(landingCss.includes("--accent: #667eea"), "landing CSS should keep the original blue/purple accent family");
-assert.ok(landingCss.includes("--accent-deep: #764ba2"), "landing CSS should keep the original deep purple accent");
-for (const forbiddenToken of ["--cyan", "--mint", "--sky", "#06b6d4", "#10b981"]) {
+assert.ok(landingCss.includes("--accent: #5b8cff"), "landing CSS should keep the Synapse blue accent family");
+assert.ok(landingCss.includes("--accent-deep: #3d6af0"), "landing CSS should keep a deeper Synapse blue accent");
+for (const forbiddenToken of ["--cyan", "--mint", "--sky", "#06b6d4", "#10b981", "#764ba2"]) {
   assert.ok(!landingCss.includes(forbiddenToken), `landing CSS should not reintroduce ${forbiddenToken}`);
 }
 

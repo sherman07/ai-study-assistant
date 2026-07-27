@@ -83,8 +83,11 @@ for (const viteInput of ["pricing", "billingSuccess", "billingCancel"]) {
 }
 
 assert.ok(billingCss.includes("--primary: #4a7cff"), "billing pages should preserve the Synapse primary theme color");
-assert.ok(billingCss.includes("--accent: #667eea"), "billing pages should keep the blue/purple accent family");
-for (const forbiddenToken of ["#06b6d4", "#10b981", "--cyan", "--mint", "--sky"]) {
+assert.ok(
+  billingCss.includes("--primary-strong: #3566f5") || billingCss.includes("--accent: #5b8cff"),
+  "billing pages should keep the Synapse blue accent family"
+);
+for (const forbiddenToken of ["#06b6d4", "#10b981", "--cyan", "--mint", "--sky", "#764ba2"]) {
   assert.ok(!billingCss.includes(forbiddenToken), `billing CSS should not introduce ${forbiddenToken}`);
 }
 

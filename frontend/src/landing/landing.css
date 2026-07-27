@@ -1922,9 +1922,8 @@ html[data-theme="light"] .hero-noise {
 }
 
 html[data-theme="light"] .hero-stat {
-  background:
-    radial-gradient(circle at 28% 0%, rgba(74, 124, 255, 0.14), transparent 9rem),
-    rgba(255, 255, 255, 0.72);
+  background: transparent;
+  box-shadow: none;
 }
 
 html[data-theme="light"] .hero-scene-card {

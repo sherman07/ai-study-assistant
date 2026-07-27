@@ -883,15 +883,15 @@ body.focus-room-standalone #focusRoomRoot {
 .bottom-dock {
   position: fixed;
   left: 50%;
-  bottom: 22px;
+  bottom: max(18px, env(safe-area-inset-bottom));
   z-index: 5;
   display: flex;
-  gap: 9px;
+  gap: 8px;
   align-items: center;
   justify-content: center;
   width: min(760px, calc(100vw - 28px));
   padding: 10px;
-  border-radius: 999px;
+  border-radius: 22px;
   transition: opacity 0.35s ease, transform 0.35s ease;
   transform: translateX(-50%);
 }
@@ -3402,11 +3402,11 @@ body.focus-room-standalone #focusRoomRoot {
 }
 
 .react-focus-room .liquid-glass {
-  background: linear-gradient(135deg, rgba(255, 255, 255, .24), rgba(255, 255, 255, .11) 42%, rgba(11, 22, 39, .48));
+  background: linear-gradient(135deg, rgba(255, 255, 255, .26), rgba(255, 255, 255, .12) 42%, rgba(11, 22, 39, .5));
 }
 
 .react-focus-room .liquid-glass-lite {
-  background: linear-gradient(135deg, rgba(255, 255, 255, .21), rgba(255, 255, 255, .095));
+  background: linear-gradient(135deg, rgba(255, 255, 255, .23), rgba(255, 255, 255, .11));
 }
 
 .react-focus-room .glass-button {

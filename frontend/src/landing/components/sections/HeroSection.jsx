@@ -12,6 +12,10 @@ export function HeroSection({ onGetStarted, onViewDemo }) {
       <div className="hero-noise" aria-hidden="true" />
       <div className="landing-container synapse-hero-grid">
         <div className="hero-copy">
+          <p className="hero-brand-mark">
+            <img src="/logos/synapse.png" alt="" />
+            <span>Synapse</span>
+          </p>
           <h1 aria-label="Turn passive study notes into active learning.">
             <span className="hero-title-line">
               <SplitText text="Turn passive" />
@@ -40,16 +44,11 @@ export function HeroSection({ onGetStarted, onViewDemo }) {
               </button>
             </Magnet>
           </div>
-          <div className="hero-stats" aria-label="Synapse product signals">
-            {heroStats.map((stat) => (
-              <GlassSurface className="hero-stat hero-stat-copy" key={stat.label}>
-                {stat.value !== "" && stat.value != null ? (
-                  <strong><CountUp value={stat.value} suffix={stat.suffix} /></strong>
-                ) : null}
-                <span>{stat.label}</span>
-              </GlassSurface>
+          <ul className="hero-flow-list" aria-label="Synapse learning flow">
+            {heroBadges.map((badge) => (
+              <li key={badge}>{badge}</li>
             ))}
-          </div>
+          </ul>
         </div>
 
         <div className="hero-visual">
@@ -57,15 +56,19 @@ export function HeroSection({ onGetStarted, onViewDemo }) {
             <Suspense fallback={<SceneFallback />}>
               <Hero3DScene />
             </Suspense>
-            <div className="hero-badges" aria-label="Synapse learning flow">
-              {heroBadges.map((badge, index) => (
-                <span className={`hero-flow-badge hero-flow-badge-${index + 1}`} key={badge}>
-                  {badge}
-                </span>
-              ))}
-            </div>
           </GlassSurface>
         </div>
+      </div>
+
+      <div className="landing-container hero-trust-strip" aria-label="Synapse product signals">
+        {heroStats.map((stat) => (
+          <div className="hero-stat hero-stat-copy" key={stat.label}>
+            {stat.value !== "" && stat.value != null ? (
+              <strong><CountUp value={stat.value} suffix={stat.suffix} /></strong>
+            ) : null}
+            <span>{stat.label}</span>
+          </div>
+        ))}
       </div>
     </section>
   );

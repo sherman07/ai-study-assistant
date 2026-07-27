@@ -1,0 +1,28 @@
+---
+description: Delegate Synapse page UI/UX work to per-page subagents with shared design consistency
+globs:
+  - frontend/**/*.html
+  - frontend/**/*.css
+  - frontend/src/landing/**
+  - frontend/src/focus-room/**
+  - frontend/src/react/**
+alwaysApply: false
+---
+
+# Page UI subagents
+
+When improving website UI/UX, read `docs/design/UI_CONSISTENCY_CONTRACT.md` and prefer these project subagents:
+
+- `/ui-page-orchestrator` for multi-page consistency
+- `/page-landing`, `/page-workspace`, `/page-focus-room`
+- `/page-login`, `/page-signup`, `/page-forgot-password`, `/page-reset-password`, `/page-verify`
+- `/page-pricing`, `/page-billing-success`, `/page-billing-cancel`
+- `/page-privacy`, `/page-terms`, `/page-404`
+
+Rules:
+
+- UI-only; keep all features and logic
+- Shared design across pages via the contract
+- Focus Room keeps liquid glass; do not restyle it to marketing/auth cards
+- Avoid generic AI-SaaS aesthetics; prefer human Synapse craft
+- Browser-test each touched page at desktop and mobile after changes

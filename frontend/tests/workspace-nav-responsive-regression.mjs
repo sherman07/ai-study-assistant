@@ -45,8 +45,13 @@ assert.match(
 );
 assert.match(
   layoutCss,
-  /\.result-grid\.source-open\s*\{[\s\S]*?minmax\(0, 1\.72fr\) minmax\(240px, 0\.58fr\)/,
-  "sources split should prioritize generated notes over the preview pane"
+  /\.result-grid\.source-open\s*\{[\s\S]*?var\(--notes-split-notes\)[\s\S]*?var\(--notes-split-divider\)[\s\S]*?var\(--notes-split-source\)/,
+  "sources split should prioritize generated notes with a resizable divider track"
+);
+assert.match(
+  layoutCss,
+  /\.notes-source-splitter/,
+  "notes/source split should expose a draggable divider"
 );
 assert.match(
   layoutCss,
@@ -67,6 +72,11 @@ assert.match(
   sectionCss,
   /\.source-viewer-panel\s*\{[\s\S]*?height: calc\(100dvh - 118px\)/,
   "source pane height should match the notes pane chrome"
+);
+assert.match(
+  sectionCss,
+  /\.result-grid\.source-open \.notes-source-splitter[\s\S]*?display: none/,
+  "mobile widths should hide the horizontal resize divider"
 );
 
 console.log("workspace-nav-responsive-regression: passed");

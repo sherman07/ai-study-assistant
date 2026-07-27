@@ -78,6 +78,19 @@ export function AnalysisStage() {
         h("div", { id: "summaryContent", className: "summary-content" }),
         h("div", { id: "visualGallery", className: "visual-gallery d-none" })
       ),
+      h(
+        "div",
+        {
+          id: "notesSourceSplitter",
+          className: "notes-source-splitter",
+          role: "separator",
+          "aria-orientation": "vertical",
+          "aria-label": "Resize notes and source preview",
+          tabIndex: 0,
+          title: "Drag to resize. Double-click to reset.",
+        },
+        h("span", { className: "notes-source-splitter-handle", "aria-hidden": "true" })
+      ),
       h(SourceViewerPanel),
       h(StudyTools)
     )

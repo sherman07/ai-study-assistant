@@ -1896,14 +1896,102 @@ body.mobile-assistant-open::before {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 22px;
+  --notes-split-notes: 74.78fr;
+  --notes-split-source: 25.22fr;
+  --notes-split-divider: 10px;
 }
 
 .result-grid.source-open {
-  /* Notes stay the primary reading surface; preview is a supporting pane. */
-  grid-template-columns: minmax(0, 1.72fr) minmax(240px, 0.58fr);
+  /* Notes stay the primary reading surface; preview is a supporting pane.
+     Track sizes are overridable for the draggable splitter. */
+  grid-template-columns:
+    minmax(320px, var(--notes-split-notes))
+    var(--notes-split-divider)
+    minmax(240px, var(--notes-split-source));
   align-items: stretch;
   column-gap: 0;
   row-gap: 22px;
+}
+
+.result-grid.source-open.is-resizing {
+  cursor: col-resize;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.result-grid.source-open.is-resizing .source-viewer-panel,
+.result-grid.source-open.is-resizing .source-viewer-body,
+.result-grid.source-open.is-resizing .source-viewer-body iframe,
+.result-grid.source-open.is-resizing .source-viewer-body embed,
+.result-grid.source-open.is-resizing .source-viewer-body object,
+.result-grid.source-open.is-resizing .notes-card {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+body.notes-source-split-resizing {
+  cursor: col-resize !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+body.notes-source-split-resizing * {
+  cursor: col-resize !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+}
+
+.notes-source-splitter {
+  display: none;
+  position: sticky;
+  top: 12px;
+  z-index: 4;
+  height: calc(100dvh - 118px);
+  max-height: calc(100dvh - 118px);
+  width: var(--notes-split-divider);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+  align-items: stretch;
+  justify-content: center;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.result-grid.source-open .notes-source-splitter {
+  display: flex;
+}
+
+.notes-source-splitter-handle {
+  display: block;
+  width: 3px;
+  margin: 18px 0;
+  border-radius: 999px;
+  background: rgba(148, 169, 214, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+  transition: background 160ms ease, box-shadow 160ms ease, width 160ms ease;
+}
+
+.notes-source-splitter:hover .notes-source-splitter-handle,
+.notes-source-splitter:focus-visible .notes-source-splitter-handle {
+  width: 4px;
+  background: rgba(74, 124, 255, 0.72);
+  box-shadow: 0 0 0 4px rgba(74, 124, 255, 0.12);
+}
+
+.notes-source-splitter.is-dragging .notes-source-splitter-handle,
+.result-grid.is-resizing .notes-source-splitter-handle {
+  width: 4px;
+  background: var(--primary, #4a7cff);
+  box-shadow: 0 0 0 5px rgba(74, 124, 255, 0.16);
+}
+
+.notes-source-splitter:focus-visible {
+  outline: none;
 }
 
 /* With the tutor open, keep notes readable: prefer stacking sources under the
@@ -1912,9 +2000,20 @@ body.mobile-assistant-open::before {
   grid-template-columns: minmax(0, 1fr);
 }
 
+.app-layout:not(.assistant-closed) .result-grid.source-open .notes-source-splitter {
+  display: none;
+}
+
 @media (min-width: 1480px) {
   .app-layout:not(.assistant-closed) .result-grid.source-open {
-    grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.62fr);
+    grid-template-columns:
+      minmax(320px, var(--notes-split-notes))
+      var(--notes-split-divider)
+      minmax(240px, var(--notes-split-source));
+  }
+
+  .app-layout:not(.assistant-closed) .result-grid.source-open .notes-source-splitter {
+    display: flex;
   }
 }
 

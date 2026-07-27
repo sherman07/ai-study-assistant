@@ -1661,12 +1661,21 @@ function renderSourceViewer() {
   }
   if (!sourceViewerOpen) {
     sourceViewerPanel.classList.add("d-none");
-    if (resultGrid) resultGrid.classList.remove("source-open");
+    if (resultGrid) {
+      resultGrid.classList.remove("source-open", "is-resizing");
+    }
+    if (typeof endNotesSourceSplitDrag === "function") endNotesSourceSplitDrag();
+    if (typeof syncNotesSourceSplitter === "function") syncNotesSourceSplitter();
     return;
   }
 
   sourceViewerPanel.classList.remove("d-none");
   if (resultGrid) resultGrid.classList.add("source-open");
+  if (typeof bindNotesSourceSplitter === "function") {
+    bindNotesSourceSplitter();
+  } else if (typeof syncNotesSourceSplitter === "function") {
+    syncNotesSourceSplitter();
+  }
   if (typeof scheduleSourcePreviewPrefetch === "function") {
     scheduleSourcePreviewPrefetch(sourceViewerItems);
   }

@@ -1,7 +1,17 @@
 const SOURCE_PREVIEW_TIMEOUT_MS = Number(window.SYNAPSE_SOURCE_PREVIEW_TIMEOUT_MS || 90 * 1000);
+const NOTES_SOURCE_SPLIT_STORAGE_KEY = "synapse.notes.source.split.ratio.v1";
+const NOTES_SOURCE_SPLIT_DEFAULT_RATIO = 1.72 / (1.72 + 0.58);
+const NOTES_SOURCE_SPLIT_MIN_NOTES_PX = 360;
+const NOTES_SOURCE_SPLIT_MIN_PREVIEW_PX = 260;
+const NOTES_SOURCE_SPLIT_MOBILE_MQ = "(max-width: 1180px)";
+const NOTES_SOURCE_SPLIT_TUTOR_SIDE_MQ = "(min-width: 1480px)";
 const sourcePreviewInflight = new Map();
 const sourcePreviewPrefetchQueue = [];
 let sourcePreviewPrefetchRunning = false;
+let notesSourceSplitRatio = NOTES_SOURCE_SPLIT_DEFAULT_RATIO;
+let notesSourceSplitDragging = false;
+let notesSourceSplitBound = false;
+let notesSourceSplitPointerId = null;
 
 function toggleSourceViewer(force = null) {
   const desired = typeof force === "boolean" ? force : !sourceViewerOpen;
@@ -11,6 +21,190 @@ function toggleSourceViewer(force = null) {
     label: "Opened source viewer"
   });
   renderSourceViewer();
+}
+
+function clampNotesSourceSplitRatio(ratio) {
+  const value = Number(ratio);
+  if (!Number.isFinite(value)) return NOTES_SOURCE_SPLIT_DEFAULT_RATIO;
+  return Math.max(0.38, Math.min(0.82, value));
+}
+
+function loadNotesSourceSplitRatio() {
+  const raw = typeof safeGetLocalStorage === "function"
+    ? safeGetLocalStorage(NOTES_SOURCE_SPLIT_STORAGE_KEY, "")
+    : "";
+  const parsed = Number(raw);
+  return clampNotesSourceSplitRatio(Number.isFinite(parsed) ? parsed : NOTES_SOURCE_SPLIT_DEFAULT_RATIO);
+}
+
+function persistNotesSourceSplitRatio(ratio = notesSourceSplitRatio) {
+  notesSourceSplitRatio = clampNotesSourceSplitRatio(ratio);
+  if (typeof safeSetLocalStorage === "function") {
+    safeSetLocalStorage(NOTES_SOURCE_SPLIT_STORAGE_KEY, String(notesSourceSplitRatio));
+  }
+}
+
+function applyNotesSourceSplitRatio(ratio = notesSourceSplitRatio) {
+  const grid = typeof resultGrid !== "undefined" && resultGrid
+    ? resultGrid
+    : document.getElementById("resultGrid");
+  if (!grid) return notesSourceSplitRatio;
+  notesSourceSplitRatio = clampNotesSourceSplitRatio(ratio);
+  const notesFr = notesSourceSplitRatio * 100;
+  const sourceFr = (1 - notesSourceSplitRatio) * 100;
+  grid.style.setProperty("--notes-split-notes", `${notesFr}fr`);
+  grid.style.setProperty("--notes-split-source", `${sourceFr}fr`);
+  const splitter = document.getElementById("notesSourceSplitter");
+  if (splitter) {
+    splitter.setAttribute("aria-valuenow", String(Math.round(notesSourceSplitRatio * 100)));
+    splitter.setAttribute("aria-valuemin", "38");
+    splitter.setAttribute("aria-valuemax", "82");
+  }
+  return notesSourceSplitRatio;
+}
+
+function resetNotesSourceSplitRatio() {
+  notesSourceSplitRatio = NOTES_SOURCE_SPLIT_DEFAULT_RATIO;
+  applyNotesSourceSplitRatio(notesSourceSplitRatio);
+  if (typeof safeRemoveLocalStorage === "function") {
+    safeRemoveLocalStorage(NOTES_SOURCE_SPLIT_STORAGE_KEY);
+  } else if (typeof safeSetLocalStorage === "function") {
+    safeSetLocalStorage(NOTES_SOURCE_SPLIT_STORAGE_KEY, String(NOTES_SOURCE_SPLIT_DEFAULT_RATIO));
+  }
+}
+
+function isNotesSourceSplitResizable() {
+  const grid = typeof resultGrid !== "undefined" && resultGrid
+    ? resultGrid
+    : document.getElementById("resultGrid");
+  if (!grid?.classList.contains("source-open")) return false;
+  if (window.matchMedia?.(NOTES_SOURCE_SPLIT_MOBILE_MQ)?.matches) return false;
+  const layout = typeof appLayout !== "undefined" && appLayout
+    ? appLayout
+    : document.getElementById("appLayout");
+  if (layout && !layout.classList.contains("assistant-closed")) {
+    if (!window.matchMedia?.(NOTES_SOURCE_SPLIT_TUTOR_SIDE_MQ)?.matches) return false;
+  }
+  return true;
+}
+
+function syncNotesSourceSplitter() {
+  applyNotesSourceSplitRatio(notesSourceSplitRatio);
+  const splitter = document.getElementById("notesSourceSplitter");
+  if (!splitter) return;
+  const resizable = isNotesSourceSplitResizable();
+  splitter.hidden = !resizable;
+  splitter.setAttribute("aria-hidden", resizable ? "false" : "true");
+  splitter.tabIndex = resizable ? 0 : -1;
+}
+
+function updateNotesSourceSplitFromClientX(clientX) {
+  const grid = typeof resultGrid !== "undefined" && resultGrid
+    ? resultGrid
+    : document.getElementById("resultGrid");
+  if (!grid) return;
+  const rect = grid.getBoundingClientRect();
+  const dividerWidth = Number.parseFloat(getComputedStyle(grid).getPropertyValue("--notes-split-divider")) || 10;
+  const available = Math.max(1, rect.width - dividerWidth);
+  const minNotes = Math.min(NOTES_SOURCE_SPLIT_MIN_NOTES_PX, available * 0.45);
+  const minPreview = Math.min(NOTES_SOURCE_SPLIT_MIN_PREVIEW_PX, available * 0.35);
+  const rawNotes = clientX - rect.left;
+  const notesWidth = Math.max(minNotes, Math.min(available - minPreview, rawNotes));
+  applyNotesSourceSplitRatio(notesWidth / available);
+}
+
+function endNotesSourceSplitDrag() {
+  if (!notesSourceSplitDragging) return;
+  notesSourceSplitDragging = false;
+  notesSourceSplitPointerId = null;
+  const grid = typeof resultGrid !== "undefined" && resultGrid
+    ? resultGrid
+    : document.getElementById("resultGrid");
+  const splitter = document.getElementById("notesSourceSplitter");
+  grid?.classList.remove("is-resizing");
+  splitter?.classList.remove("is-dragging");
+  document.body?.classList.remove("notes-source-split-resizing");
+  persistNotesSourceSplitRatio(notesSourceSplitRatio);
+}
+
+function bindNotesSourceSplitter() {
+  if (notesSourceSplitBound) {
+    syncNotesSourceSplitter();
+    return;
+  }
+  const splitter = document.getElementById("notesSourceSplitter");
+  const grid = typeof resultGrid !== "undefined" && resultGrid
+    ? resultGrid
+    : document.getElementById("resultGrid");
+  if (!splitter || !grid) return;
+
+  notesSourceSplitRatio = loadNotesSourceSplitRatio();
+  applyNotesSourceSplitRatio(notesSourceSplitRatio);
+  notesSourceSplitBound = true;
+
+  const onPointerMove = event => {
+    if (!notesSourceSplitDragging) return;
+    if (notesSourceSplitPointerId != null && event.pointerId !== notesSourceSplitPointerId) return;
+    event.preventDefault();
+    updateNotesSourceSplitFromClientX(event.clientX);
+  };
+
+  const onPointerUp = event => {
+    if (notesSourceSplitPointerId != null && event.pointerId !== notesSourceSplitPointerId) return;
+    endNotesSourceSplitDrag();
+  };
+
+  splitter.addEventListener("pointerdown", event => {
+    if (!isNotesSourceSplitResizable()) return;
+    if (event.button != null && event.button !== 0) return;
+    event.preventDefault();
+    notesSourceSplitDragging = true;
+    notesSourceSplitPointerId = event.pointerId;
+    splitter.classList.add("is-dragging");
+    grid.classList.add("is-resizing");
+    document.body?.classList.add("notes-source-split-resizing");
+    try {
+      splitter.setPointerCapture(event.pointerId);
+    } catch (_error) {
+      // Some browsers may reject capture on non-primary pointers.
+    }
+    updateNotesSourceSplitFromClientX(event.clientX);
+  });
+
+  splitter.addEventListener("pointermove", onPointerMove);
+  splitter.addEventListener("pointerup", onPointerUp);
+  splitter.addEventListener("pointercancel", onPointerUp);
+  splitter.addEventListener("lostpointercapture", onPointerUp);
+
+  splitter.addEventListener("dblclick", event => {
+    if (!isNotesSourceSplitResizable()) return;
+    event.preventDefault();
+    resetNotesSourceSplitRatio();
+  });
+
+  splitter.addEventListener("keydown", event => {
+    if (!isNotesSourceSplitResizable()) return;
+    const step = event.shiftKey ? 0.04 : 0.02;
+    if (event.key === "ArrowLeft") {
+      event.preventDefault();
+      persistNotesSourceSplitRatio(notesSourceSplitRatio - step);
+      applyNotesSourceSplitRatio(notesSourceSplitRatio);
+    } else if (event.key === "ArrowRight") {
+      event.preventDefault();
+      persistNotesSourceSplitRatio(notesSourceSplitRatio + step);
+      applyNotesSourceSplitRatio(notesSourceSplitRatio);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      resetNotesSourceSplitRatio();
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (notesSourceSplitDragging) endNotesSourceSplitDrag();
+    syncNotesSourceSplitter();
+  });
+
+  syncNotesSourceSplitter();
 }
 
 function selectSourceItem(id) {

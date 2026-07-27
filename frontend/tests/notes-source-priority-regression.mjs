@@ -16,8 +16,13 @@ const index = read("frontend/index.html");
 
 assert.match(
   layoutCss,
-  /\.result-grid\.source-open\s*\{[\s\S]*?1\.72fr[\s\S]*?0\.58fr/,
-  "generated notes should own the majority of the split width"
+  /\.result-grid\.source-open\s*\{[\s\S]*?var\(--notes-split-notes\)[\s\S]*?var\(--notes-split-source\)/,
+  "generated notes should own the majority of the split width via resizable tracks"
+);
+assert.match(
+  layoutCss,
+  /\.notes-source-splitter/,
+  "notes and source preview should share a draggable divider"
 );
 assert.match(
   layoutCss,
@@ -66,11 +71,11 @@ assert.ok(
   "layout should know when the source viewer is open"
 );
 assert.ok(
-  index.includes("style.css?v=notes-source-priority-v2"),
+  index.includes("style.css?v=notes-source-split-v1"),
   "workspace styles should cache-bust after the notes/source priority pass"
 );
 assert.ok(
-  index.includes("synapse-legacy-controller-combined.js?v=notes-source-priority-v2"),
+  index.includes("synapse-legacy-controller-combined.js?v=notes-source-split-v1"),
   "legacy controller should cache-bust after background preview preload"
 );
 

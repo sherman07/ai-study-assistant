@@ -143,6 +143,9 @@ Object.assign(window, {
   switchTab,
   switchTool,
   toggleSourceViewer,
+  bindNotesSourceSplitter,
+  applyNotesSourceSplitRatio,
+  resetNotesSourceSplitRatio,
   toggleSummaryNav,
   toggleHistoryNav,
   setWorkspaceNavTab,
@@ -245,7 +248,9 @@ setupQuizTool();
 setupFlashcardTool();
 setupBroadcastTool();
 renderAccountMenu();
-if (typeof refreshAccountSessionFromProvider === "function") {
+if (typeof bindNotesSourceSplitter === "function") {
+  bindNotesSourceSplitter();
+}if (typeof refreshAccountSessionFromProvider === "function") {
   refreshAccountSessionFromProvider().catch(error => {
     console.warn("Could not refresh account session on boot:", error);
   });

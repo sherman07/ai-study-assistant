@@ -1290,6 +1290,10 @@
     row-gap: 18px;
   }
 
+  .result-grid.source-open .notes-source-splitter {
+    display: none;
+  }
+
   .source-open .notes-card {
     border-radius: 26px;
     border-right: 1px solid var(--border-blue);

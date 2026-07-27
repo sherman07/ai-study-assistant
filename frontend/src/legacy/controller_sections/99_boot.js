@@ -143,6 +143,11 @@ Object.assign(window, {
   switchTab,
   switchTool,
   toggleSourceViewer,
+  openActiveSourceExternally,
+  cycleActiveSourceItem,
+  bindSourceViewerShortcuts,
+  retryActiveSourcePreview,
+  renderNativePdfPreview,
   bindNotesSourceSplitter,
   applyNotesSourceSplitRatio,
   resetNotesSourceSplitRatio,
@@ -250,7 +255,11 @@ setupBroadcastTool();
 renderAccountMenu();
 if (typeof bindNotesSourceSplitter === "function") {
   bindNotesSourceSplitter();
-}if (typeof refreshAccountSessionFromProvider === "function") {
+}
+if (typeof bindSourceViewerShortcuts === "function") {
+  bindSourceViewerShortcuts();
+}
+if (typeof refreshAccountSessionFromProvider === "function") {
   refreshAccountSessionFromProvider().catch(error => {
     console.warn("Could not refresh account session on boot:", error);
   });

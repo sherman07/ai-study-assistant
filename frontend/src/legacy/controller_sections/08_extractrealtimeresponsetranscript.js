@@ -1462,6 +1462,9 @@ function restoreSourceViewerItems(items) {
   if (typeof scheduleSourcePreviewPrefetch === "function") {
     scheduleSourcePreviewPrefetch(sourceViewerItems);
   }
+  if (typeof ensureSourcePreviewWarmup === "function") {
+    Promise.resolve(ensureSourcePreviewWarmup()).catch(() => {});
+  }
 }
 
 async function buildCurrentSourceItems(rawSource, backendSources = []) {
@@ -1569,6 +1572,9 @@ async function buildCurrentSourceItems(rawSource, backendSources = []) {
   renderSourceViewer();
   if (typeof scheduleSourcePreviewPrefetch === "function") {
     scheduleSourcePreviewPrefetch(sourceViewerItems);
+  }
+  if (typeof ensureSourcePreviewWarmup === "function") {
+    Promise.resolve(ensureSourcePreviewWarmup()).catch(() => {});
   }
   return sourceViewerItems;
 }
@@ -1701,7 +1707,7 @@ function renderSourceViewer() {
             title="${escapeAttr(item.title || item.name)}"
             onclick="selectSourceItem('${escapeAttr(item.id)}')">
       <i class="bi ${sourceIcon(item.kind)}"></i>
-      <span>${escapeHTML(shorten(item.name || item.title, 26))}</span>
+      <span>${escapeHTML(shorten(item.name || item.title, 18))}</span>
     </button>
   `).join("");
 

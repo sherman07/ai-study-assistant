@@ -668,28 +668,42 @@
   }
 }
 
-.source-viewer-tabs {
+.source-viewer-chrome {
   display: flex;
+  align-items: center;
   gap: 8px;
-  padding: 12px 14px 10px;
+  min-height: 44px;
+  padding: 6px 8px 6px 10px;
   border-bottom: 1px solid var(--border-blue);
-  overflow-x: auto;
   background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
   flex: 0 0 auto;
 }
 
+.source-viewer-tabs {
+  display: flex;
+  gap: 6px;
+  padding: 0;
+  border-bottom: 0;
+  overflow-x: auto;
+  background: transparent;
+  flex: 1 1 auto;
+  min-width: 0;
+  scrollbar-width: thin;
+}
+
 .source-tab {
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 10px;
   background: #f2f6ff;
   color: #56627a;
   font-weight: 800;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 9px 12px;
+  gap: 6px;
+  padding: 7px 10px;
   white-space: nowrap;
-  max-width: 280px;
+  max-width: 180px;
+  font-size: 0.78rem;
 }
 
 .source-tab span {
@@ -701,57 +715,146 @@
   background: #fff;
   color: var(--primary);
   border-color: rgba(93, 95, 239, 0.38);
-  box-shadow: 0 10px 22px rgba(93, 95, 239, 0.12);
-  max-width: 340px;
+  box-shadow: 0 8px 18px rgba(93, 95, 239, 0.12);
+  max-width: 220px;
 }
 
 .source-viewer-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 13px 16px;
-  border-bottom: 1px solid var(--border-blue);
-  background: rgba(255, 255, 255, 0.94);
-  flex: 0 0 auto;
+  display: none !important;
 }
 
-.source-viewer-toolbar strong {
-  display: block;
-  color: var(--text);
-  line-height: 1.2;
-}
-
-.source-viewer-toolbar span {
-  display: block;
+.source-viewer-meta-compact {
+  display: none;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: var(--muted);
-  font-size: 0.86rem;
-  margin-top: 3px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+@media (min-width: 1280px) {
+  .source-viewer-meta-compact {
+    display: inline-block;
+  }
 }
 
 .source-viewer-tools {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 4px;
   flex: 0 0 auto;
 }
 
 .source-tool-btn {
-  width: 36px;
-  height: 36px;
-  border: 1px solid #d8e3f7;
-  border-radius: 12px;
-  background: #fff;
-  color: var(--primary);
-  display: grid;
+  width: 30px;
+  height: 30px;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #56627a;
+  display: inline-grid;
   place-items: center;
+  padding: 0;
 }
 
-#sourceZoomLabel {
-  min-width: 46px;
+.source-tool-btn:hover,
+.source-tool-btn:focus-visible {
+  background: #eef3ff;
+  border-color: rgba(74, 124, 255, 0.22);
+  color: var(--primary);
+  outline: none;
+}
+
+#sourceZoomLabel,
+.source-zoom-label {
+  min-width: 2.4rem;
   text-align: center;
-  color: var(--text);
+  color: var(--muted);
+  font-size: 0.78rem;
   font-weight: 800;
+}
+
+.source-native-pdf-stage,
+.source-native-pdf-frame-wrap {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: #eef2f8;
+}
+
+.source-native-pdf-frame-wrap {
+  flex: 1 1 auto;
+  overflow: hidden;
+  transform-origin: top center;
+}
+
+.source-native-pdf-frame {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  border: 0;
+  background: #fff;
+  transform: scale(var(--source-native-zoom, 1));
+  transform-origin: top center;
+  width: calc(100% / var(--source-native-zoom, 1));
+  height: calc(100% / var(--source-native-zoom, 1));
+}
+
+.source-viewer-body:has(.source-native-pdf-stage) {
+  overflow: hidden;
+  background: #e8eef8;
+}
+
+.source-preview-progress {
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.source-preview-progress-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 10px 12px 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(74, 124, 255, 0.18);
+  background: rgba(74, 124, 255, 0.08);
+  color: var(--text);
+}
+
+.source-preview-progress-banner strong {
+  display: block;
+  font-size: 0.86rem;
+}
+
+.source-preview-progress-banner small {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+.source-preview-progress-text {
+  margin: 10px 12px 16px;
+  max-height: none;
+}
+
+.source-loading-compact {
+  padding: 28px 18px;
+}
+
+.source-file-preview-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin: 8px 0 12px;
 }
 
 .source-toolbar-link {
@@ -780,7 +883,7 @@
 .source-frame {
   width: 100%;
   height: 100%;
-  min-height: 720px;
+  min-height: 0;
   border: 0;
   display: block;
   background: #fff;

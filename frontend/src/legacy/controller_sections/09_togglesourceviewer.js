@@ -243,8 +243,14 @@ async function readSourceText(item) {
   }
 }
 
+function canUseNativePdfPreview(item) {
+  return Boolean(item?.blob && item.kind === "pdf");
+}
+
 function canUseBackendSourcePreview(item) {
-  return Boolean(item?.blob && ["pdf", "presentation", "document"].includes(item.kind));
+  // PDFs use the local blob viewer instantly. Only slide/document conversion
+  // still needs the hosted /source-preview endpoint.
+  return Boolean(item?.blob && ["presentation", "document"].includes(item.kind));
 }
 
 function sourceSlidePageUrl(slide) {
@@ -280,7 +286,25 @@ function sourcePresentationRenderLabel(preview) {
   return "Slide-page preview";
 }
 
-async function fetchSourcePreview(item) {
+let sourcePreviewWarmupPromise = null;
+
+async function ensureSourcePreviewWarmup() {
+  if (!apiClient || typeof apiClient.warmup !== "function") return;
+  if (!sourcePreviewWarmupPromise) {
+    sourcePreviewWarmupPromise = apiClient.warmup({
+      attempts: 8,
+      retryDelayMs: 2000,
+      timeoutMs: 20000,
+      maxWaitMs: 45000
+    }).catch(error => {
+      sourcePreviewWarmupPromise = null;
+      throw error;
+    });
+  }
+  await sourcePreviewWarmupPromise;
+}
+
+async function fetchSourcePreview(item, { attempts = 2 } = {}) {
   if (!item) throw new Error("No source selected.");
   if (item.preview) {
     const presentationPreviewHasSlidePages =
@@ -303,18 +327,31 @@ async function fetchSourcePreview(item) {
   }
 
   const request = (async () => {
-    const formData = new FormData();
-    formData.append("file", item.blob, item.name || item.displayName || "source");
-    const response = await apiClient.fetch("/source-preview", {
-      method: "POST",
-      body: formData,
-      timeoutMs: SOURCE_PREVIEW_TIMEOUT_MS
-    });
-    const data = await readSourcePreviewJson(response);
-    item.preview = data;
-    item.previewError = "";
-    item.previewPrefetchFailed = false;
-    return data;
+    let lastError = null;
+    const maxAttempts = Math.max(1, Number(attempts) || 1);
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        await ensureSourcePreviewWarmup();
+        const formData = new FormData();
+        formData.append("file", item.blob, item.name || item.displayName || "source");
+        const response = await apiClient.fetch("/source-preview", {
+          method: "POST",
+          body: formData,
+          timeoutMs: SOURCE_PREVIEW_TIMEOUT_MS
+        });
+        const data = await readSourcePreviewJson(response);
+        item.preview = data;
+        item.previewError = "";
+        item.previewPrefetchFailed = false;
+        return data;
+      } catch (error) {
+        lastError = error;
+        if (attempt >= maxAttempts) break;
+        await new Promise(resolve => setTimeout(resolve, 1200 * attempt));
+        sourcePreviewWarmupPromise = null;
+      }
+    }
+    throw lastError || new Error("Source preview failed.");
   })();
 
   if (inflightKey) sourcePreviewInflight.set(inflightKey, request);
@@ -361,7 +398,7 @@ async function processSourcePreviewPrefetchQueue() {
       const item = sourcePreviewPrefetchQueue.shift();
       if (!item || !sourceNeedsBackendPreviewPrefetch(item)) continue;
       try {
-        await fetchSourcePreview(item);
+        await fetchSourcePreview(item, { attempts: 3 });
       } catch (error) {
         item.previewPrefetchFailed = true;
         item.previewError = error?.message || "Source preview failed.";
@@ -399,28 +436,154 @@ async function readSourcePreviewJson(response) {
 }
 
 function renderSourcePreviewLoading(item) {
+  const fallbackText = String(item?.content || "").trim();
   sourceViewerBody.innerHTML = `
-    <div class="source-loading">
-      <i class="bi ${sourceIcon(item.kind)}"></i>
-      <h3>Preparing source preview...</h3>
-      <p>Synapse is converting this file into a readable browser view.</p>
+    <div class="source-preview-progress">
+      <div class="source-preview-progress-banner" role="status" aria-live="polite">
+        <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+        <div>
+          <strong>Preparing ${escapeHTML(item?.kind === "presentation" ? "slide" : "document")} preview…</strong>
+          <small>Keep reviewing notes — Synapse will fill this pane when ready.</small>
+        </div>
+      </div>
+      ${fallbackText ? `
+        <pre class="source-text-preview source-preview-progress-text" style="font-size:${Math.max(0.78, sourceViewerZoom / 100)}rem">${escapeHTML(fallbackText.slice(0, 12000))}${fallbackText.length > 12000 ? "\n\n…" : ""}</pre>
+      ` : `
+        <div class="source-loading source-loading-compact">
+          <i class="bi ${sourceIcon(item.kind)}"></i>
+          <p>Converting this file into a readable browser view.</p>
+        </div>
+      `}
     </div>
   `;
 }
 
+function renderNativePdfPreview(item) {
+  const url = makeSourceObjectUrl(item);
+  if (!url) {
+    renderSourcePreviewError(item, new Error("This PDF is not available in the browser session."));
+    return;
+  }
+  const scale = Math.max(60, Math.min(180, sourceViewerZoom)) / 100;
+  sourceViewerBody.innerHTML = `
+    <div class="source-native-pdf-stage" data-source-id="${escapeAttr(item.id)}">
+      <div class="source-native-pdf-frame-wrap" style="--source-native-zoom:${scale}">
+        <iframe
+          class="source-frame source-native-pdf-frame"
+          title="${escapeAttr(item.name || item.title || "PDF preview")}"
+          src="${escapeAttr(url)}#toolbar=1&navpanes=0&scrollbar=1&view=FitH"
+        ></iframe>
+      </div>
+    </div>
+  `;
+}
+
+function openActiveSourceExternally() {
+  const item = sourceViewerItems.find(entry => entry.id === activeSourceItemId) || sourceViewerItems[0];
+  if (!item) return false;
+  const url = item.blob
+    ? makeSourceObjectUrl(item)
+    : (sourceExternalUrl(item) || item.url || item.originalUrl || "");
+  if (!url) return false;
+  window.open(url, "_blank", "noopener,noreferrer");
+  return true;
+}
+
+function cycleActiveSourceItem(delta = 1) {
+  if (!sourceViewerItems.length) return;
+  const currentIndex = Math.max(0, sourceViewerItems.findIndex(item => item.id === activeSourceItemId));
+  const nextIndex = (currentIndex + delta + sourceViewerItems.length) % sourceViewerItems.length;
+  selectSourceItem(sourceViewerItems[nextIndex].id);
+}
+
+function isEditableKeyboardTarget(target) {
+  if (!target || !(target instanceof Element)) return false;
+  const tag = String(target.tagName || "").toLowerCase();
+  if (tag === "input" || tag === "textarea" || tag === "select") return true;
+  if (target.isContentEditable) return true;
+  return Boolean(target.closest("input, textarea, select, [contenteditable='true']"));
+}
+
+function bindSourceViewerShortcuts() {
+  if (window.__synapseSourceViewerShortcutsBound) return;
+  window.__synapseSourceViewerShortcutsBound = true;
+  window.addEventListener("keydown", event => {
+    if (isEditableKeyboardTarget(event.target)) return;
+    const key = String(event.key || "");
+    const lower = key.toLowerCase();
+
+    if (lower === "s" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      if (!sourceViewerItems.length) return;
+      event.preventDefault();
+      toggleSourceViewer(!sourceViewerOpen);
+      return;
+    }
+
+    if (!sourceViewerOpen) return;
+
+    if (key === "Escape") {
+      event.preventDefault();
+      toggleSourceViewer(false);
+      return;
+    }
+    if (key === "[" || key === "PageUp") {
+      event.preventDefault();
+      cycleActiveSourceItem(-1);
+      return;
+    }
+    if (key === "]" || key === "PageDown") {
+      event.preventDefault();
+      cycleActiveSourceItem(1);
+      return;
+    }
+    if (key === "+" || key === "=") {
+      event.preventDefault();
+      changeSourceZoom(10);
+      return;
+    }
+    if (key === "-" || key === "_") {
+      event.preventDefault();
+      changeSourceZoom(-10);
+      return;
+    }
+    if (lower === "o" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      event.preventDefault();
+      openActiveSourceExternally();
+    }
+  });
+}
+
 function renderSourcePreviewError(item, error) {
-  const fallbackText = item?.content || "";
-  const allowTextFallback = item?.kind !== "presentation" && Boolean(fallbackText);
+  const fallbackText = String(item?.content || "").trim();
   const url = item?.blob ? makeSourceObjectUrl(item) : "";
+  const nativePdf = canUseNativePdfPreview(item);
+  if (nativePdf) {
+    renderNativePdfPreview(item);
+    return;
+  }
   sourceViewerBody.innerHTML = `
     <div class="source-file-preview">
       <i class="bi ${sourceIcon(item?.kind)}"></i>
       <h3>${escapeHTML(item?.name || "Uploaded source")}</h3>
       <p>${escapeHTML(error?.message || item?.previewError || "This source could not be previewed.")}</p>
-      ${allowTextFallback ? `<button class="source-inline-action" type="button" onclick="renderSourceTextFallback('${escapeAttr(item.id)}')">Show extracted text</button>` : ""}
-      ${url ? `<a href="${escapeAttr(url)}" download="${escapeAttr(item?.name || "source")}">Download original source</a>` : ""}
+      <div class="source-file-preview-actions">
+        ${fallbackText ? `<button class="source-inline-action" type="button" onclick="renderSourceTextFallback('${escapeAttr(item.id)}')">Show extracted text</button>` : ""}
+        ${url ? `<a class="source-inline-action" href="${escapeAttr(url)}" download="${escapeAttr(item?.name || "source")}">Download original source</a>` : ""}
+        ${item?.id ? `<button class="source-inline-action" type="button" onclick="retryActiveSourcePreview('${escapeAttr(item.id)}')">Retry preview</button>` : ""}
+      </div>
+      ${fallbackText ? `<pre class="source-text-preview source-preview-progress-text" style="font-size:${Math.max(0.78, sourceViewerZoom / 100)}rem">${escapeHTML(fallbackText.slice(0, 8000))}${fallbackText.length > 8000 ? "\n\n…" : ""}</pre>` : ""}
     </div>
   `;
+}
+
+function retryActiveSourcePreview(id) {
+  const item = sourceViewerItems.find(entry => entry.id === id) || sourceViewerItems.find(entry => entry.id === activeSourceItemId);
+  if (!item) return;
+  item.preview = null;
+  item.previewError = "";
+  item.previewPrefetchFailed = false;
+  activeSourceItemId = item.id;
+  renderSourceViewer();
 }
 
 function renderSourceTextFallback(id) {
@@ -641,6 +804,11 @@ function renderSourceViewerBody(item) {
     return;
   }
 
+  if (canUseNativePdfPreview(item)) {
+    renderNativePdfPreview(item);
+    return;
+  }
+
   if (canUseBackendSourcePreview(item)) {
     if (item.preview) {
       const presentationPreviewHasSlidePages =
@@ -651,9 +819,11 @@ function renderSourceViewerBody(item) {
         return;
       }
     }
+    // Allow a fresh attempt when the user opens the source after a background miss.
+    item.previewPrefetchFailed = false;
     renderSourcePreviewLoading(item);
     const expectedItemId = item.id;
-    fetchSourcePreview(item)
+    fetchSourcePreview(item, { attempts: 3 })
       .then(preview => {
         if (activeSourceItemId !== expectedItemId) return;
         renderStructuredSourcePreview(preview, item);

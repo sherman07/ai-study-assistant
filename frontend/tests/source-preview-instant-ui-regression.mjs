@@ -16,6 +16,8 @@ const copyScript = read("scripts/copy_frontend_runtime_assets.mjs");
 
 assert.ok(sourceViewer.includes("canUseNativePdfPreview"), "PDF blobs should use a local page preview");
 assert.ok(sourceViewer.includes("renderNativePdfPreview"), "native PDF renderer should exist");
+assert.ok(sourceViewer.includes("isStaleSourcePdfRender"), "PDF render should cancel only when the stage is replaced");
+assert.ok(sourceViewer.includes("arrayBuffer"), "PDF bytes should load via blob.arrayBuffer for exact pages");
 assert.ok(sourceViewer.includes("ensurePdfJsLib"), "PDF pages should render through local PDF.js");
 assert.ok(sourceViewer.includes("source-pdf-page-canvas"), "PDF pages should render to canvas, not the browser PDF chrome");
 assert.ok(!sourceViewer.includes("toolbar=0"), "browser PDF iframe hash hacks should be removed");

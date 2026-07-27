@@ -17,10 +17,28 @@ const distRoot = path.join(root, "dist");
 const artifactDir = "/opt/cursor/artifacts";
 fs.mkdirSync(artifactDir, { recursive: true });
 
-// Minimal valid PDF bytes.
-const MINI_PDF = Buffer.from(
-  "%PDF-1.1\n1 0 obj<<>>endobj\n2 0 obj<< /Length 44 >>stream\nBT /F1 24 Tf 100 700 Td (Synapse) Tj ET\nendstream\nendobj\n3 0 obj<< /Type /Page /Parent 4 0 R /Contents 2 0 R >>endobj\n4 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 612 792] >>endobj\n5 0 obj<< /Type /Catalog /Pages 4 0 R >>endobj\nxref\n0 6\ntrailer<< /Root 5 0 R /Size 6 >>\nstartxref\n0\n%%EOF\n"
-);
+// Better minimal PDF with a real Helvetica text page for PDF.js.
+const MINI_PDF = Buffer.from(`%PDF-1.4
+1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj
+2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj
+3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Contents 4 0 R /Resources<< /Font<< /F1 5 0 R >> >> >>endobj
+4 0 obj<< /Length 55 >>stream
+BT /F1 24 Tf 40 60 Td (Hello Synapse) Tj ET
+endstream
+endobj
+5 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000274 00000 n 
+0000000377 00000 n 
+trailer<< /Size 6 /Root 1 0 R >>
+startxref
+455
+%%EOF`);
 
 function contentType(filePath) {
   const ext = path.extname(filePath).toLowerCase();

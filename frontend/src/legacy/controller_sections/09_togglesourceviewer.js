@@ -506,31 +506,30 @@ let sourcePdfRenderToken = 0;
 let sourcePdfPageObserver = null;
 
 function ensurePdfJsLib() {
-  if (window.pdfjsLib) return Promise.resolve(window.pdfjsLib);
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(SOURCE_PDFJS_WORKER_SRC, window.location.href).href;
+    return Promise.resolve(window.pdfjsLib);
+  }
   if (sourcePdfJsLoadPromise) return sourcePdfJsLoadPromise;
   sourcePdfJsLoadPromise = new Promise((resolve, reject) => {
     const existing = document.querySelector(`script[data-synapse-pdfjs="1"]`);
-    if (existing && window.pdfjsLib) {
-      resolve(window.pdfjsLib);
-      return;
-    }
     const script = existing || document.createElement("script");
-    script.src = SOURCE_PDFJS_SCRIPT_SRC;
+    script.src = new URL(SOURCE_PDFJS_SCRIPT_SRC, window.location.href).href;
     script.async = true;
     script.dataset.synapsePdfjs = "1";
     const settle = () => {
       const lib = window.pdfjsLib;
-      if (!lib) {
+      if (!lib?.getDocument) {
         reject(new Error("PDF.js failed to initialize"));
         return;
       }
-      lib.GlobalWorkerOptions.workerSrc = SOURCE_PDFJS_WORKER_SRC;
+      lib.GlobalWorkerOptions.workerSrc = new URL(SOURCE_PDFJS_WORKER_SRC, window.location.href).href;
       resolve(lib);
     };
     script.addEventListener("load", settle, { once: true });
     script.addEventListener("error", () => reject(new Error("Could not load the local PDF page renderer.")), { once: true });
     if (!existing) document.head.appendChild(script);
-    else if (window.pdfjsLib) settle();
+    else if (window.pdfjsLib?.getDocument) settle();
   }).catch(error => {
     sourcePdfJsLoadPromise = null;
     throw error;
@@ -578,6 +577,16 @@ function bindSourcePdfPageObserver(pagesEl, pageCount) {
   articles.forEach(article => sourcePdfPageObserver.observe(article));
 }
 
+function isStaleSourcePdfRender(token, itemId) {
+  if (token !== sourcePdfRenderToken) return true;
+  const body = typeof sourceViewerBody !== "undefined" && sourceViewerBody
+    ? sourceViewerBody
+    : document.getElementById("sourceViewerBody");
+  const stage = body?.querySelector(".source-pdf-page-renderer");
+  if (!stage) return true;
+  return String(stage.getAttribute("data-source-id") || "") !== String(itemId || "");
+}
+
 async function renderPdfPageToCanvas(page, canvas) {
   const viewport = page.getViewport({ scale: SOURCE_PDF_RENDER_SCALE });
   const outputScale = Math.min(2, window.devicePixelRatio || 1);
@@ -595,8 +604,8 @@ async function renderPdfPageToCanvas(page, canvas) {
 }
 
 function renderNativePdfPreview(item) {
-  const url = makeSourceObjectUrl(item);
-  if (!url) {
+  const openUrl = makeSourceObjectUrl(item);
+  if (!item?.blob) {
     setSourceViewerNativePdfMode(false);
     renderSourcePreviewError(item, new Error("This PDF is not available in the browser session."));
     return;
@@ -623,16 +632,23 @@ function renderNativePdfPreview(item) {
     </div>
   `;
 
-  ensurePdfJsLib()
-    .then(async pdfjsLib => {
-      if (token !== sourcePdfRenderToken || activeSourceItemId !== item.id) return;
+  Promise.all([
+    ensurePdfJsLib(),
+    item.blob.arrayBuffer()
+  ])
+    .then(async ([pdfjsLib, buffer]) => {
+      if (isStaleSourcePdfRender(token, item.id)) return;
+      const data = new Uint8Array(buffer);
+      if (!data.byteLength) {
+        throw new Error("This PDF is empty or could not be read in the browser.");
+      }
       const pdf = await pdfjsLib.getDocument({
-        url,
+        data,
         withCredentials: false,
         isEvalSupported: false,
         useSystemFonts: true
       }).promise;
-      if (token !== sourcePdfRenderToken || activeSourceItemId !== item.id) return;
+      if (isStaleSourcePdfRender(token, item.id)) return;
 
       const pagesEl = document.getElementById("sourcePdfPages");
       if (!pagesEl) return;
@@ -641,7 +657,7 @@ function renderNativePdfPreview(item) {
       updateSourcePdfPageStatus(1, pageCount);
 
       for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
-        if (token !== sourcePdfRenderToken || activeSourceItemId !== item.id) return;
+        if (isStaleSourcePdfRender(token, item.id)) return;
         const page = await pdf.getPage(pageNumber);
         const article = document.createElement("article");
         article.className = "source-pdf-page";
@@ -665,7 +681,7 @@ function renderNativePdfPreview(item) {
       }
     })
     .catch(error => {
-      if (token !== sourcePdfRenderToken || activeSourceItemId !== item.id) return;
+      if (isStaleSourcePdfRender(token, item.id)) return;
       console.warn("Local PDF page render failed", error);
       setSourceViewerNativePdfMode(false);
       sourceViewerBody.innerHTML = `
@@ -674,7 +690,7 @@ function renderNativePdfPreview(item) {
           <h3>${escapeHTML(title)}</h3>
           <p>${escapeHTML(error?.message || "Synapse could not render this PDF as exact pages.")}</p>
           <div class="source-file-preview-actions">
-            <a class="source-inline-action" href="${escapeAttr(url)}" target="_blank" rel="noopener noreferrer">Open original PDF</a>
+            ${openUrl ? `<a class="source-inline-action" href="${escapeAttr(openUrl)}" target="_blank" rel="noopener noreferrer">Open original PDF</a>` : ""}
           </div>
         </div>
       `;

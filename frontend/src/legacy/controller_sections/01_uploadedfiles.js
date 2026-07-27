@@ -909,8 +909,8 @@ function addFiles(files) {
   }
   if (duplicates.length) notes.push(`Skipped ${duplicates.length} duplicate${duplicates.length === 1 ? "" : "s"}.`);
   if (rejected.length) notes.push(`Skipped ${rejected.length} unsupported or oversize file${rejected.length === 1 ? "" : "s"}.`);
-  setUploadStatus(rejected.length && !accepted.length ? "error" : "success", notes.join(" "));
-  flashUploadState(rejected.length && accepted.length ? "success" : (rejected.length ? "error" : "success"));
+  setUploadStatus("success", notes.join(" "));
+  flashUploadState("success");
 }
 
 function renderFilePreview() {

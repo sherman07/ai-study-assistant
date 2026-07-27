@@ -583,7 +583,7 @@ function resetWorkspace() {
   if (typeof renderFocusRoomWorkspaceActions === "function") renderFocusRoomWorkspaceActions();
   if (typeof notifyFocusRoomMaterialsChanged === "function") notifyFocusRoomMaterialsChanged();
 
-  appLayout.classList.remove("analysis-ready", "loading-state", "generation-job-state", "generated-notes-state");
+  appLayout.classList.remove("analysis-ready", "loading-state", "generation-job-state", "source-viewer-open", "generated-notes-state");
   appLayout.classList.add("initial-state", "assistant-closed");
   if (typeof setWorkspaceNavTab === "function") {
     setWorkspaceNavTab("library", { persist: true, expandRail: false });
@@ -1459,6 +1459,9 @@ function restoreSourceViewerItems(items) {
     .filter(Boolean);
   activeSourceItemId = sourceViewerItems[0]?.id || "";
   renderSourceViewer();
+  if (typeof scheduleSourcePreviewPrefetch === "function") {
+    scheduleSourcePreviewPrefetch(sourceViewerItems);
+  }
 }
 
 async function buildCurrentSourceItems(rawSource, backendSources = []) {
@@ -1564,6 +1567,9 @@ async function buildCurrentSourceItems(rawSource, backendSources = []) {
   sourceViewerItems = items.filter(Boolean);
   activeSourceItemId = sourceViewerItems[0]?.id || "";
   renderSourceViewer();
+  if (typeof scheduleSourcePreviewPrefetch === "function") {
+    scheduleSourcePreviewPrefetch(sourceViewerItems);
+  }
   return sourceViewerItems;
 }
 
@@ -1650,6 +1656,9 @@ function renderSourceViewer() {
     sourceViewerBtn.disabled = !sourceViewerItems.length;
     sourceViewerBtn.classList.toggle("active", sourceViewerOpen);
   }
+  if (appLayout) {
+    appLayout.classList.toggle("source-viewer-open", Boolean(sourceViewerOpen && sourceViewerItems.length));
+  }
   if (!sourceViewerOpen) {
     sourceViewerPanel.classList.add("d-none");
     if (resultGrid) resultGrid.classList.remove("source-open");
@@ -1658,7 +1667,9 @@ function renderSourceViewer() {
 
   sourceViewerPanel.classList.remove("d-none");
   if (resultGrid) resultGrid.classList.add("source-open");
-
+  if (typeof scheduleSourcePreviewPrefetch === "function") {
+    scheduleSourcePreviewPrefetch(sourceViewerItems);
+  }
   if (!sourceViewerItems.length) {
     sourceViewerTabs.innerHTML = "";
     sourceViewerBody.innerHTML = `

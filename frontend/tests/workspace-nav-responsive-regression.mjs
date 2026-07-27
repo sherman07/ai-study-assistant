@@ -45,8 +45,13 @@ assert.match(
 );
 assert.match(
   layoutCss,
-  /\.result-grid\.source-open\s*\{[\s\S]*?minmax\(0, 1fr\) minmax\(280px, 0\.95fr\)/,
-  "sources split should stay fluid instead of fixed 440/560 mins"
+  /\.result-grid\.source-open\s*\{[\s\S]*?minmax\(0, 1\.72fr\) minmax\(240px, 0\.58fr\)/,
+  "sources split should prioritize generated notes over the preview pane"
+);
+assert.match(
+  layoutCss,
+  /\.app-layout\.source-viewer-open \.notes-header\.compact-header/,
+  "open sources should compact the materials header so both panes sit on one level"
 );
 assert.match(
   layoutCss,
@@ -57,6 +62,11 @@ assert.match(
   sectionCss,
   /\.app-layout:not\(\.assistant-closed\) \.source-open \.source-viewer-panel/,
   "sources panel should reflow when the tutor is open"
+);
+assert.match(
+  sectionCss,
+  /\.source-viewer-panel\s*\{[\s\S]*?height: calc\(100dvh - 118px\)/,
+  "source pane height should match the notes pane chrome"
 );
 
 console.log("workspace-nav-responsive-regression: passed");

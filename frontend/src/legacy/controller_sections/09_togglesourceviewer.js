@@ -1,4 +1,7 @@
 const SOURCE_PREVIEW_TIMEOUT_MS = Number(window.SYNAPSE_SOURCE_PREVIEW_TIMEOUT_MS || 90 * 1000);
+const sourcePreviewInflight = new Map();
+const sourcePreviewPrefetchQueue = [];
+let sourcePreviewPrefetchRunning = false;
 
 function toggleSourceViewer(force = null) {
   const desired = typeof force === "boolean" ? force : !sourceViewerOpen;
@@ -100,17 +103,89 @@ async function fetchSourcePreview(item) {
     throw new Error("The original uploaded file is not available in this browser session. Regenerate from the source file to restore the full preview.");
   }
 
-  const formData = new FormData();
-  formData.append("file", item.blob, item.name || item.displayName || "source");
-  const response = await apiClient.fetch("/source-preview", {
-    method: "POST",
-    body: formData,
-    timeoutMs: SOURCE_PREVIEW_TIMEOUT_MS
+  const inflightKey = String(item.id || "");
+  if (inflightKey && sourcePreviewInflight.has(inflightKey)) {
+    return sourcePreviewInflight.get(inflightKey);
+  }
+
+  const request = (async () => {
+    const formData = new FormData();
+    formData.append("file", item.blob, item.name || item.displayName || "source");
+    const response = await apiClient.fetch("/source-preview", {
+      method: "POST",
+      body: formData,
+      timeoutMs: SOURCE_PREVIEW_TIMEOUT_MS
+    });
+    const data = await readSourcePreviewJson(response);
+    item.preview = data;
+    item.previewError = "";
+    item.previewPrefetchFailed = false;
+    return data;
+  })();
+
+  if (inflightKey) sourcePreviewInflight.set(inflightKey, request);
+  try {
+    return await request;
+  } finally {
+    if (inflightKey) sourcePreviewInflight.delete(inflightKey);
+  }
+}
+
+function sourceNeedsBackendPreviewPrefetch(item) {
+  if (!canUseBackendSourcePreview(item)) return false;
+  if (item.preview) {
+    const presentationPreviewHasSlidePages =
+      item.preview.kind === "presentation" &&
+      (item.preview.slides || []).some((slide) => sourceSlidePageUrl(slide));
+    if (item.kind !== "presentation" || presentationPreviewHasSlidePages) return false;
+  }
+  if (item.previewPrefetchFailed) return false;
+  const key = String(item.id || "");
+  if (key && sourcePreviewInflight.has(key)) return false;
+  if (sourcePreviewPrefetchQueue.some(entry => entry?.id === item.id)) return false;
+  return true;
+}
+
+function scheduleSourcePreviewPrefetch(items = sourceViewerItems) {
+  const seen = new Set();
+  const candidates = (Array.isArray(items) ? items : []).filter(item => {
+    const key = String(item?.id || "");
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return sourceNeedsBackendPreviewPrefetch(item);
   });
-  const data = await readSourcePreviewJson(response);
-  item.preview = data;
-  item.previewError = "";
-  return data;
+  if (!candidates.length) return;
+  candidates.forEach(item => sourcePreviewPrefetchQueue.push(item));
+  processSourcePreviewPrefetchQueue();
+}
+
+async function processSourcePreviewPrefetchQueue() {
+  if (sourcePreviewPrefetchRunning) return;
+  sourcePreviewPrefetchRunning = true;
+  try {
+    while (sourcePreviewPrefetchQueue.length) {
+      const item = sourcePreviewPrefetchQueue.shift();
+      if (!item || !sourceNeedsBackendPreviewPrefetch(item)) continue;
+      try {
+        await fetchSourcePreview(item);
+      } catch (error) {
+        item.previewPrefetchFailed = true;
+        item.previewError = error?.message || "Source preview failed.";
+        console.warn("Background source preview prefetch failed:", {
+          sourceId: item.id,
+          name: item.name || item.title,
+          error: item.previewError
+        });
+      }
+      // Yield between conversions so note reading stays responsive.
+      await new Promise(resolve => setTimeout(resolve, 40));
+    }
+  } finally {
+    sourcePreviewPrefetchRunning = false;
+    if (sourcePreviewPrefetchQueue.length) {
+      processSourcePreviewPrefetchQueue();
+    }
+  }
 }
 
 async function readSourcePreviewJson(response) {
@@ -373,6 +448,15 @@ function renderSourceViewerBody(item) {
   }
 
   if (canUseBackendSourcePreview(item)) {
+    if (item.preview) {
+      const presentationPreviewHasSlidePages =
+        item.preview.kind === "presentation" &&
+        (item.preview.slides || []).some((slide) => sourceSlidePageUrl(slide));
+      if (item.kind !== "presentation" || presentationPreviewHasSlidePages) {
+        renderStructuredSourcePreview(item.preview, item);
+        return;
+      }
+    }
     renderSourcePreviewLoading(item);
     const expectedItemId = item.id;
     fetchSourcePreview(item)

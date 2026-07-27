@@ -465,9 +465,10 @@ html[data-theme] .tool-switch-btn:focus-visible {
   border-color: var(--color-border-strong) !important;
 }
 html[data-theme] .tool-switch-btn.active {
-  background: linear-gradient(135deg, var(--color-accent-active), var(--color-accent)) !important;
+  background: var(--button-gradient) !important;
   color: #fff !important;
   border-color: transparent !important;
+  box-shadow: 0 8px 20px rgba(74, 124, 255, 0.2) !important;
 }
 
 html[data-theme] :where(

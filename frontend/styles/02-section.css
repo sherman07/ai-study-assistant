@@ -779,78 +779,121 @@
 }
 
 .source-native-pdf-stage,
-.source-native-pdf-frame-wrap {
+.source-pdf-page-renderer {
   width: 100%;
-  height: 100%;
-  min-height: 0;
+  min-height: 100%;
   display: flex;
   flex-direction: column;
-  background: #fff;
+  background:
+    linear-gradient(180deg, #eef3fb 0%, #f7f9fc 42%, #f3f6fb 100%);
   border: 0;
   box-shadow: none;
 }
 
-.source-native-pdf-frame-wrap {
-  flex: 1 1 auto;
-  overflow: hidden;
-  position: relative;
-  border: 0;
+.source-pdf-reader-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex: 0 0 auto;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(8px);
 }
 
-.source-native-pdf-frame {
-  position: absolute;
-  inset: 0;
+.source-pdf-reader-kicker {
+  display: block;
+  color: #6b7c99;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.source-pdf-reader-bar strong {
+  display: block;
+  color: #24324d;
+  font-size: 0.9rem;
+  font-weight: 800;
+}
+
+.source-pdf-reader-hint {
+  color: #7b89a6;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-align: right;
+  max-width: 220px;
+  line-height: 1.35;
+}
+
+.source-pdf-page-renderer .source-pdf-pages {
+  padding: 14px 12px 28px;
+  gap: 16px;
+}
+
+.source-pdf-page-renderer .source-pdf-page {
+  width: min(var(--source-pdf-page-width, 100%), 100%);
+  background: transparent;
+}
+
+.source-pdf-page-canvas,
+.source-pdf-page-renderer .source-pdf-page img {
   width: 100%;
-  height: 100%;
-  min-height: 0;
-  border: 0 !important;
-  outline: 0;
+  height: auto;
+  display: block;
+  border-radius: 0;
   background: #fff;
-  box-shadow: none;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 14px 34px rgba(15, 23, 42, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.22);
 }
 
-/* Review-only PDF pane: flush edges, no Synapse zoom chrome, no panel frame. */
+.source-pdf-page-skeleton {
+  width: min(100%, 100%);
+}
+
+.source-pdf-skeleton-sheet {
+  width: 100%;
+  aspect-ratio: 8.5 / 11;
+  border-radius: 0;
+  background:
+    linear-gradient(90deg, #e8eef8 0%, #f8fafc 48%, #e8eef8 100%);
+  background-size: 200% 100%;
+  animation: sourcePdfSkeleton 1.2s ease-in-out infinite;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
+}
+
+@keyframes sourcePdfSkeleton {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+/* Local PDF page mode keeps Synapse chrome (tabs/zoom/open/close). */
 .source-viewer-panel.is-native-pdf {
-  border: 0 !important;
-  box-shadow: none !important;
-  background: #fff;
+  border-color: rgba(197, 213, 242, 0.92);
+  box-shadow: 0 20px 52px rgba(41, 76, 130, 0.14);
+  background: rgba(255, 255, 255, 0.98);
 }
 
 .source-open .source-viewer-panel.is-native-pdf {
-  border-left: 0 !important;
-  border-radius: 0 28px 28px 0;
+  border-left: 1px solid rgba(197, 213, 242, 0.92);
+  border-radius: 0 30px 30px 0;
 }
 
 .source-viewer-panel.is-native-pdf .source-viewer-chrome {
-  border-bottom: 0;
-  background: #fff;
-  min-height: 40px;
-  padding: 4px 6px 4px 8px;
+  border-bottom: 1px solid var(--border-blue);
+  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+  min-height: 44px;
+  padding: 6px 8px 6px 10px;
 }
 
-.source-viewer-panel.is-native-pdf .source-viewer-meta-compact,
-.source-viewer-panel.is-native-pdf #sourceOpenExternalBtn,
-.source-viewer-panel.is-native-pdf .source-tool-btn[aria-label^="Zoom"],
-.source-viewer-panel.is-native-pdf .source-zoom-label,
-.source-viewer-panel.is-native-pdf #sourceZoomLabel {
-  display: none !important;
-}
-
-.source-viewer-body:has(.source-native-pdf-stage) {
-  overflow: hidden;
-  background: #fff;
+.source-viewer-body:has(.source-pdf-page-renderer) {
+  overflow: auto;
+  background: transparent;
   border: 0;
-}
-
-/*
-  Some Chromium builds still paint the built-in PDF toolbar even with
-  #toolbar=0. Clip the top chrome so the review pane stays content-only.
-*/
-@supports (-webkit-appearance: none) {
-  .source-viewer-panel.is-native-pdf .source-native-pdf-frame {
-    top: -56px;
-    height: calc(100% + 56px);
-  }
 }
 
 .source-preview-progress {
@@ -967,9 +1010,10 @@
   width: 100%;
   height: auto;
   display: block;
-  border-radius: 8px;
+  border-radius: 0;
   background: #fff;
-  box-shadow: 0 18px 48px rgba(23, 37, 84, 0.18);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
+  border: 1px solid rgba(148, 163, 184, 0.22);
 }
 
 .source-pdf-page-number {

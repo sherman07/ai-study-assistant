@@ -78,6 +78,7 @@ html[data-theme="dark"] :where(
   .source-viewer-panel,
   .source-viewer-body,
   .source-pdf-clean-preview,
+  .source-pdf-page-renderer,
   .source-pdf-stage,
   .source-image-stage,
   .companion-workspace-card,

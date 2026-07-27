@@ -218,8 +218,40 @@ function selectSourceItem(id) {
   renderSourceViewer();
 }
 
+function applySourceZoomStyles(zoom = sourceViewerZoom) {
+  const scale = Math.max(60, Math.min(180, Number(zoom) || 100));
+  if (sourceZoomLabel) sourceZoomLabel.textContent = `${scale}%`;
+  const body = typeof sourceViewerBody !== "undefined" && sourceViewerBody
+    ? sourceViewerBody
+    : document.getElementById("sourceViewerBody");
+  if (!body) return false;
+  const pdfPages = body.querySelector(".source-pdf-pages");
+  if (pdfPages) {
+    pdfPages.style.setProperty("--source-pdf-page-width", `${scale}%`);
+    return true;
+  }
+  const slidePages = body.querySelector(".source-slide-pages");
+  if (slidePages) {
+    slidePages.style.setProperty("--source-slide-page-width", `${scale}%`);
+    return true;
+  }
+  const image = body.querySelector(".source-image-stage img");
+  if (image) {
+    image.style.width = `${scale}%`;
+    return true;
+  }
+  return false;
+}
+
 function changeSourceZoom(delta) {
   sourceViewerZoom = Math.max(60, Math.min(180, sourceViewerZoom + Number(delta || 0)));
+  if (applySourceZoomStyles(sourceViewerZoom)) return;
+  renderSourceViewer();
+}
+
+function resetSourceZoom() {
+  sourceViewerZoom = 100;
+  if (applySourceZoomStyles(sourceViewerZoom)) return;
   renderSourceViewer();
 }
 
@@ -466,33 +498,203 @@ function setSourceViewerNativePdfMode(enabled) {
   panel.classList.toggle("is-native-pdf", Boolean(enabled));
 }
 
-function nativePdfViewerUrl(url) {
-  const base = String(url || "");
-  if (!base) return "";
-  // Hide the browser PDF chrome (print/download/toolbar) for a review-only pane.
-  const hash = "toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH";
-  return base.includes("#") ? `${base.split("#")[0]}#${hash}` : `${base}#${hash}`;
+const SOURCE_PDFJS_SCRIPT_SRC = "./vendor/pdfjs/pdf.min.js";
+const SOURCE_PDFJS_WORKER_SRC = "./vendor/pdfjs/pdf.worker.min.js";
+const SOURCE_PDF_RENDER_SCALE = 1.45;
+let sourcePdfJsLoadPromise = null;
+let sourcePdfRenderToken = 0;
+let sourcePdfPageObserver = null;
+
+function ensurePdfJsLib() {
+  if (window.pdfjsLib) {
+    window.pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(SOURCE_PDFJS_WORKER_SRC, window.location.href).href;
+    return Promise.resolve(window.pdfjsLib);
+  }
+  if (sourcePdfJsLoadPromise) return sourcePdfJsLoadPromise;
+  sourcePdfJsLoadPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[data-synapse-pdfjs="1"]`);
+    const script = existing || document.createElement("script");
+    script.src = new URL(SOURCE_PDFJS_SCRIPT_SRC, window.location.href).href;
+    script.async = true;
+    script.dataset.synapsePdfjs = "1";
+    const settle = () => {
+      const lib = window.pdfjsLib;
+      if (!lib?.getDocument) {
+        reject(new Error("PDF.js failed to initialize"));
+        return;
+      }
+      lib.GlobalWorkerOptions.workerSrc = new URL(SOURCE_PDFJS_WORKER_SRC, window.location.href).href;
+      resolve(lib);
+    };
+    script.addEventListener("load", settle, { once: true });
+    script.addEventListener("error", () => reject(new Error("Could not load the local PDF page renderer.")), { once: true });
+    if (!existing) document.head.appendChild(script);
+    else if (window.pdfjsLib?.getDocument) settle();
+  }).catch(error => {
+    sourcePdfJsLoadPromise = null;
+    throw error;
+  });
+  return sourcePdfJsLoadPromise;
+}
+
+function disconnectSourcePdfPageObserver() {
+  if (sourcePdfPageObserver) {
+    sourcePdfPageObserver.disconnect();
+    sourcePdfPageObserver = null;
+  }
+}
+
+function updateSourcePdfPageStatus(currentPage, pageCount) {
+  const status = document.getElementById("sourcePdfPageStatus");
+  if (status) {
+    status.textContent = pageCount
+      ? `Page ${currentPage} / ${pageCount}`
+      : `Page ${currentPage}`;
+  }
+  if (sourceViewerMeta && pageCount) {
+    const item = sourceViewerItems.find(entry => entry.id === activeSourceItemId);
+    const base = item ? sourceMetaLine(item) : "PDF";
+    sourceViewerMeta.textContent = `${base} · ${currentPage}/${pageCount}`;
+  }
+}
+
+function bindSourcePdfPageObserver(pagesEl, pageCount) {
+  disconnectSourcePdfPageObserver();
+  if (!pagesEl || !pageCount) return;
+  const articles = Array.from(pagesEl.querySelectorAll(".source-pdf-page[data-page]"));
+  if (!articles.length) return;
+  sourcePdfPageObserver = new IntersectionObserver(entries => {
+    const visible = entries
+      .filter(entry => entry.isIntersecting)
+      .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+    if (!visible) return;
+    const page = Number(visible.target.getAttribute("data-page") || 0);
+    if (page > 0) updateSourcePdfPageStatus(page, pageCount);
+  }, {
+    root: typeof sourceViewerBody !== "undefined" ? sourceViewerBody : document.getElementById("sourceViewerBody"),
+    threshold: [0.35, 0.55, 0.75]
+  });
+  articles.forEach(article => sourcePdfPageObserver.observe(article));
+}
+
+function isStaleSourcePdfRender(token, itemId) {
+  if (token !== sourcePdfRenderToken) return true;
+  const body = typeof sourceViewerBody !== "undefined" && sourceViewerBody
+    ? sourceViewerBody
+    : document.getElementById("sourceViewerBody");
+  const stage = body?.querySelector(".source-pdf-page-renderer");
+  if (!stage) return true;
+  return String(stage.getAttribute("data-source-id") || "") !== String(itemId || "");
+}
+
+async function renderPdfPageToCanvas(page, canvas) {
+  const viewport = page.getViewport({ scale: SOURCE_PDF_RENDER_SCALE });
+  const outputScale = Math.min(2, window.devicePixelRatio || 1);
+  const context = canvas.getContext("2d", { alpha: false });
+  canvas.width = Math.floor(viewport.width * outputScale);
+  canvas.height = Math.floor(viewport.height * outputScale);
+  canvas.style.width = "100%";
+  canvas.style.height = "auto";
+  const transform = outputScale !== 1 ? [outputScale, 0, 0, outputScale, 0, 0] : null;
+  await page.render({
+    canvasContext: context,
+    viewport,
+    transform
+  }).promise;
 }
 
 function renderNativePdfPreview(item) {
-  const url = makeSourceObjectUrl(item);
-  if (!url) {
+  const openUrl = makeSourceObjectUrl(item);
+  if (!item?.blob) {
     setSourceViewerNativePdfMode(false);
     renderSourcePreviewError(item, new Error("This PDF is not available in the browser session."));
     return;
   }
   setSourceViewerNativePdfMode(true);
+  disconnectSourcePdfPageObserver();
+  const token = ++sourcePdfRenderToken;
+  const scale = Math.max(60, Math.min(180, sourceViewerZoom));
+  const title = item.name || item.title || "PDF preview";
   sourceViewerBody.innerHTML = `
-    <div class="source-native-pdf-stage" data-source-id="${escapeAttr(item.id)}">
-      <div class="source-native-pdf-frame-wrap">
-        <iframe
-          class="source-frame source-native-pdf-frame"
-          title="${escapeAttr(item.name || item.title || "PDF preview")}"
-          src="${escapeAttr(nativePdfViewerUrl(url))}"
-        ></iframe>
+    <div class="source-native-pdf-stage source-pdf-page-renderer" data-source-id="${escapeAttr(item.id)}">
+      <div class="source-pdf-reader-bar" aria-live="polite">
+        <div>
+          <span class="source-pdf-reader-kicker">Exact page preview</span>
+          <strong id="sourcePdfPageStatus">Rendering page 1…</strong>
+        </div>
+        <span class="source-pdf-reader-hint">Synapse controls only · no browser print/download bar</span>
+      </div>
+      <div class="source-pdf-pages" id="sourcePdfPages" style="--source-pdf-page-width:${scale}%">
+        <div class="source-pdf-page source-pdf-page-skeleton" aria-hidden="true">
+          <div class="source-pdf-skeleton-sheet"></div>
+        </div>
       </div>
     </div>
   `;
+
+  Promise.all([
+    ensurePdfJsLib(),
+    item.blob.arrayBuffer()
+  ])
+    .then(async ([pdfjsLib, buffer]) => {
+      if (isStaleSourcePdfRender(token, item.id)) return;
+      const data = new Uint8Array(buffer);
+      if (!data.byteLength) {
+        throw new Error("This PDF is empty or could not be read in the browser.");
+      }
+      const pdf = await pdfjsLib.getDocument({
+        data,
+        withCredentials: false,
+        isEvalSupported: false,
+        useSystemFonts: true
+      }).promise;
+      if (isStaleSourcePdfRender(token, item.id)) return;
+
+      const pagesEl = document.getElementById("sourcePdfPages");
+      if (!pagesEl) return;
+      pagesEl.innerHTML = "";
+      const pageCount = Number(pdf.numPages || 0) || 0;
+      updateSourcePdfPageStatus(1, pageCount);
+
+      for (let pageNumber = 1; pageNumber <= pageCount; pageNumber += 1) {
+        if (isStaleSourcePdfRender(token, item.id)) return;
+        const page = await pdf.getPage(pageNumber);
+        const article = document.createElement("article");
+        article.className = "source-pdf-page";
+        article.dataset.page = String(pageNumber);
+        article.setAttribute("aria-label", `PDF page ${pageNumber} of ${pageCount}`);
+        const canvas = document.createElement("canvas");
+        canvas.className = "source-pdf-page-canvas";
+        canvas.setAttribute("role", "img");
+        canvas.setAttribute("aria-label", `${title} page ${pageNumber}`);
+        article.appendChild(canvas);
+        const caption = document.createElement("span");
+        caption.className = "source-pdf-page-number";
+        caption.textContent = `Page ${pageNumber} / ${pageCount}`;
+        article.appendChild(caption);
+        pagesEl.appendChild(article);
+        await renderPdfPageToCanvas(page, canvas);
+        if (pageNumber === 1) {
+          updateSourcePdfPageStatus(1, pageCount);
+          bindSourcePdfPageObserver(pagesEl, pageCount);
+        }
+      }
+    })
+    .catch(error => {
+      if (isStaleSourcePdfRender(token, item.id)) return;
+      console.warn("Local PDF page render failed", error);
+      setSourceViewerNativePdfMode(false);
+      sourceViewerBody.innerHTML = `
+        <div class="source-file-preview">
+          <i class="bi bi-file-earmark-pdf"></i>
+          <h3>${escapeHTML(title)}</h3>
+          <p>${escapeHTML(error?.message || "Synapse could not render this PDF as exact pages.")}</p>
+          <div class="source-file-preview-actions">
+            ${openUrl ? `<a class="source-inline-action" href="${escapeAttr(openUrl)}" target="_blank" rel="noopener noreferrer">Open original PDF</a>` : ""}
+          </div>
+        </div>
+      `;
+    });
 }
 
 function openActiveSourceExternally() {
@@ -563,6 +765,11 @@ function bindSourceViewerShortcuts() {
       changeSourceZoom(-10);
       return;
     }
+    if (lower === "f" && !event.metaKey && !event.ctrlKey && !event.altKey) {
+      event.preventDefault();
+      resetSourceZoom();
+      return;
+    }
     if (lower === "o" && !event.metaKey && !event.ctrlKey && !event.altKey) {
       event.preventDefault();
       openActiveSourceExternally();
@@ -621,10 +828,8 @@ function renderStructuredSourcePreview(preview, item) {
   if (preview.kind === "pdf") {
     const pages = Array.isArray(preview.pages) ? preview.pages : [];
     const scale = Math.max(70, Math.min(160, sourceViewerZoom));
-    const url = item?.blob ? makeSourceObjectUrl(item) : (item?.url || item?.originalUrl || "");
     sourceViewerBody.innerHTML = `
       <div class="source-structured-preview source-pdf-clean-preview">
-        ${renderSourceOpenActions(url, "Open full PDF", item.name || "source.pdf")}
         ${preview.warning ? `<div class="source-preview-notice"><i class="bi bi-info-circle"></i>${escapeHTML(preview.warning)}</div>` : ""}
         ${pages.length ? `
           <div class="source-pdf-pages" style="--source-pdf-page-width:${scale}%">
@@ -639,7 +844,7 @@ function renderStructuredSourcePreview(preview, item) {
           <div class="source-viewer-empty">
             <i class="bi bi-file-earmark-pdf"></i>
             <h3>No PDF pages could be rendered</h3>
-            <p>Use the open or download action to view the original file.</p>
+            <p>Use Open in the source toolbar to view the original file.</p>
           </div>
         `}
       </div>

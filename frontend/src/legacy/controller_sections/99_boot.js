@@ -148,6 +148,7 @@ Object.assign(window, {
   bindSourceViewerShortcuts,
   retryActiveSourcePreview,
   renderNativePdfPreview,
+  resetSourceZoom,
   bindNotesSourceSplitter,
   applyNotesSourceSplitRatio,
   resetNotesSourceSplitRatio,

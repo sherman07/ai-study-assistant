@@ -44,6 +44,10 @@
     justify-content: space-between;
   }
 
+  .source-pdf-reader-hint {
+    display: none;
+  }
+
   .source-frame {
     min-height: 520px;
   }

@@ -1,5 +1,5 @@
 /**
- * Chrome probe: PDF source opens instantly from local blob (no backend wait).
+ * Chrome probe: PDF source opens as exact local pages (no browser PDF chrome).
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -17,10 +17,28 @@ const distRoot = path.join(root, "dist");
 const artifactDir = "/opt/cursor/artifacts";
 fs.mkdirSync(artifactDir, { recursive: true });
 
-// Minimal valid PDF bytes.
-const MINI_PDF = Buffer.from(
-  "%PDF-1.1\n1 0 obj<<>>endobj\n2 0 obj<< /Length 44 >>stream\nBT /F1 24 Tf 100 700 Td (Synapse) Tj ET\nendstream\nendobj\n3 0 obj<< /Type /Page /Parent 4 0 R /Contents 2 0 R >>endobj\n4 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 /MediaBox [0 0 612 792] >>endobj\n5 0 obj<< /Type /Catalog /Pages 4 0 R >>endobj\nxref\n0 6\ntrailer<< /Root 5 0 R /Size 6 >>\nstartxref\n0\n%%EOF\n"
-);
+// Better minimal PDF with a real Helvetica text page for PDF.js.
+const MINI_PDF = Buffer.from(`%PDF-1.4
+1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj
+2 0 obj<< /Type /Pages /Kids [3 0 R] /Count 1 >>endobj
+3 0 obj<< /Type /Page /Parent 2 0 R /MediaBox [0 0 300 144] /Contents 4 0 R /Resources<< /Font<< /F1 5 0 R >> >> >>endobj
+4 0 obj<< /Length 55 >>stream
+BT /F1 24 Tf 40 60 Td (Hello Synapse) Tj ET
+endstream
+endobj
+5 0 obj<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>endobj
+xref
+0 6
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000115 00000 n 
+0000000274 00000 n 
+0000000377 00000 n 
+trailer<< /Size 6 /Root 1 0 R >>
+startxref
+455
+%%EOF`);
 
 function contentType(filePath) {
   const ext = path.extname(filePath).toLowerCase();
@@ -66,6 +84,8 @@ async function main() {
   const build = spawnSync("npm", ["run", "build"], { cwd: root, encoding: "utf8", timeout: 180000 });
   if (build.status !== 0) throw new Error(build.stderr || build.stdout);
 
+  assert.ok(fs.existsSync(path.join(distRoot, "frontend/vendor/pdfjs/pdf.min.js")), "build should ship PDF.js");
+
   const { server, port } = await startStaticServer();
   const browser = await puppeteer.launch({
     executablePath: chrome,
@@ -78,7 +98,7 @@ async function main() {
     await page.setViewport({ width: 1440, height: 960 });
     await page.goto(`http://127.0.0.1:${port}/frontend/index.html`, { waitUntil: "networkidle0", timeout: 60000 });
 
-    const result = await page.evaluate(async (pdfBase64) => {
+    await page.evaluate(async (pdfBase64) => {
       const binary = atob(pdfBase64);
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
@@ -112,56 +132,50 @@ async function main() {
         window.renderSourceViewer();
       } else if (typeof window.renderNativePdfPreview === "function") {
         window.renderNativePdfPreview(window.sourceViewerItems[0]);
-      } else {
-        // Fall back to body helper through toggle path.
-        if (typeof window.toggleSourceViewer === "function") window.toggleSourceViewer(true);
+      } else if (typeof window.toggleSourceViewer === "function") {
+        window.toggleSourceViewer(true);
       }
+    }, MINI_PDF.toString("base64"));
 
-      // Direct call if renderSourceViewerBody is global via eval scope — use DOM probe.
+    await page.waitForFunction(() => {
       const body = document.getElementById("sourceViewerBody");
-      if (body && !body.querySelector(".source-native-pdf-frame") && typeof window.makeSourceObjectUrl === "function") {
-        // Controller functions may not be on window; invoke through selectSourceItem after ensuring items.
-      }
+      return Boolean(
+        body?.querySelector(".source-pdf-page-canvas") ||
+        body?.querySelector(".source-pdf-page-skeleton") ||
+        /could not render this PDF/i.test(body?.textContent || "")
+      );
+    }, { timeout: 15000 });
 
-      // Force native render through exported helpers if available.
-      if (!body?.querySelector(".source-native-pdf-frame")) {
-        const url = URL.createObjectURL(blob);
-        body.innerHTML = `<div class="source-native-pdf-stage"><iframe class="source-frame source-native-pdf-frame" src="${url}"></iframe></div>`;
-      }
+    // Allow page render to finish when PDF.js is available.
+    await page.waitForFunction(() => {
+      const body = document.getElementById("sourceViewerBody");
+      return Boolean(body?.querySelector(".source-pdf-page-canvas")) ||
+        /could not render this PDF|Could not load the local PDF/i.test(body?.textContent || "");
+    }, { timeout: 20000 }).catch(() => {});
 
-      // Prefer the real controller path.
-      if (typeof window.selectSourceItem === "function") {
-        // Rebuild via render if possible by poking internal globals that the combined controller uses.
-      }
-
-      const chrome = document.querySelector(".source-viewer-chrome");
+    const result = await page.evaluate(() => {
+      const chromeEl = document.querySelector(".source-viewer-chrome");
       const toolbar = document.querySelector(".source-viewer-toolbar");
-      const iframe = document.querySelector(".source-native-pdf-frame");
+      const body = document.getElementById("sourceViewerBody");
+      const iframe = document.querySelector(".source-native-pdf-frame, iframe.source-frame");
+      const canvas = body?.querySelector(".source-pdf-page-canvas");
+      const openBtn = document.getElementById("sourceOpenExternalBtn");
+      const fitBtn = document.getElementById("sourceFitWidthBtn");
+      const zoomLabel = document.getElementById("sourceZoomLabel");
       const loading = /Preparing source preview/i.test(body?.textContent || "");
       const unreachable = /could not reach its hosted service/i.test(body?.textContent || "");
       return {
-        hasChrome: Boolean(chrome),
+        hasChrome: Boolean(chromeEl),
         toolbarDisplay: toolbar ? getComputedStyle(toolbar).display : "missing",
         hasIframe: Boolean(iframe),
-        iframeSrcKind: iframe?.src?.startsWith("blob:") ? "blob" : (iframe?.src || ""),
+        hasCanvas: Boolean(canvas),
+        openVisible: openBtn ? getComputedStyle(openBtn).display !== "none" : false,
+        fitVisible: fitBtn ? getComputedStyle(fitBtn).display !== "none" : false,
+        zoomVisible: zoomLabel ? getComputedStyle(zoomLabel).display !== "none" : false,
         loading,
         unreachable,
-        bodyClass: body?.querySelector(".source-native-pdf-stage") ? "native" : "other"
-      };
-    }, MINI_PDF.toString("base64"));
-
-    // Also exercise the real controller render if exposed.
-    await page.evaluate(() => {
-      if (typeof window.renderNativePdfPreview === "function" && window.sourceViewerItems?.[0]) {
-        window.renderNativePdfPreview(window.sourceViewerItems[0]);
-      }
-    });
-
-    const after = await page.evaluate(() => {
-      const body = document.getElementById("sourceViewerBody");
-      return {
-        hasNative: Boolean(body?.querySelector(".source-native-pdf-frame")),
-        text: (body?.textContent || "").slice(0, 200)
+        bodyClass: body?.querySelector(".source-pdf-page-renderer") ? "pages" : "other",
+        text: (body?.textContent || "").slice(0, 240)
       };
     });
 
@@ -169,11 +183,16 @@ async function main() {
     assert.ok(result.toolbarDisplay === "none" || result.toolbarDisplay === "missing", "legacy toolbar should be hidden");
     assert.equal(result.loading, false, "PDF should not show preparing spinner");
     assert.equal(result.unreachable, false, "PDF should not depend on hosted service");
-    assert.ok(result.hasIframe || after.hasNative, "PDF should render in a local iframe");
+    assert.equal(result.hasIframe, false, "browser PDF iframe chrome should not be used");
+    assert.equal(result.hasCanvas, true, "PDF should render exact pages to canvas");
+    assert.equal(result.openVisible, true, "Synapse open control should stay visible");
+    assert.equal(result.fitVisible, true, "Synapse fit-width control should stay visible");
+    assert.equal(result.zoomVisible, true, "Synapse zoom label should stay visible");
+    assert.equal(result.bodyClass, "pages", "PDF should use the page renderer stage");
 
-    await page.screenshot({ path: path.join(artifactDir, "source-preview-instant-pdf.png"), fullPage: false });
+    await page.screenshot({ path: path.join(artifactDir, "source-preview-page-renderer.png"), fullPage: false });
     console.log("source-preview-instant-chrome: passed");
-    console.log(JSON.stringify({ result, after }, null, 2));
+    console.log(JSON.stringify({ result }, null, 2));
   } finally {
     await browser.close();
     server.close();

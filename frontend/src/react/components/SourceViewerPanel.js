@@ -56,6 +56,18 @@ export function SourceViewerPanel() {
           {
             type: "button",
             className: "source-tool-btn",
+            id: "sourceFitWidthBtn",
+            onClick: legacyAction("resetSourceZoom"),
+            "aria-label": "Fit page width (F)",
+            title: "Fit width (F)",
+          },
+          icon("bi-arrows-fullscreen")
+        ),
+        h(
+          "button",
+          {
+            type: "button",
+            className: "source-tool-btn",
             onClick: legacyAction("toggleSourceViewer", false),
             "aria-label": "Close sources (Esc)",
             title: "Close (Esc)",
@@ -69,7 +81,7 @@ export function SourceViewerPanel() {
     h(
       "p",
       { className: "source-viewer-hotkeys visually-hidden", id: "sourceViewerHotkeysHint" },
-      "Shortcuts: [ and ] switch sources, + and - zoom, O opens the file, Esc closes."
+      "Shortcuts: [ and ] switch sources, + and - zoom, F fits width, O opens the file, Esc closes."
     )
   );
 }

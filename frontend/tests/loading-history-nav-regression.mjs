@@ -24,7 +24,7 @@ const loadingNotesBlock = css.match(/\.app-layout\.loading-state \.notes-area\s*
 assert.ok(loadingNotesBlock.includes("margin-left: 300px"));
 assert.ok(loadingNotesBlock.includes("width: calc(100% - 300px)"));
 
-assert.ok(index.includes("style.css?v=workspace-contrast-v12-right-edge"));
+assert.ok(index.includes("style.css?v=generated-notes-document-first-v2"));
 assert.ok(style.includes('@import url("./styles/04-section.css");'));
 assert.ok(style.includes('@import url("./styles/07-section.css");'));
 assert.ok(historyController.includes('onclick="loadHistoryEntry'));

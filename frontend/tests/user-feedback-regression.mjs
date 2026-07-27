@@ -29,7 +29,7 @@ assert.match(uploadController, /flashUploadState\("error"/, "failed file selecti
 assert.match(historyController, /toggleGeneratedHistorySections/, "generated history classes need an expandable title list");
 assert.match(historyController, /fetchGeneratedContentSectionsFromDataApi\(contentId, page, 50\)/, "section titles should be loaded lazily through paginated requests");
 assert.match(historyController, /openGeneratedHistorySection/, "generated section titles must open the selected section");
-assert.match(layoutCss, /generated-notes-state \.history-nav[\s\S]*display: flex !important/, "generated notes must preserve the existing navigation rail");
+assert.match(layoutCss, /generated-notes-state \.history-nav[\s\S]*display: none !important/, "generated notes must keep the history rail out of the primary document view");
 assert.match(historyCss, /generated-history-section-link/, "generated title links need visible navigation styling");
 
 assert.match(auth, /error\?\.state === 'email_not_configured'/, "localhost must handle missing SMTP configuration explicitly");

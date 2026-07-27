@@ -56,7 +56,8 @@ assert.equal(harness.rootElement.dataset.theme, "light", "Storage synchronizatio
 for (const page of ["index.html", "landing.html", "focus-room.html", "login.html", "pricing.html"]) {
   const html = fs.readFileSync(path.join(root, "frontend", page), "utf8");
   assert.match(html, /theme-bootstrap\.js/, `${page} loads the shared pre-paint theme bootstrap`);
-  assert.match(html, /styles\/00-theme\.css\?v=theme-system-v2/, `${page} loads the current semantic theme stylesheet`);
+  const themeVersion = page === "index.html" ? "generated-notes-document-first-v2" : "theme-system-v2";
+  assert.match(html, new RegExp(`styles/00-theme\\.css\\?v=${themeVersion}`), `${page} loads the current semantic theme stylesheet`);
   assert.match(html, /styles\/99-dark-mode\.css\?v=dark-mode-v6/, `${page} loads the current dark-mode compatibility layer`);
   if (html.includes("config.js")) {
     assert.match(html, /config\.js\?v=public-auth-session-v4/, `${page} loads the current runtime config`);

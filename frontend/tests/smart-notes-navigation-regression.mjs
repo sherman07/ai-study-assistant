@@ -120,13 +120,18 @@ assert.match(
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state \.history-nav\s*\{\s*display: flex !important;/,
-  "the existing history rail must remain available in a generated class"
+  /\.app-layout\.generated-notes-state \.history-nav\s*\{\s*display: none !important;/,
+  "the generated-note view should hide the history rail"
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state #summaryNav\s*\{\s*display: block !important;/,
-  "the generated-note title rail must remain visible in a generated class"
+  /\.app-layout\.generated-notes-state #summaryNav\s*\{\s*display: none !important;/,
+  "the generated-note view should hide the outline rail"
+);
+assert.match(
+  layoutCss,
+  /\.app-layout\.generated-notes-state\s*\{[\s\S]*?grid-template-columns: minmax\(0, 1fr\) clamp\(330px, 22vw, 400px\);/,
+  "the generated-note view should give the document its desktop width"
 );
 assert.match(
   resetController,

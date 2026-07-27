@@ -254,6 +254,14 @@ def extract_main_html_text(raw_html: str) -> str:
 
 
 
+class PublicURLRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Prevent a public fetch from following a redirect into a private network."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl, method=None):
+        normalize_public_http_url(newurl, "remote URL")
+        return super().redirect_request(req, fp, code, msg, headers, newurl, method)
+
+
 def urlopen_bytes(request_or_url, timeout: int = 20, max_bytes: Optional[int] = None) -> bytes:
     """Fetch URL bytes with certifi SSL support and a clear fallback.
     This fixes macOS/Python CERTIFICATE_VERIFY_FAILED issues while still trying
@@ -263,6 +271,8 @@ def urlopen_bytes(request_or_url, timeout: int = 20, max_bytes: Optional[int] = 
     parsed_target = urlparse(target_url)
     if parsed_target.scheme.lower() not in {"http", "https"}:
         raise ValueError("Only http and https URLs can be fetched.")
+    normalize_public_http_url(target_url, "remote URL")
+    opener = urllib.request.build_opener(PublicURLRedirectHandler)
 
     contexts = []
     if certifi is not None:
@@ -282,7 +292,7 @@ def urlopen_bytes(request_or_url, timeout: int = 20, max_bytes: Optional[int] = 
             if context is not None:
                 kwargs["context"] = context
             # URL scheme is validated above before urllib receives the request.
-            with urllib.request.urlopen(request_or_url, **kwargs) as response:  # nosec B310
+            with opener.open(request_or_url, **kwargs) as response:  # nosec B310
                 return response.read(max_bytes) if max_bytes else response.read()
         except Exception as error:
             last_error = error

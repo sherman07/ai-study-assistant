@@ -1,4 +1,5 @@
 import asyncio
+import urllib.request
 import unittest
 import warnings
 from unittest.mock import patch
@@ -7,6 +8,7 @@ from fastapi.testclient import TestClient
 
 from backend import app as backend_app_module
 from backend.app import app
+from backend.app import PublicURLRedirectHandler
 
 
 class AuxiliaryEndpointErrorStatusTests(unittest.TestCase):
@@ -72,6 +74,7 @@ class ToolPromptIsolationTests(unittest.TestCase):
 
         self.assertNotIn("error", payload)
 
+
     def test_timeline_generation_uses_warning_free_utc_timestamp(self):
         with (
             patch("backend.app.require_text_ai"),
@@ -119,6 +122,26 @@ class ToolPromptIsolationTests(unittest.TestCase):
             }))
 
         self.assertNotIn("error", payload)
+
+
+class PublicFetchRedirectSecurityTests(unittest.TestCase):
+    def test_redirect_handler_rejects_private_destination(self):
+        handler = PublicURLRedirectHandler()
+        request = urllib.request.Request("https://public.example/source")
+
+        with self.assertRaises(ValueError):
+            handler.redirect_request(
+                request,
+                None,
+                302,
+                "Found",
+                {"Location": "http://127.0.0.1:8001/internal"},
+                "http://127.0.0.1:8001/internal",
+            )
+
+    def test_urlopen_rejects_private_initial_destination(self):
+        with self.assertRaises(ValueError):
+            backend_app_module.urlopen_bytes("http://127.0.0.1:8001/internal", timeout=1)
 
 
 if __name__ == "__main__":

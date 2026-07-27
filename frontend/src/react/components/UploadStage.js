@@ -79,6 +79,12 @@ export function UploadStage() {
           tabIndex: 0,
           role: "button",
           "aria-label": "Upload area — drop files or click to browse",
+          onKeyDown: (event) => {
+            if (event.target !== event.currentTarget) return;
+            if (event.key !== "Enter" && event.key !== " ") return;
+            event.preventDefault();
+            legacyAction("openFilePicker")();
+          },
         },
         h("input", {
           id: "assetUpload",

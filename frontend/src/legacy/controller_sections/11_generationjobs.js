@@ -1,11 +1,14 @@
 const GENERATION_JOBS_STORAGE_KEY = "synapse.generation.jobs.v1";
 const GENERATION_JOB_STATUSES = new Set(["queued", "analysing", "generating", "completed", "failed", "cancelled"]);
 const ACTIVE_GENERATION_STATUSES = new Set(["queued", "analysing", "generating"]);
+const COMPLETED_GENERATION_REVEAL_DELAY_MS = 2200;
+const COMPLETED_GENERATION_REVEAL_REDUCED_MOTION_MS = 400;
 const runtimeGenerationJobContexts = new Map();
 const runtimeGenerationJobControllers = new Map();
 const runtimeGenerationJobRetryPayloads = new Map();
 let activeGenerationJobId = "";
 let runningGenerationJobId = "";
+let pendingCompletedGenerationReveal = null;
 
 function generationJobId() {
   if (globalThis.crypto?.randomUUID) return `gen_${globalThis.crypto.randomUUID()}`;
@@ -170,12 +173,85 @@ function isGenerationJobSelected(jobId) {
   return activeGenerationJobId === String(jobId || "");
 }
 
+function prefersReducedMotion() {
+  try {
+    return Boolean(window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches);
+  } catch (_error) {
+    return false;
+  }
+}
+
+function cancelPendingCompletedGenerationReveal(jobId = "") {
+  if (!pendingCompletedGenerationReveal) return;
+  if (jobId && pendingCompletedGenerationReveal.jobId !== String(jobId)) return;
+  clearTimeout(pendingCompletedGenerationReveal.timerId);
+  pendingCompletedGenerationReveal = null;
+}
+
+async function openCompletedGenerationResult(jobId, { immediate = false } = {}) {
+  const id = String(jobId || "");
+  const job = getGenerationJob(id);
+  cancelPendingCompletedGenerationReveal(id);
+  if (!job || job.status !== "completed" || !job.resultId) return;
+  if (!immediate && !isGenerationJobSelected(id)) return;
+
+  clearActiveGenerationJob();
+  closeMobileNavIfOpen();
+
+  if (typeof currentHistoryId !== "undefined" && currentHistoryId === job.resultId && typeof showAnalysisView === "function") {
+    showAnalysisView({ scrollToTop: true });
+    if (typeof renderSections === "function") renderSections();
+    if (typeof renderConnections === "function") renderConnections();
+    if (typeof renderFullNotes === "function") renderFullNotes();
+    if (typeof renderMindMap === "function" && typeof currentMindMap !== "undefined") {
+      requestAnimationFrame(() => renderMindMap(currentMindMap));
+    }
+    if (typeof renderHistory === "function") {
+      renderHistory(historySearch ? historySearch.value : "");
+    }
+    return;
+  }
+
+  if (typeof loadHistoryEntry === "function") {
+    await loadHistoryEntry(job.resultId, { preserveScroll: false });
+  }
+}
+
+function openCompletedGenerationResultNow(jobId) {
+  return openCompletedGenerationResult(jobId, { immediate: true });
+}
+
+function scheduleCompletedGenerationReveal(jobId) {
+  const id = String(jobId || "");
+  const job = getGenerationJob(id);
+  if (!job || job.status !== "completed" || !job.resultId) return;
+  if (!isGenerationJobSelected(id)) return;
+
+  cancelPendingCompletedGenerationReveal();
+  const delay = prefersReducedMotion()
+    ? COMPLETED_GENERATION_REVEAL_REDUCED_MOTION_MS
+    : COMPLETED_GENERATION_REVEAL_DELAY_MS;
+  pendingCompletedGenerationReveal = {
+    jobId: id,
+    timerId: setTimeout(() => {
+      pendingCompletedGenerationReveal = null;
+      Promise.resolve(openCompletedGenerationResult(id)).catch(error => {
+        console.warn("Could not open completed generation result:", error);
+      });
+    }, delay)
+  };
+}
+
 function refreshGenerationJobViews(jobId = "") {
   if (typeof renderHistory === "function") {
     renderHistory(historySearch ? historySearch.value : "");
   }
   if (jobId && isGenerationJobSelected(jobId)) {
     renderGenerationJobProgress(jobId);
+    const selectedJob = getGenerationJob(jobId);
+    if (selectedJob?.status === "completed" && selectedJob.resultId) {
+      scheduleCompletedGenerationReveal(jobId);
+    }
   }
   if (typeof updateGenerateButtonForCurrentJob === "function") {
     updateGenerateButtonForCurrentJob();
@@ -185,16 +261,20 @@ function refreshGenerationJobViews(jobId = "") {
 function openGenerationJob(jobId) {
   const job = getGenerationJob(jobId);
   if (!job) return;
+  cancelPendingCompletedGenerationReveal();
   activeGenerationJobId = job.jobId;
   safeSetLocalStorage(ACTIVE_HISTORY_KEY, "");
   closeMobileNavIfOpen();
   renderGenerationJobProgress(job.jobId);
+  if (job.status === "completed" && job.resultId) {
+    scheduleCompletedGenerationReveal(job.jobId);
+  }
 }
 
 function clearActiveGenerationJob() {
+  cancelPendingCompletedGenerationReveal(activeGenerationJobId);
   activeGenerationJobId = "";
 }
-
 function deleteGenerationJob(jobId) {
   const id = String(jobId || "");
   if (!id) return;
@@ -266,7 +346,7 @@ function renderGenerationJobProgress(jobId) {
       </div>
     </section>
   ` : `
-    <section class="generation-job-panel" aria-live="polite">
+    <section class="generation-job-panel ${job.status === "completed" ? "is-completed" : ""}" aria-live="polite">
       <div class="generation-job-icon ${escapeAttr(job.status)}">
         <i class="bi ${isFailed ? "bi-exclamation-triangle" : isCancelled ? "bi-x-circle" : "bi-check2"}"></i>
       </div>
@@ -277,8 +357,15 @@ function renderGenerationJobProgress(jobId) {
         <div style="width:${progress}%"></div>
       </div>
       ${job.error ? `<div class="generation-job-error">${escapeHTML(job.error)}</div>` : ""}
-      <p class="generation-job-note">You can continue browsing other notes while this generates.</p>
+      <p class="generation-job-note">${
+        job.status === "completed" && job.resultId
+          ? "Opening your study notes…"
+          : "You can continue browsing other notes while this generates."
+      }</p>
       <div class="generation-job-actions">
+        ${job.status === "completed" && job.resultId
+          ? `<button class="btn btn-primary" type="button" onclick="openCompletedGenerationResultNow('${escapeAttr(job.jobId)}')"><i class="bi bi-journal-text me-1"></i>Open notes</button>`
+          : ""}
         ${isFailed || isCancelled ? `<button class="btn btn-primary" type="button" onclick="retryGenerationJob('${escapeAttr(job.jobId)}')"><i class="bi bi-arrow-clockwise me-1"></i>Retry</button>` : ""}
         <button class="btn btn-outline-secondary" type="button" onclick="resetWorkspace()"><i class="bi bi-plus-lg me-1"></i>New upload</button>
       </div>

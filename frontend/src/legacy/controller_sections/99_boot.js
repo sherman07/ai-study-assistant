@@ -66,6 +66,8 @@ Object.assign(window, {
   markMasteryGraphSectionReviewed,
   notifyFocusRoomMaterialsChanged,
   openGenerationJob,
+  openCompletedGenerationResult,
+  openCompletedGenerationResultNow,
   openAiBroadcastSetup,
   openBroadcastSettingsModal,
   openBroadcastJob,

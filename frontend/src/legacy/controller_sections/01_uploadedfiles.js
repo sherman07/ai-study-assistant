@@ -1206,7 +1206,8 @@ async function runGenerationJobAnalysis(jobId, context = {}) {
 
     const shouldPresentJobResult = isGenerationJobSelected(jobId);
     if (shouldPresentJobResult) {
-      showAnalysisView({ scrollToTop: true });
+      // Keep the completed job panel visible briefly; content is prepared in the
+      // background so the auto-reveal can open notes without a blank flash.
       renderSections();
       renderConnections();
       switchTool("mindmap");

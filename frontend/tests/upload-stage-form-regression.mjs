@@ -24,8 +24,15 @@ assert.ok(
   "Preferred output language should explain what content uses the selected language"
 );
 assert.ok(
-  uploadStageSource.includes("application/vnd.openxmlformats-officedocument.presentationml.presentation"),
-  "Upload file picker should include the official PPTX MIME type"
+  uploadControllerSource.includes("application/vnd.openxmlformats-officedocument.presentationml.presentation")
+    || uploadStageSource.includes("application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+  "Upload accept list should include the official PPTX MIME type"
+);
+assert.ok(
+  uploadControllerSource.includes("isAcceptedUploadFile")
+    && uploadControllerSource.includes("CLIENT_MAX_UPLOAD_BYTES")
+    && uploadControllerSource.includes("uploadFileDedupeKey"),
+  "Legacy upload handler should enforce type, size, and duplicate checks for drag/drop"
 );
 assert.ok(
   uploadStageSource.includes("Drop PDFs, slides, images, audio, video, notes, or documents here."),

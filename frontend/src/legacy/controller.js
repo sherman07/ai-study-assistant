@@ -63,7 +63,7 @@ import {
 } from "./markdownRenderer.js?v=settings-modal-pattern-20260720-06";
 import { LegacyControllerLoader } from "./controllerLoader.js?v=settings-modal-pattern-20260720-06";
 
-const CONTROLLER_VERSION = "settings-modal-pattern-20260720-06";
+const CONTROLLER_VERSION = "upload-job-retry-v1";
 const CONTROLLER_DEFINITION_FILES = [
   "01_uploadedfiles.js",
   "02_openvisualmodal.js",

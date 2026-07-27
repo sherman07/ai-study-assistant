@@ -785,30 +785,72 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  background: #eef2f8;
+  background: #fff;
+  border: 0;
+  box-shadow: none;
 }
 
 .source-native-pdf-frame-wrap {
   flex: 1 1 auto;
   overflow: hidden;
-  transform-origin: top center;
+  position: relative;
+  border: 0;
 }
 
 .source-native-pdf-frame {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   min-height: 0;
-  border: 0;
+  border: 0 !important;
+  outline: 0;
   background: #fff;
-  transform: scale(var(--source-native-zoom, 1));
-  transform-origin: top center;
-  width: calc(100% / var(--source-native-zoom, 1));
-  height: calc(100% / var(--source-native-zoom, 1));
+  box-shadow: none;
+}
+
+/* Review-only PDF pane: flush edges, no Synapse zoom chrome, no panel frame. */
+.source-viewer-panel.is-native-pdf {
+  border: 0 !important;
+  box-shadow: none !important;
+  background: #fff;
+}
+
+.source-open .source-viewer-panel.is-native-pdf {
+  border-left: 0 !important;
+  border-radius: 0 28px 28px 0;
+}
+
+.source-viewer-panel.is-native-pdf .source-viewer-chrome {
+  border-bottom: 0;
+  background: #fff;
+  min-height: 40px;
+  padding: 4px 6px 4px 8px;
+}
+
+.source-viewer-panel.is-native-pdf .source-viewer-meta-compact,
+.source-viewer-panel.is-native-pdf #sourceOpenExternalBtn,
+.source-viewer-panel.is-native-pdf .source-tool-btn[aria-label^="Zoom"],
+.source-viewer-panel.is-native-pdf .source-zoom-label,
+.source-viewer-panel.is-native-pdf #sourceZoomLabel {
+  display: none !important;
 }
 
 .source-viewer-body:has(.source-native-pdf-stage) {
   overflow: hidden;
-  background: #e8eef8;
+  background: #fff;
+  border: 0;
+}
+
+/*
+  Some Chromium builds still paint the built-in PDF toolbar even with
+  #toolbar=0. Clip the top chrome so the review pane stays content-only.
+*/
+@supports (-webkit-appearance: none) {
+  .source-viewer-panel.is-native-pdf .source-native-pdf-frame {
+    top: -56px;
+    height: calc(100% + 56px);
+  }
 }
 
 .source-preview-progress {

@@ -1667,6 +1667,7 @@ function renderSourceViewer() {
   }
   if (!sourceViewerOpen) {
     sourceViewerPanel.classList.add("d-none");
+    sourceViewerPanel.classList.remove("is-native-pdf");
     if (resultGrid) {
       resultGrid.classList.remove("source-open", "is-resizing");
     }

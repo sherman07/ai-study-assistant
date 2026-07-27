@@ -458,20 +458,37 @@ function renderSourcePreviewLoading(item) {
   `;
 }
 
+function setSourceViewerNativePdfMode(enabled) {
+  const panel = typeof sourceViewerPanel !== "undefined" && sourceViewerPanel
+    ? sourceViewerPanel
+    : document.getElementById("sourceViewerPanel");
+  if (!panel) return;
+  panel.classList.toggle("is-native-pdf", Boolean(enabled));
+}
+
+function nativePdfViewerUrl(url) {
+  const base = String(url || "");
+  if (!base) return "";
+  // Hide the browser PDF chrome (print/download/toolbar) for a review-only pane.
+  const hash = "toolbar=0&navpanes=0&scrollbar=0&statusbar=0&messages=0&view=FitH";
+  return base.includes("#") ? `${base.split("#")[0]}#${hash}` : `${base}#${hash}`;
+}
+
 function renderNativePdfPreview(item) {
   const url = makeSourceObjectUrl(item);
   if (!url) {
+    setSourceViewerNativePdfMode(false);
     renderSourcePreviewError(item, new Error("This PDF is not available in the browser session."));
     return;
   }
-  const scale = Math.max(60, Math.min(180, sourceViewerZoom)) / 100;
+  setSourceViewerNativePdfMode(true);
   sourceViewerBody.innerHTML = `
     <div class="source-native-pdf-stage" data-source-id="${escapeAttr(item.id)}">
-      <div class="source-native-pdf-frame-wrap" style="--source-native-zoom:${scale}">
+      <div class="source-native-pdf-frame-wrap">
         <iframe
           class="source-frame source-native-pdf-frame"
           title="${escapeAttr(item.name || item.title || "PDF preview")}"
-          src="${escapeAttr(url)}#toolbar=1&navpanes=0&scrollbar=1&view=FitH"
+          src="${escapeAttr(nativePdfViewerUrl(url))}"
         ></iframe>
       </div>
     </div>
@@ -776,6 +793,7 @@ function renderYoutubeSourcePreview(item) {
 
 function renderSourceViewerBody(item) {
   if (!sourceViewerBody || !item) return;
+  setSourceViewerNativePdfMode(canUseNativePdfPreview(item));
   const meta = sourceMetaLine(item);
   const externalUrl = sourceExternalUrl(item);
   const sourceTitle = item.title || item.name || "Uploaded source";

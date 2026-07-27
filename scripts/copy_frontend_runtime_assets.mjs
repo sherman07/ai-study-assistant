@@ -30,7 +30,8 @@ const directories = [
   "logos",
   "src/focus-room",
   "src/legacy",
-  "styles"
+  "styles",
+  "vendor"
 ];
 
 const legacyControllerSections = [

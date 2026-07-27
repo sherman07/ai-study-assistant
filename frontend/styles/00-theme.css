@@ -344,6 +344,8 @@ html[data-theme="dark"] .source-viewer-tabs,
 html[data-theme="dark"] .source-viewer-toolbar,
 html[data-theme="dark"] .source-viewer-body,
 html[data-theme="dark"] .source-pdf-clean-preview,
+html[data-theme="dark"] .source-pdf-page-renderer,
+html[data-theme="dark"] .source-pdf-reader-bar,
 html[data-theme="dark"] .source-pdf-stage,
 html[data-theme="dark"] .source-image-stage {
   background: var(--color-surface-primary);
@@ -352,6 +354,8 @@ html[data-theme="dark"] .source-image-stage {
 }
 
 html[data-theme="dark"] .source-pdf-clean-preview,
+html[data-theme="dark"] .source-pdf-page-renderer,
+html[data-theme="dark"] .source-pdf-reader-bar,
 html[data-theme="dark"] .source-viewer-body {
   background: var(--color-surface-secondary);
 }

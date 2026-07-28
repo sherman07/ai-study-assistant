@@ -919,6 +919,34 @@ function uniqueSourceLinks(links) {
   return unique;
 }
 
+function isYouTubeSourceUrl(url) {
+  return Boolean(typeof getYouTubeVideoIdClient === "function" && getYouTubeVideoIdClient(url));
+}
+
+function youtubeSourceLinks(links) {
+  return uniqueSourceLinks(links).filter(url => isYouTubeSourceUrl(url));
+}
+
+function primaryAnalysisSourceLinks(explicitLinks = uploadedLinks, parsedLinks = []) {
+  // Keep explicit chip links the user added, but only promote YouTube URLs
+  // that were discovered inside pasted text. Generic websites found in notes
+  // should not become review/analysis sources.
+  return uniqueSourceLinks([...(explicitLinks || []), ...youtubeSourceLinks(parsedLinks)]);
+}
+
+function isPrimarySourceReviewItem(item) {
+  if (!item || typeof item !== "object") return false;
+  if (item.blob || item.file) return true;
+  const kind = String(item.kind || "").toLowerCase();
+  if (["pdf", "presentation", "document", "image", "text", "note", "youtube"].includes(kind)) {
+    return true;
+  }
+  const identity = String(item.sourceIdentity || item.source_identity || "");
+  if (identity.startsWith("youtube:") || identity.startsWith("text:")) return true;
+  if (isYouTubeSourceUrl(item.originalUrl || item.url || item.embedded_url || "")) return true;
+  return false;
+}
+
 function extractSourceLinksClient(value) {
   const matches = String(value || "").match(SOURCE_LINK_CANDIDATE_PATTERN) || [];
   return uniqueSourceLinks(matches);
@@ -993,7 +1021,7 @@ function generationSourceTitle(files = [], rawSource = "", sourceLinks = []) {
 async function startGenerationJobFromCurrentUpload() {
   const rawSource = sourceInput ? sourceInput.value.trim() : "";
   const parsedSources = parseMixedSources(rawSource);
-  const sourceLinks = uniqueSourceLinks([...uploadedLinks, ...parsedSources.links]);
+  const sourceLinks = primaryAnalysisSourceLinks(uploadedLinks, parsedSources.links);
   const noteLengthSelect = document.getElementById("noteLength");
 
   if (uploadedFiles.length === 0 && !rawSource && !sourceLinks.length) {
@@ -1050,7 +1078,12 @@ async function runGenerationJobAnalysis(jobId, context = {}) {
     links: Array.isArray(request.sourceLinks) ? request.sourceLinks : [],
     freeText: request.freeText || ""
   };
-  const sourceLinks = uniqueSourceLinks(context.sourceLinks || request.sourceLinks || []);
+  const sourceLinks = typeof primaryAnalysisSourceLinks === "function"
+    ? primaryAnalysisSourceLinks(
+      Array.isArray(context.uploadedLinks) ? context.uploadedLinks : (request.uploadedLinks || []),
+      Array.isArray(parsedSources.links) ? parsedSources.links : []
+    )
+    : uniqueSourceLinks(context.sourceLinks || request.sourceLinks || []);
   const files = Array.isArray(context.files) ? context.files : [];
   const outputLanguageSetting = context.preferredLanguage || request.preferredLanguage || "auto";
   const detailLevelValue = context.detailLevel || request.detailLevel || "auto";

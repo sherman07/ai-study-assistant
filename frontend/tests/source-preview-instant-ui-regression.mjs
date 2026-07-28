@@ -57,7 +57,7 @@ assert.ok(boot.includes("openActiveSourceExternally"), "boot should expose open-
 assert.ok(boot.includes("resetSourceZoom"), "boot should expose fit-width helper");
 assert.ok(boot.includes("retryActiveSourcePreview"), "boot should expose retry helper");
 
-assert.ok(index.includes("style.css?v=source-preview-pages-v1"), "styles should cache-bust");
-assert.ok(index.includes("synapse-legacy-controller-combined.js?v=source-preview-pages-v1"), "controller should cache-bust");
+assert.ok(index.includes("style.css?v=source-review-primary-v1"), "styles should cache-bust");
+assert.ok(index.includes("synapse-legacy-controller-combined.js?v=source-review-primary-v1"), "controller should cache-bust");
 
 console.log("source-preview-instant-ui-regression: passed");

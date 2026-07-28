@@ -705,18 +705,97 @@
   const loginForm = document.getElementById('loginForm');
   if (loginForm) {
     const rememberMeInput = loginForm.querySelector('input[name="remember"]');
-    if (rememberMeInput && window.SynapseAuth?.getRememberMePreference) {
-      rememberMeInput.checked = window.SynapseAuth.getRememberMePreference();
+    const loginEmailInput = document.getElementById('loginEmail');
+    const loginPasswordInput = document.getElementById('loginPassword');
+    const loginResume = document.getElementById('loginResume');
+    const loginResumeEmail = document.getElementById('loginResumeEmail');
+    const loginResumeContinue = document.getElementById('loginResumeContinue');
+    const loginResumeSwitch = document.getElementById('loginResumeSwitch');
+    const loginResumeForget = document.getElementById('loginResumeForget');
+    let loginResumeTimer = null;
+
+    function rememberedEmail() {
+      const fromAuth = window.SynapseAuth?.getLastEmail?.() || '';
+      if (fromAuth) return fromAuth;
+      try {
+        return normalizeEmail(window.localStorage.getItem(AUTH_LAST_EMAIL_KEY) || '');
+      } catch {
+        return '';
+      }
     }
+
+    function applyLoginPrefill() {
+      let fromQuery = '';
+      try {
+        if (typeof URLSearchParams === 'function') {
+          fromQuery = normalizeEmail(new URLSearchParams(window.location.search || '').get('email') || '');
+        }
+      } catch {}
+      const email = fromQuery || rememberedEmail();
+      if (loginEmailInput && email && !loginEmailInput.value) {
+        loginEmailInput.value = email;
+      }
+      if (rememberMeInput && window.SynapseAuth?.getRememberMePreference) {
+        rememberMeInput.checked = window.SynapseAuth.getRememberMePreference();
+      } else if (rememberMeInput && !rememberMeInput.checked) {
+        // Default to staying signed in on this device for returning users.
+        rememberMeInput.checked = Boolean(email);
+      }
+      if (loginPasswordInput && email && typeof loginPasswordInput.focus === 'function') {
+        window.setTimeout(() => loginPasswordInput.focus(), 0);
+      }
+    }
+
+    function hideLoginResume() {
+      if (loginResumeTimer) {
+        window.clearTimeout(loginResumeTimer);
+        loginResumeTimer = null;
+      }
+      if (loginResume) {
+        loginResume.hidden = true;
+        loginResume.classList.remove('is-visible');
+      }
+      loginForm.classList?.remove?.('is-resume-hidden');
+    }
+
+    function showLoginResume(session) {
+      if (!loginResume || !session) return;
+      const email = session.email || rememberedEmail() || 'your account';
+      const name = session.displayName || session.firstName || '';
+      if (loginResumeEmail) {
+        loginResumeEmail.textContent = name ? `${name} · ${email}` : email;
+      }
+      loginResume.hidden = false;
+      loginResume.classList.add('is-visible');
+      loginForm.classList?.add?.('is-resume-hidden');
+      showAuthStatus(loginForm, 'info', 'Welcome back — continuing to your workspace…');
+      if (loginResumeTimer) window.clearTimeout(loginResumeTimer);
+      loginResumeTimer = window.setTimeout(() => {
+        redirectToApp();
+      }, 900);
+    }
+
+    function prepareDifferentAccount() {
+      hideLoginResume();
+      clearAuthStatus(loginForm);
+      if (loginEmailInput) {
+        loginEmailInput.value = '';
+        loginEmailInput.focus();
+      }
+      if (loginPasswordInput) loginPasswordInput.value = '';
+      if (rememberMeInput) rememberMeInput.checked = false;
+      window.SynapseAuth?.setRememberMePreference?.(false);
+    }
+
+    applyLoginPrefill();
 
     // Toggle password visibility
     const togglePassword = document.getElementById('togglePassword');
-    const loginPassword = document.getElementById('loginPassword');
     
-    if (togglePassword && loginPassword) {
+    if (togglePassword && loginPasswordInput) {
       togglePassword.addEventListener('click', function() {
-        const type = loginPassword.type === 'password' ? 'text' : 'password';
-        loginPassword.type = type;
+        const type = loginPasswordInput.type === 'password' ? 'text' : 'password';
+        loginPasswordInput.type = type;
         this.setAttribute('aria-pressed', String(type === 'text'));
         this.setAttribute('aria-label', type === 'text' ? 'Hide password' : 'Show password');
         const icon = this.querySelector('i');
@@ -727,14 +806,68 @@
       });
     }
 
+    if (loginResumeContinue) {
+      loginResumeContinue.addEventListener('click', function() {
+        if (loginResumeTimer) window.clearTimeout(loginResumeTimer);
+        redirectToApp();
+      });
+    }
+
+    if (loginResumeSwitch) {
+      loginResumeSwitch.addEventListener('click', function() {
+        prepareDifferentAccount();
+      });
+    }
+
+    if (loginResumeForget) {
+      loginResumeForget.addEventListener('click', async function() {
+        prepareDifferentAccount();
+        window.SynapseAuth?.clearLastEmail?.();
+        try { window.localStorage.removeItem(AUTH_LAST_EMAIL_KEY); } catch {}
+        try {
+          await window.SynapseAuth?.signOut?.();
+        } catch (error) {
+          console.warn('Could not clear remembered Synapse session:', error);
+        }
+        showAuthStatus(loginForm, 'info', 'Saved login details were cleared on this device.');
+      });
+    }
+
+    // Resume a remembered session without asking for the password again.
+    const resumeRememberedSession = () => {
+      const sync = window.SynapseAuth?.syncSessionFromProvider
+        ? window.SynapseAuth.syncSessionFromProvider()
+        : Promise.resolve(window.SynapseAuth?.getStoredSession?.() || null);
+      sync
+        .then(session => {
+          if (session?.accountId || session?.email) {
+            if (window.SynapseAuth?.setLastEmail && session.email) {
+              window.SynapseAuth.setLastEmail(session.email);
+            }
+            if (loginEmailInput && session.email) loginEmailInput.value = session.email;
+            if (rememberMeInput) rememberMeInput.checked = true;
+            window.SynapseAuth?.setRememberMePreference?.(true);
+            showLoginResume(session);
+            return;
+          }
+          applyLoginPrefill();
+        })
+        .catch(error => {
+          console.warn('Could not restore remembered Synapse login:', error);
+          applyLoginPrefill();
+        });
+    };
+    resumeRememberedSession();
+
     // Form submission
     loginForm.addEventListener('submit', function(e) {
       e.preventDefault();
       clearAllErrors();
       clearAuthStatus(loginForm);
+      hideLoginResume();
 
-      const email = document.getElementById('loginEmail').value.trim();
-      const password = document.getElementById('loginPassword').value;
+      const email = loginEmailInput?.value.trim() || '';
+      const password = loginPasswordInput?.value || '';
       const rememberMe = Boolean(rememberMeInput?.checked);
       
       let hasError = false;
@@ -760,8 +893,13 @@
 
       if (realAuthEnabled()) {
         setButtonLoading(loginForm, 'loginSpinner', true);
+        window.SynapseAuth.setRememberMePreference?.(rememberMe);
+        window.SynapseAuth.setLastEmail?.(email);
         window.SynapseAuth.signInEmail({ email, password, rememberMe })
           .then(() => {
+            showAuthStatus(loginForm, 'success', rememberMe
+              ? 'Signed in. Staying signed in on this device…'
+              : 'Signed in. Redirecting…');
             redirectToApp();
           })
           .catch(error => {
@@ -785,6 +923,8 @@
       }
       setButtonLoading(loginForm, 'loginSpinner', true);
       window.SynapseAuth?.setRememberMePreference?.(rememberMe);
+      window.SynapseAuth?.setLastEmail?.(email);
+      try { window.localStorage.setItem(AUTH_LAST_EMAIL_KEY, normalizeEmail(email)); } catch {}
       setSession(account);
       redirectToApp();
     });
@@ -793,7 +933,9 @@
       const googleLoginBtn = document.getElementById('googleLoginBtn');
       if (googleLoginBtn) {
         googleLoginBtn.addEventListener('click', function() {
-        continueWithGoogle(googleLoginBtn, Boolean(rememberMeInput?.checked));
+        const rememberMe = Boolean(rememberMeInput?.checked);
+        window.SynapseAuth?.setRememberMePreference?.(rememberMe);
+        continueWithGoogle(googleLoginBtn, rememberMe);
         });
       }
   }

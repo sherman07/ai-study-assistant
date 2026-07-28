@@ -281,11 +281,56 @@
       : browserStorage("localStorage");
   }
 
+  function getLastEmail() {
+    try {
+      return normalizeEmail(window.localStorage.getItem(LAST_EMAIL_KEY) || "");
+    } catch {
+      return "";
+    }
+  }
+
+  function setLastEmail(email) {
+    const normalized = normalizeEmail(email);
+    if (!normalized) return "";
+    try {
+      window.localStorage.setItem(LAST_EMAIL_KEY, normalized);
+    } catch {}
+    return normalized;
+  }
+
+  function clearLastEmail() {
+    removeLocalStorage(LAST_EMAIL_KEY);
+  }
+
+  function readSessionFromStorage(storage) {
+    if (!storage) return null;
+    try {
+      const raw = storage.getItem(SESSION_KEY);
+      const session = raw ? JSON.parse(raw) : null;
+      return session && typeof session === "object" ? session : null;
+    } catch {
+      return null;
+    }
+  }
+
+  function listSessionStorages() {
+    const preferred = preferredSessionStorage();
+    const alternate = alternateSessionStorage();
+    const durable = browserStorage("localStorage");
+    const temporary = browserStorage("sessionStorage");
+    return [preferred, alternate, durable, temporary].filter(Boolean)
+      .filter((storage, index, list) => list.indexOf(storage) === index);
+  }
+
   function createSupabaseStorageAdapter() {
     return {
       getItem(key) {
         try {
-          return preferredSessionStorage()?.getItem(key) ?? null;
+          for (const storage of listSessionStorages()) {
+            const value = storage.getItem(key);
+            if (value !== null && value !== undefined) return value;
+          }
+          return null;
         } catch {
           return null;
         }
@@ -391,20 +436,22 @@
       storage?.setItem(SESSION_KEY, JSON.stringify(session));
       otherStorage?.removeItem(SESSION_KEY);
     } catch {}
-    if (session.email) {
-      try { window.localStorage.setItem(LAST_EMAIL_KEY, session.email); } catch {}
-    }
+    if (session.email) setLastEmail(session.email);
     dispatchAuthChange(session);
     return session;
   }
 
   function getStoredSession() {
-    let session = null;
-    try {
-      const raw = preferredSessionStorage()?.getItem(SESSION_KEY);
-      session = raw ? JSON.parse(raw) : null;
-    } catch {}
-    return session && typeof session === "object" ? session : null;
+    for (const storage of listSessionStorages()) {
+      const session = readSessionFromStorage(storage);
+      if (session) return session;
+    }
+    return null;
+  }
+
+  function hasRememberedSession() {
+    const session = getStoredSession();
+    return Boolean(session?.accountId || session?.email);
   }
 
   function loadSupabaseScript() {
@@ -530,6 +577,7 @@
 
   async function signInEmail({ email, password, rememberMe = false }) {
     setRememberMePreference(rememberMe);
+    setLastEmail(email);
     const client = await getSupabaseClient();
     if (!client) throw new Error("Production auth is not configured.");
     const { data, error } = await client.auth.signInWithPassword({
@@ -924,6 +972,7 @@
     absoluteAppUrl,
     apiBase,
     authHeaders,
+    clearLastEmail,
     clearLocalSynapseData,
     collectLocalData,
     completeAuthRedirect,
@@ -934,13 +983,16 @@
     fetchBillingEntitlements,
     fetchBillingPlans,
     getBillingPlans: () => readConfig().billingPlans,
+    getLastEmail,
     getRememberMePreference,
     getStoredSession,
+    hasRememberedSession,
     isConfigured,
     preparePasswordRecovery,
     requestAccountDeletion,
     requestServerExport,
     resendSignupConfirmation,
+    setLastEmail,
     setRememberMePreference,
     resetPassword,
     saveSession,

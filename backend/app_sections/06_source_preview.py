@@ -30,8 +30,14 @@ async def source_preview(file: UploadFile = File(...)):
 
 @app.post("/ask")
 async def ask_question(data: dict):
+    provider_token = None
+    requested_provider = ""
     try:
+        requested_provider = str((data or {}).get("ai_provider") or "").strip()
+        provider_token = set_request_text_provider(requested_provider)
         require_text_ai()
+        selected_provider = active_text_provider()
+        chat_model = chat_model_for_active_provider()
         question = data.get("question", "")
         selected_section = data.get("selected_section", "")
         selected_excerpt = str(data.get("selected_excerpt") or "").strip()
@@ -61,6 +67,7 @@ async def ask_question(data: dict):
 
         research_context = ""
         research_results = []
+        research_status = "disabled" if source_strict else "unused"
         if not source_strict:
             research_context, research_results = gather_tutor_web_research(
                 question=question,
@@ -68,6 +75,7 @@ async def ask_question(data: dict):
                 source_identity=context_source_identity,
                 title=context_title,
             )
+            research_status = "ok" if research_results else "unavailable"
 
         context = f"""
 Current study context:
@@ -79,7 +87,7 @@ Section content: {section_context[:4500]}
 Full summary: {context_summary[:11000]}
 
 External research context, use only when the notes/source context do not contain enough information:
-{research_context[:MAX_TUTOR_RESEARCH_CHARS] if research_context else ('External research disabled because this material is source-restricted.' if source_strict else 'No external research results were available.')}
+{research_context[:MAX_TUTOR_RESEARCH_CHARS] if research_context else ('External research disabled because this material is source-restricted.' if source_strict else 'No external research results were available from the live web search. Answer from the uploaded notes only and say clearly when the notes do not contain enough information.')}
 
 Tutor rules:
 - Answer in {answer_language}. If the user wrote in Chinese, answer in Chinese. If they wrote in English, answer in English. Match the user question language, not just the notes language.
@@ -108,7 +116,7 @@ Tutor rules:
             messages.append({"role": role, "content": message.get("content", "")})
 
         messages.append({"role": "user", "content": question})
-        answer = generate_chat(messages, model=CHAT_MODEL, temperature=0.2, max_tokens=3200)
+        answer = generate_chat(messages, model=chat_model, temperature=0.2, max_tokens=3200)
 
         # Guard against the exact bad behavior shown in the screenshot: refusing because the notes alone are incomplete.
         if is_refusal_or_useless_response(answer) and research_context and not source_strict:
@@ -133,17 +141,33 @@ Requirements:
 - Do not say you cannot answer unless neither notes nor research contains relevant information.
 """},
             ]
-            answer = generate_chat(repair_messages, model=CHAT_MODEL, temperature=0.15, max_tokens=2400)
+            answer = generate_chat(repair_messages, model=chat_model, temperature=0.15, max_tokens=2400)
+
+        provider_warning = ""
+        requested_normalised = normalise_text_provider(requested_provider) if requested_provider else ""
+        if requested_normalised == "gemini" and selected_provider != "gemini":
+            provider_warning = (
+                "Gemini is not configured on the Synapse backend yet, so this tutor reply used GPT. "
+                "Add GEMINI_API_KEY on Render with GEMINI_AUTH_MODE=api_key to enable Gemini."
+            )
 
         return {
             "answer": answer,
             "used_external_research": bool(research_context) and not source_strict,
+            "research_status": research_status,
+            "ai_provider": selected_provider,
+            "ai_provider_requested": requested_normalised or selected_provider,
+            "provider_warning": provider_warning,
+            "model": chat_model,
             "research_sources": [
                 {"title": item.get("title"), "url": item.get("url")} for item in research_results[:MAX_TUTOR_SEARCH_RESULTS]
             ],
         }
     except Exception as error:
         return analysis_error_response(str(error), analysis_exception_status(error))
+    finally:
+        if provider_token is not None:
+            reset_request_text_provider(provider_token)
 
 
 # -----------------------------------------------------------------------------

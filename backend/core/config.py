@@ -324,10 +324,25 @@ def gemini_request_is_configured() -> bool:
     return bool(GEMINI_PROJECT_ID and google_auth_default and GoogleAuthRequest)
 
 
-def set_request_text_provider(provider: str):
+def chat_model_for_active_provider() -> str:
+    if active_text_provider() == "gemini":
+        return GEMINI_CHAT_MODEL
+    return OPENAI_CHAT_MODEL_NAME
+
+
+def fallback_model_for_active_provider() -> str:
+    if active_text_provider() == "gemini":
+        return GEMINI_FALLBACK_MODEL
+    return OPENAI_FALLBACK_MODEL_NAME
+
+
+def set_request_text_provider(provider: str, *, allow_openai_fallback: bool = True):
     selected = normalise_text_provider(provider)
-    if selected == "gemini" and not gemini_request_is_configured() and has_openai():
-        selected = "openai"
+    if selected == "gemini" and not gemini_request_is_configured():
+        if allow_openai_fallback and has_openai():
+            selected = "openai"
+        elif not allow_openai_fallback:
+            require_text_ai()
     return REQUEST_AI_TEXT_PROVIDER.set(selected)
 
 

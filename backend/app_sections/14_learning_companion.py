@@ -40,7 +40,10 @@ def learning_companion_research_request(message: str, subject_title: str) -> Tup
 
 @app.post("/learning-companion/respond")
 async def learning_companion_respond(data: dict):
+    provider_token = None
     try:
+        requested_provider = str((data or {}).get("ai_provider") or "").strip()
+        provider_token = set_request_text_provider(requested_provider)
         subject = data.get("subject") if isinstance(data.get("subject"), dict) else {}
         title = normalise_space(str(subject.get("title") or ""))
         intention = normalise_space(str(subject.get("intention") or "")).lower()
@@ -131,12 +134,14 @@ Return JSON only:
 }}
 """
         require_text_ai()
+        chat_model = chat_model_for_active_provider() if "chat_model_for_active_provider" in globals() else CHAT_MODEL
+        selected_provider = active_text_provider() if "active_text_provider" in globals() else AI_TEXT_PROVIDER
         raw = generate_chat(
             [
                 {"role": "system", "content": SYSTEM_PROMPT + "\n\nYou are running a companion tutoring loop. Return compact JSON only."},
                 {"role": "user", "content": prompt},
             ],
-            model=CHAT_MODEL,
+            model=chat_model,
             temperature=0.25,
             max_tokens=VOICE_TUTOR_TOKENS,
         )
@@ -152,6 +157,8 @@ Return JSON only:
             "available_time_minutes": available_time_minutes,
             "requires_research": requires_research,
             "research_query": research_query,
+            "ai_provider": selected_provider,
+            "model": chat_model,
             "research_sources": [
                 {"title": item.get("title"), "url": item.get("url")}
                 for item in research_results[:MAX_TUTOR_SEARCH_RESULTS]
@@ -160,3 +167,6 @@ Return JSON only:
         return decision
     except Exception as error:
         return analysis_error_response(str(error), analysis_exception_status(error))
+    finally:
+        if provider_token is not None and "reset_request_text_provider" in globals():
+            reset_request_text_provider(provider_token)

@@ -61,6 +61,9 @@ async function askAI() {
         question,
         selected_section: selectedSection,
         preferred_language: preferredLanguage ? preferredLanguage.value : "auto",
+        ai_provider: typeof normaliseAiProvider === "function"
+          ? normaliseAiProvider(document.getElementById("aiProvider")?.value || safeGetLocalStorage?.(AI_PROVIDER_STORAGE_KEY, "") || "")
+          : (document.getElementById("aiProvider")?.value || ""),
         title: storedTitle,
         summary: fullSummary,
         sections,
@@ -86,7 +89,17 @@ async function askAI() {
       throw new Error(data.error || "AI request failed.");
     }
 
-    addMessage("assistant", data.answer || "No answer returned.");
+    let answer = data.answer || "No answer returned.";
+    if (data.provider_warning) {
+      answer = `${answer}\n\n_${data.provider_warning}_`;
+    } else if (data.research_status === "unavailable") {
+      answer = `${answer}\n\n_Live web research was unavailable for this turn, so Synapse answered from your uploaded notes._`;
+    }
+    if (data.ai_provider) {
+      const label = data.ai_provider === "gemini" ? "Gemini" : "GPT";
+      answer = `${answer}\n\n<small>Provider: ${label}${data.model ? ` · ${data.model}` : ""}</small>`;
+    }
+    addMessage("assistant", answer);
   } catch (error) {
     removeTypingIndicator(typingId);
     console.error(error);

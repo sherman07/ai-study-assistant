@@ -624,6 +624,58 @@ def safe_unquote_duckduckgo_url(url: str) -> str:
     return url
 
 
+def search_web_duckduckgo_instant(query: str, max_results: int = 4) -> List[dict]:
+    """JSON Instant Answer API fallback when HTML scrape is blocked."""
+    query = normalise_space(query)
+    if not query or not ENABLE_TUTOR_WEB_RESEARCH:
+        return []
+    api_url = "https://api.duckduckgo.com/?" + urlencode({
+        "q": query,
+        "format": "json",
+        "no_html": "1",
+        "skip_disambig": "1",
+    })
+    request = urllib.request.Request(api_url, headers={"User-Agent": "Mozilla/5.0 SynapseTutor/1.0"})
+    try:
+        raw = urlopen_bytes(request, timeout=12, max_bytes=1_000_000)
+        payload = json.loads(raw.decode("utf-8", errors="ignore") or "{}")
+    except Exception:
+        return []
+
+    results: List[dict] = []
+    seen = set()
+
+    def push(title: str, url: str, snippet: str = "") -> None:
+        title = normalise_space(title)
+        url = normalise_space(url)
+        if not title or not url or url in seen:
+            return
+        seen.add(url)
+        results.append({"title": title, "url": url, "snippet": normalise_space(snippet)})
+
+    abstract = normalise_space(payload.get("AbstractText") or "")
+    abstract_url = normalise_space(payload.get("AbstractURL") or "")
+    heading = normalise_space(payload.get("Heading") or query)
+    if abstract and abstract_url:
+        push(heading or abstract_url, abstract_url, abstract)
+
+    for topic in payload.get("RelatedTopics") or []:
+        if len(results) >= max_results:
+            break
+        if isinstance(topic, dict) and topic.get("Topics"):
+            for nested in topic.get("Topics") or []:
+                if not isinstance(nested, dict):
+                    continue
+                push(nested.get("Text") or nested.get("FirstURL") or "", nested.get("FirstURL") or "", nested.get("Text") or "")
+                if len(results) >= max_results:
+                    break
+            continue
+        if isinstance(topic, dict):
+            push(topic.get("Text") or topic.get("FirstURL") or "", topic.get("FirstURL") or "", topic.get("Text") or "")
+
+    return results[:max_results]
+
+
 def search_web_duckduckgo(query: str, max_results: int = 4) -> List[dict]:
     """Small no-key web search fallback for tutor mode.
     For production you can replace this with SerpAPI/Tavily/Brave Search, but this keeps
@@ -634,17 +686,22 @@ def search_web_duckduckgo(query: str, max_results: int = 4) -> List[dict]:
         return []
 
     search_url = "https://duckduckgo.com/html/?" + urlencode({"q": query})
-    request = urllib.request.Request(search_url, headers={"User-Agent": "Mozilla/5.0"})
+    request = urllib.request.Request(
+        search_url,
+        headers={
+            "User-Agent": "Mozilla/5.0 (compatible; SynapseTutor/1.0; +https://synapse-ai-study-assistant-tutor.vercel.app)",
+            "Accept-Language": "en-US,en;q=0.9",
+        },
+    )
+    results: List[dict] = []
+    seen = set()
     try:
         raw = urlopen_bytes(request, timeout=15, max_bytes=2_000_000)
         html = raw.decode("utf-8", errors="ignore")
     except Exception:
-        return []
+        html = ""
 
-    results: List[dict] = []
-    seen = set()
-
-    if BeautifulSoup is not None:
+    if html and BeautifulSoup is not None:
         soup = BeautifulSoup(html, "html.parser")
         for link in soup.select("a.result__a"):
             title = clean_html(str(link))
@@ -661,7 +718,7 @@ def search_web_duckduckgo(query: str, max_results: int = 4) -> List[dict]:
             results.append({"title": title, "url": href, "snippet": snippet})
             if len(results) >= max_results:
                 break
-    else:
+    elif html:
         for match in re.finditer(r'<a[^>]+class="result__a"[^>]+href="([^"]+)"[^>]*>(.*?)</a>', html, flags=re.I | re.S):
             href = safe_unquote_duckduckgo_url(match.group(1))
             title = clean_html(match.group(2))
@@ -671,7 +728,9 @@ def search_web_duckduckgo(query: str, max_results: int = 4) -> List[dict]:
             if len(results) >= max_results:
                 break
 
-    return results
+    if results:
+        return results
+    return search_web_duckduckgo_instant(query, max_results=max_results)
 
 
 def fetch_research_result_text(result: dict, max_chars: int = 2200) -> dict:
@@ -1037,9 +1096,13 @@ async def voice_tutor_respond(
     selected_section: str = Form(default=""),
     preferred_language: str = Form(default="auto"),
     source_identity: str = Form(default=""),
+    ai_provider: str = Form(default=""),
 ):
+    provider_token = None
     try:
+        provider_token = set_request_text_provider(ai_provider)
         require_text_ai()
+        chat_model = chat_model_for_active_provider() if "chat_model_for_active_provider" in globals() else CHAT_MODEL
         parsed_history = normalise_voice_tutor_history(parse_json_list(history))
         sections_dict = parse_json_dict(sections)
         note_summary = str(summary or "").strip()
@@ -1133,7 +1196,7 @@ Return JSON only:
                 {"role": "system", "content": SYSTEM_PROMPT + "\n\nYou are running a spoken tutoring loop. Return compact JSON only."},
                 {"role": "user", "content": prompt},
             ],
-            model=CHAT_MODEL,
+            model=chat_model,
             temperature=0.25,
             max_tokens=VOICE_TUTOR_TOKENS,
         )
@@ -1145,6 +1208,9 @@ Return JSON only:
         return normalise_voice_tutor_json(parsed, fallback, transcript_text, parsed_history)
     except Exception as error:
         return analysis_error_response(str(error), analysis_exception_status(error))
+    finally:
+        if provider_token is not None:
+            reset_request_text_provider(provider_token)
 
 @app.post("/upload-pdf")
 async def upload_pdf(file: UploadFile = File(...)):

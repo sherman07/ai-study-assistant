@@ -28,6 +28,8 @@ assert.ok(companion.includes('get("ai_provider")'), "learning companion must acc
 assert.ok(analyze.includes("ai_provider: str = Form"), "voice tutor respond must accept ai_provider");
 assert.ok(analyze.includes("search_web_duckduckgo_instant"), "tutor web research needs Instant Answer fallback");
 assert.ok(analyze.includes("search_web_wikipedia"), "tutor web research needs Wikipedia fallback when DuckDuckGo is blocked");
+assert.ok(analyze.includes("/health/tutor-web"), "health probe should expose tutor web research diagnostics");
+assert.ok(analyze.includes("Prefer Wikipedia first"), "gather should prefer Wikipedia on cloud hosts");
 assert.ok(ask.includes("research_provider"), "/ask should report which research provider supplied sources");
 assert.ok(health.includes("gemini_configured"), "health should expose whether Gemini can serve requests");
 assert.ok(render.includes("GEMINI_API_KEY"), "Render blueprint should declare Gemini secret");

@@ -8,6 +8,19 @@ def prompt_modes():
     }
 
 
+@app.get("/health/tutor-web")
+def health_tutor_web(q: str = "evolutionary psychology"):
+    """Probe Open Tutor web-research backends (DuckDuckGo + Wikipedia)."""
+    callback = globals().get("probe_tutor_web_research")
+    if not callable(callback):
+        return {
+            "enabled": bool(globals().get("ENABLE_TUTOR_WEB_RESEARCH")),
+            "ok": False,
+            "error": "probe_tutor_web_research is not loaded yet",
+        }
+    return callback(q)
+
+
 def analysis_elapsed_seconds_since(started_at: float) -> float:
     return max(0.0, time.monotonic() - started_at)
 
@@ -683,62 +696,131 @@ def search_web_wikipedia(query: str, max_results: int = 4) -> List[dict]:
         return []
 
     api_url = "https://en.wikipedia.org/w/api.php?" + urlencode({
-        "action": "opensearch",
-        "search": query,
-        "limit": max(1, min(int(max_results or 4), 8)),
-        "namespace": 0,
+        "action": "query",
+        "list": "search",
+        "srsearch": query,
+        "srlimit": max(1, min(int(max_results or 4), 8)),
+        "srprop": "snippet|titlesnippet",
         "format": "json",
+        "utf8": "1",
     })
-    request = urllib.request.Request(
-        api_url,
-        headers={"User-Agent": "SynapseTutor/1.0 (study assistant; +https://synapse-ai-study-assistant-tutor.vercel.app)"},
-    )
+    headers = {
+        "User-Agent": "SynapseTutor/1.0 (study assistant; +https://synapse-ai-study-assistant-tutor.vercel.app)",
+        "Accept": "application/json",
+    }
+
+    payload = {}
     try:
-        raw = urlopen_bytes(request, timeout=12, max_bytes=500_000)
-        payload = json.loads(raw.decode("utf-8", errors="ignore") or "[]")
+        if "requests" in globals() and requests is not None:
+            response = requests.get(api_url, headers=headers, timeout=10)
+            response.raise_for_status()
+            payload = response.json() if response.content else {}
+        else:
+            raw = urlopen_bytes(
+                urllib.request.Request(api_url, headers=headers),
+                timeout=10,
+                max_bytes=500_000,
+            )
+            payload = json.loads(raw.decode("utf-8", errors="ignore") or "{}")
     except Exception:
+        # Older OpenSearch shape as a second chance.
+        try:
+            open_url = "https://en.wikipedia.org/w/api.php?" + urlencode({
+                "action": "opensearch",
+                "search": query,
+                "limit": max(1, min(int(max_results or 4), 8)),
+                "namespace": 0,
+                "format": "json",
+            })
+            if "requests" in globals() and requests is not None:
+                response = requests.get(open_url, headers=headers, timeout=10)
+                response.raise_for_status()
+                open_payload = response.json() if response.content else []
+            else:
+                raw = urlopen_bytes(
+                    urllib.request.Request(open_url, headers=headers),
+                    timeout=10,
+                    max_bytes=500_000,
+                )
+                open_payload = json.loads(raw.decode("utf-8", errors="ignore") or "[]")
+            if isinstance(open_payload, list) and len(open_payload) >= 4:
+                titles = open_payload[1] if isinstance(open_payload[1], list) else []
+                descriptions = open_payload[2] if isinstance(open_payload[2], list) else []
+                urls = open_payload[3] if isinstance(open_payload[3], list) else []
+                results = []
+                for index, title in enumerate(titles):
+                    if len(results) >= max_results:
+                        break
+                    title_text = normalise_space(title)
+                    url = normalise_space(urls[index] if index < len(urls) else "")
+                    snippet = normalise_space(clean_html(descriptions[index] if index < len(descriptions) else "") if "clean_html" in globals() else (descriptions[index] if index < len(descriptions) else ""))
+                    if title_text and url:
+                        results.append({"title": title_text, "url": url, "snippet": snippet, "provider": "wikipedia"})
+                return results
+        except Exception:
+            return []
         return []
 
-    if not isinstance(payload, list) or len(payload) < 4:
-        return []
-
-    titles = payload[1] if isinstance(payload[1], list) else []
-    descriptions = payload[2] if isinstance(payload[2], list) else []
-    urls = payload[3] if isinstance(payload[3], list) else []
+    search_hits = ((payload.get("query") or {}).get("search") or []) if isinstance(payload, dict) else []
     results: List[dict] = []
-    seen = set()
-
-    for index, title in enumerate(titles):
+    for hit in search_hits:
         if len(results) >= max_results:
             break
-        title_text = normalise_space(title)
-        url = normalise_space(urls[index] if index < len(urls) else "")
-        snippet = normalise_space(descriptions[index] if index < len(descriptions) else "")
-        if not title_text or not url or url in seen:
+        if not isinstance(hit, dict):
             continue
-        if not snippet:
-            # OpenSearch often returns empty descriptions; pull the page summary.
-            summary_title = title_text.replace(" ", "_")
-            summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{quote(summary_title)}"
-            try:
-                summary_raw = urlopen_bytes(
-                    urllib.request.Request(
-                        summary_url,
-                        headers={"User-Agent": "SynapseTutor/1.0 (study assistant; +https://synapse-ai-study-assistant-tutor.vercel.app)"},
-                    ),
-                    timeout=10,
-                    max_bytes=300_000,
-                )
-                summary_payload = json.loads(summary_raw.decode("utf-8", errors="ignore") or "{}")
-                snippet = normalise_space(summary_payload.get("extract") or "")
-                desktop = ((summary_payload.get("content_urls") or {}).get("desktop") or {})
-                url = normalise_space(desktop.get("page") or url)
-            except Exception:
-                snippet = ""
-        seen.add(url)
-        results.append({"title": title_text, "url": url, "snippet": snippet, "provider": "wikipedia"})
-
+        title_text = normalise_space(hit.get("title") or "")
+        if not title_text:
+            continue
+        page_id = hit.get("pageid")
+        url = f"https://en.wikipedia.org/wiki/{quote(title_text.replace(' ', '_'))}"
+        if page_id:
+            url = f"https://en.wikipedia.org/?curid={page_id}"
+        snippet_raw = hit.get("snippet") or hit.get("titlesnippet") or ""
+        snippet = normalise_space(clean_html(snippet_raw) if "clean_html" in globals() else re.sub(r"<[^>]+>", " ", str(snippet_raw)))
+        results.append({
+            "title": title_text,
+            "url": url,
+            "snippet": snippet,
+            "provider": "wikipedia",
+        })
     return results
+
+
+def probe_tutor_web_research(query: str = "evolutionary psychology") -> dict:
+    """Diagnostic helper for /health/tutor-web — shows which research backends respond."""
+    query = normalise_space(query) or "evolutionary psychology"
+    report = {
+        "enabled": bool(ENABLE_TUTOR_WEB_RESEARCH),
+        "query": query,
+        "duckduckgo_html_count": 0,
+        "duckduckgo_instant_count": 0,
+        "wikipedia_count": 0,
+        "selected_provider": "",
+        "sample_titles": [],
+        "ok": False,
+    }
+    if not ENABLE_TUTOR_WEB_RESEARCH:
+        report["error"] = "ENABLE_TUTOR_WEB_RESEARCH is false"
+        return report
+    try:
+        # Probe each backend independently so one timeout does not hide the others.
+        instant = search_web_duckduckgo_instant(query, max_results=2)
+        report["duckduckgo_instant_count"] = len(instant or [])
+        wiki = search_web_wikipedia(query, max_results=2)
+        report["wikipedia_count"] = len(wiki or [])
+        chained = search_web_duckduckgo(query, max_results=2)
+        report["duckduckgo_html_count"] = len([
+            item for item in (chained or [])
+            if str(item.get("provider") or "").startswith("duckduckgo")
+        ])
+        selected = chained or wiki or instant or []
+        if selected:
+            report["ok"] = True
+            report["selected_provider"] = str(selected[0].get("provider") or "")
+            report["sample_titles"] = [str(item.get("title") or "") for item in selected[:3]]
+    except Exception as error:
+        report["error"] = str(error)[:280]
+    return report
 
 
 def search_web_duckduckgo(query: str, max_results: int = 4) -> List[dict]:
@@ -761,7 +843,8 @@ def search_web_duckduckgo(query: str, max_results: int = 4) -> List[dict]:
     results: List[dict] = []
     seen = set()
     try:
-        raw = urlopen_bytes(request, timeout=15, max_bytes=2_000_000)
+        # Keep HTML scrape short so cloud hosts can fall through to Instant Answer / Wikipedia.
+        raw = urlopen_bytes(request, timeout=6, max_bytes=2_000_000)
         html = raw.decode("utf-8", errors="ignore")
     except Exception:
         html = ""
@@ -846,10 +929,11 @@ def gather_tutor_web_research(question: str, selected_section: str, source_ident
         return "", []
 
     query = build_tutor_search_query(question, selected_section, source_identity, title)
-    results = search_web_duckduckgo(query, max_results=MAX_TUTOR_SEARCH_RESULTS)
+    # Prefer Wikipedia first on cloud hosts: DuckDuckGo HTML/Instant Answer are often
+    # empty or slow from datacenter IPs, which made Open Tutor look offline.
+    results = search_web_wikipedia(query, max_results=MAX_TUTOR_SEARCH_RESULTS)
     if not results:
-        # Final safety net if the DuckDuckGo chain returned nothing.
-        results = search_web_wikipedia(query, max_results=MAX_TUTOR_SEARCH_RESULTS)
+        results = search_web_duckduckgo(query, max_results=MAX_TUTOR_SEARCH_RESULTS)
     enriched = []
     total = 0
     for item in results:

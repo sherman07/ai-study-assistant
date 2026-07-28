@@ -49,7 +49,7 @@ assert.match(
 
 assert.ok(index.includes("style.css?v=gemini-tutor-v2"), "styles should cache-bust for the resizable split");
 assert.ok(
-  index.includes("synapse-legacy-controller-combined.js?v=gemini-tutor-v2"),
+  index.includes("synapse-legacy-controller-combined.js?v=history-hydrate-v1"),
   "controller should cache-bust for the resizable split"
 );
 

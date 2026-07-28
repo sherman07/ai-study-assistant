@@ -18,6 +18,11 @@ assert.ok(switchTool.includes("persistStudyToolMemory"), "tool switching should 
 assert.ok(switchTool.includes("rememberActiveStudyTool"), "tool switching should remember the active tool");
 assert.ok(switchTool.includes("renderCurrentBroadcastOrSetup"), "broadcast should resume instead of always opening setup");
 assert.ok(history.includes("restoreStudyToolMemory"), "history loading should restore generated tool state");
+assert.match(
+  history,
+  /persistStudyToolMemory[\s\S]{0,260}currentHistoryId !== item\.id/,
+  "history loading should persist tool memory before switching notes"
+);
 assert.ok(history.includes("getRememberedStudyTool"), "history loading should restore the last active tool");
 assert.ok(history.includes("deleteStudyToolMemory"), "deleting a note should delete its tool memory");
 

@@ -9,8 +9,13 @@ function openVisualModal(index) {
     cleanSourceFigureDisplayText(item.visual_kind || "")
   ].filter(Boolean);
   const explanation = renderVisualExplanationSections(item);
+  // One visual overlay at a time; remove any prior modal before opening another.
+  document.querySelector(".visual-modal")?.remove();
   const overlay = document.createElement("div");
   overlay.className = "visual-modal";
+  overlay.setAttribute("role", "dialog");
+  overlay.setAttribute("aria-modal", "true");
+  overlay.setAttribute("aria-label", title);
   overlay.innerHTML = `
     <div class="visual-modal-content">
       <button class="visual-modal-close" type="button" aria-label="Close visual"><i class="bi bi-x-lg"></i></button>
@@ -23,10 +28,23 @@ function openVisualModal(index) {
       </div>
     </div>
   `;
+  const closeModal = () => {
+    window.removeEventListener("keydown", onKeyDown, true);
+    overlay.remove();
+  };
+  const onKeyDown = event => {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    event.stopPropagation();
+    closeModal();
+  };
   overlay.addEventListener("click", event => {
-    if (event.target === overlay || event.target.closest(".visual-modal-close")) overlay.remove();
+    if (event.target === overlay || event.target.closest(".visual-modal-close")) closeModal();
   });
+  // Capture phase so Escape closes the visual before source-viewer shortcuts.
+  window.addEventListener("keydown", onKeyDown, true);
   document.body.appendChild(overlay);
+  overlay.querySelector(".visual-modal-close")?.focus?.();
 }
 
 

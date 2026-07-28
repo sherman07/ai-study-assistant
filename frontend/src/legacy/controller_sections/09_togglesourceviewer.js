@@ -738,6 +738,9 @@ function bindSourceViewerShortcuts() {
       return;
     }
 
+    // Visual modal owns Escape while open (also handled in capture by openVisualModal).
+    if (document.querySelector(".visual-modal")) return;
+
     if (!sourceViewerOpen) return;
 
     if (key === "Escape") {
@@ -1746,6 +1749,8 @@ async function hydrateGeneratedContentSections(entry, { preserveScroll = false }
   let page = 1;
   let pageData = await fetchGeneratedContentSectionsFromDataApi(contentId, page, pageSize);
   if (!pageData) return null;
+  // Abandon if the student switched history items while the first page was in flight.
+  if (currentHistoryId !== entry.id) return null;
 
   applyGeneratedContentSectionPage(pageData, { reset: true });
   entry.connections = connectionsData;
@@ -1764,10 +1769,13 @@ async function hydrateGeneratedContentSections(entry, { preserveScroll = false }
   renderVisualGallery();
   renderFullNotes();
 
-  while (pageData.has_next && currentHistoryId === entry.id) {
+  while (pageData.has_next) {
+    if (currentHistoryId !== entry.id) return null;
     page += 1;
     pageData = await fetchGeneratedContentSectionsFromDataApi(contentId, page, pageSize);
     if (!pageData) break;
+    // Re-check after await so a mid-page switch cannot paint note A onto note B.
+    if (currentHistoryId !== entry.id) return null;
     applyGeneratedContentSectionPage(pageData);
     renderSections();
     if (!selectedSection) renderFullNotes();
@@ -1778,6 +1786,15 @@ async function hydrateGeneratedContentSections(entry, { preserveScroll = false }
 async function loadHistoryEntry(id, options = {}) {
   const item = getHistory().find(entry => entry.id === id);
   if (!item) return;
+
+  // Snapshot tool progress for the note we are leaving before identity flips.
+  if (
+    typeof persistStudyToolMemory === "function" &&
+    currentHistoryId &&
+    currentHistoryId !== item.id
+  ) {
+    persistStudyToolMemory();
+  }
 
   if (isCompanionHistoryItem(item)) {
     if (typeof clearActiveGenerationJob === "function") clearActiveGenerationJob();
@@ -1832,8 +1849,11 @@ async function loadHistoryEntry(id, options = {}) {
       console.warn("Could not hydrate generated note sections page by page:", error);
     }
   }
+  // Another history selection may have started while hydrate/visual restore was pending.
+  if (currentHistoryId !== item.id) return;
   const localVisuals = Array.isArray(item.visualGallery) ? item.visualGallery : [];
   const restoredVisuals = await loadVisualGalleryAssets(id, currentSourceFingerprint);
+  if (currentHistoryId !== item.id) return;
   visualGalleryData = normalizeLearningFigures(restoredVisuals.length ? restoredVisuals : localVisuals);
   fullSummary = pruneUnavailableVisualMarkers(fullSummary, visualGalleryData);
   sections = Object.fromEntries(Object.entries(sections).map(([title, markdown]) => [
@@ -1841,6 +1861,7 @@ async function loadHistoryEntry(id, options = {}) {
     pruneUnavailableVisualMarkers(markdown, visualGalleryData)
   ]));
   const restoredSources = await loadSourceAssets(id, currentSourceFingerprint);
+  if (currentHistoryId !== item.id) return;
   restoreSourceViewerItems(restoredSources.length ? restoredSources : (item.sourceItems || item.sources || []));
 
   safeSetLocalStorage(ACTIVE_HISTORY_KEY, id);

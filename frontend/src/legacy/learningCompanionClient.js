@@ -4,11 +4,18 @@ import { SynapseApiClient } from "./apiClient.js?v=ai-learning-companion-v1";
 const companionApiClient = new SynapseApiClient(API_BASE);
 
 export function createLearningCompanionRequester(apiClient = companionApiClient) {
-  return async function requestLearningCompanionDecision({ message, messages = [], learningContext = {}, sourceBundle = { fingerprint: "", sources: [] }, availableTimeMinutes = null } = {}) {
+  return async function requestLearningCompanionDecision({ message, messages = [], learningContext = {}, sourceBundle = { fingerprint: "", sources: [] }, availableTimeMinutes = null, aiProvider = "" } = {}) {
     const response = await apiClient.fetch("/learning-companion/respond", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message, messages, availableTimeMinutes, learning_context: learningContext, source_bundle: sourceBundle }),
+      body: JSON.stringify({
+        message,
+        messages,
+        availableTimeMinutes,
+        learning_context: learningContext,
+        source_bundle: sourceBundle,
+        ai_provider: aiProvider || (typeof window !== "undefined" ? (window.localStorage?.getItem?.("synapse.ai.provider.v1") || "") : "")
+      }),
       timeoutMs: 45000,
     });
     const body = await response.json().catch(() => ({}));

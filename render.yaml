@@ -24,11 +24,11 @@ services:
       - key: GEMINI_AUTH_MODE
         value: api_key
       - key: GEMINI_CHAT_MODEL
-        value: gemini-3.6-flash
+        value: gemini-3.1-flash-lite
       - key: GEMINI_ANALYSIS_MODEL
-        value: gemini-3.6-flash
+        value: gemini-3.1-flash-lite
       - key: GEMINI_FALLBACK_MODEL
-        value: gemini-3.6-flash
+        value: gemini-3.1-flash-lite
       - key: ENABLE_TUTOR_WEB_RESEARCH
         value: "true"
       - key: SYNAPSE_PUBLIC_BACKEND_URL

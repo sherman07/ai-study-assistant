@@ -167,7 +167,7 @@ gemini_client = (
 )
 
 DEFAULT_TEXT_MODEL = "gpt-5.4-mini"
-DEFAULT_GEMINI_TEXT_MODEL = "gemini-3.6-flash"
+DEFAULT_GEMINI_TEXT_MODEL = "gemini-3.1-flash-lite"
 DEFAULT_REALTIME_MODEL = "gpt-realtime-2"
 DEFAULT_TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
 DEFAULT_VISUAL_IMAGE_GUIDE_MODEL = "gpt-image-1.5"

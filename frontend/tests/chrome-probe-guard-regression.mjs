@@ -20,6 +20,10 @@ const chromeProbes = [
   "workspace-layout-chrome-combos.mjs",
   "workspace-nav-jump-scroll-chrome.mjs",
   "workspace-outline-accordion-chrome.mjs",
+  "notes-source-split-chrome.mjs",
+  "source-preview-instant-chrome.mjs",
+  "generated-class-functionality-regression.mjs",
+  "workspace-ux-deep-audit.mjs",
 ];
 
 for (const name of chromeProbes) {

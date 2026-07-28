@@ -94,6 +94,13 @@ async function askAI() {
       answer = `${answer}\n\n_${data.provider_warning}_`;
     } else if (data.research_status === "unavailable") {
       answer = `${answer}\n\n_Live web research was unavailable for this turn, so Synapse answered from your uploaded notes._`;
+    } else if (data.used_external_research && data.research_provider) {
+      const researchLabel = data.research_provider === "wikipedia"
+        ? "Wikipedia"
+        : data.research_provider.includes("duckduckgo")
+          ? "web search"
+          : data.research_provider;
+      answer = `${answer}\n\n<small>External research: ${researchLabel}</small>`;
     }
     if (data.ai_provider) {
       const label = data.ai_provider === "gemini" ? "Gemini" : "GPT";

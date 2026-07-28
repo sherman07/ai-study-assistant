@@ -676,6 +676,71 @@ def search_web_duckduckgo_instant(query: str, max_results: int = 4) -> List[dict
     return results[:max_results]
 
 
+def search_web_wikipedia(query: str, max_results: int = 4) -> List[dict]:
+    """Reliable no-key fallback when DuckDuckGo HTML/Instant Answer are empty from cloud IPs."""
+    query = normalise_space(query)
+    if not query or not ENABLE_TUTOR_WEB_RESEARCH:
+        return []
+
+    api_url = "https://en.wikipedia.org/w/api.php?" + urlencode({
+        "action": "opensearch",
+        "search": query,
+        "limit": max(1, min(int(max_results or 4), 8)),
+        "namespace": 0,
+        "format": "json",
+    })
+    request = urllib.request.Request(
+        api_url,
+        headers={"User-Agent": "SynapseTutor/1.0 (study assistant; +https://synapse-ai-study-assistant-tutor.vercel.app)"},
+    )
+    try:
+        raw = urlopen_bytes(request, timeout=12, max_bytes=500_000)
+        payload = json.loads(raw.decode("utf-8", errors="ignore") or "[]")
+    except Exception:
+        return []
+
+    if not isinstance(payload, list) or len(payload) < 4:
+        return []
+
+    titles = payload[1] if isinstance(payload[1], list) else []
+    descriptions = payload[2] if isinstance(payload[2], list) else []
+    urls = payload[3] if isinstance(payload[3], list) else []
+    results: List[dict] = []
+    seen = set()
+
+    for index, title in enumerate(titles):
+        if len(results) >= max_results:
+            break
+        title_text = normalise_space(title)
+        url = normalise_space(urls[index] if index < len(urls) else "")
+        snippet = normalise_space(descriptions[index] if index < len(descriptions) else "")
+        if not title_text or not url or url in seen:
+            continue
+        if not snippet:
+            # OpenSearch often returns empty descriptions; pull the page summary.
+            summary_title = title_text.replace(" ", "_")
+            summary_url = f"https://en.wikipedia.org/api/rest_v1/page/summary/{quote(summary_title)}"
+            try:
+                summary_raw = urlopen_bytes(
+                    urllib.request.Request(
+                        summary_url,
+                        headers={"User-Agent": "SynapseTutor/1.0 (study assistant; +https://synapse-ai-study-assistant-tutor.vercel.app)"},
+                    ),
+                    timeout=10,
+                    max_bytes=300_000,
+                )
+                summary_payload = json.loads(summary_raw.decode("utf-8", errors="ignore") or "{}")
+                snippet = normalise_space(summary_payload.get("extract") or "")
+                desktop = ((summary_payload.get("content_urls") or {}).get("desktop") or {})
+                url = normalise_space(desktop.get("page") or url)
+            except Exception:
+                snippet = ""
+        seen.add(url)
+        results.append({"title": title_text, "url": url, "snippet": snippet, "provider": "wikipedia"})
+
+    return results
+
+
 def search_web_duckduckgo(query: str, max_results: int = 4) -> List[dict]:
     """Small no-key web search fallback for tutor mode.
     For production you can replace this with SerpAPI/Tavily/Brave Search, but this keeps
@@ -729,8 +794,15 @@ def search_web_duckduckgo(query: str, max_results: int = 4) -> List[dict]:
                 break
 
     if results:
+        for item in results:
+            item.setdefault("provider", "duckduckgo")
         return results
-    return search_web_duckduckgo_instant(query, max_results=max_results)
+    instant = search_web_duckduckgo_instant(query, max_results=max_results)
+    if instant:
+        for item in instant:
+            item.setdefault("provider", "duckduckgo_instant")
+        return instant
+    return search_web_wikipedia(query, max_results=max_results)
 
 
 def fetch_research_result_text(result: dict, max_chars: int = 2200) -> dict:
@@ -775,10 +847,18 @@ def gather_tutor_web_research(question: str, selected_section: str, source_ident
 
     query = build_tutor_search_query(question, selected_section, source_identity, title)
     results = search_web_duckduckgo(query, max_results=MAX_TUTOR_SEARCH_RESULTS)
+    if not results:
+        # Final safety net if the DuckDuckGo chain returned nothing.
+        results = search_web_wikipedia(query, max_results=MAX_TUTOR_SEARCH_RESULTS)
     enriched = []
     total = 0
     for item in results:
-        enriched_item = fetch_research_result_text(item, max_chars=2400)
+        # Wikipedia snippets/summaries are usually enough; skip heavy HTML fetch when present.
+        if item.get("provider") == "wikipedia" and normalise_space(item.get("snippet") or ""):
+            enriched_item = dict(item)
+            enriched_item["content"] = truncate_text(item.get("snippet") or "", 2400)
+        else:
+            enriched_item = fetch_research_result_text(item, max_chars=2400)
         content = enriched_item.get("content") or enriched_item.get("snippet") or ""
         total += len(content)
         enriched.append(enriched_item)
@@ -793,6 +873,7 @@ def gather_tutor_web_research(question: str, selected_section: str, source_ident
         blocks.append(
             f"Source {i}: {item.get('title','Untitled')}\n"
             f"URL: {item.get('url','')}\n"
+            f"Provider: {item.get('provider') or 'web'}\n"
             f"Snippet: {item.get('snippet','')}\n"
             f"Extracted content: {truncate_text(item.get('content',''), 2400)}"
         )

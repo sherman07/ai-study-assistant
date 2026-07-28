@@ -119,6 +119,65 @@ const AI_PROVIDER_DESCRIPTIONS = {
   gemini: "Gemini uses the Gemini backend configuration with the same Synapse prompts."
 };
 
+let backendAiStatus = {
+  loaded: false,
+  textProvider: "openai",
+  geminiConfigured: false,
+  geminiApiKeyLoaded: false,
+  geminiAuthMode: "",
+  openaiApiKeyLoaded: false,
+  tutorWebResearchEnabled: false,
+  activeChatModel: ""
+};
+
+function geminiProviderUnavailableMessage() {
+  return "Gemini is not configured on the live backend yet. Add GEMINI_API_KEY on Render (GEMINI_AUTH_MODE=api_key). Until then, Synapse will answer with GPT.";
+}
+
+function refreshAiProviderDescription() {
+  const description = document.getElementById("aiProviderDescription");
+  if (!description) return;
+  const provider = normaliseAiProvider(document.getElementById("aiProvider")?.value || "");
+  let text = AI_PROVIDER_DESCRIPTIONS[provider] || AI_PROVIDER_DESCRIPTIONS.openai;
+  if (provider === "gemini" && backendAiStatus.loaded && !backendAiStatus.geminiConfigured) {
+    text = geminiProviderUnavailableMessage();
+  } else if (!provider && backendAiStatus.loaded && backendAiStatus.textProvider === "openai" && !backendAiStatus.geminiConfigured) {
+    text = `${AI_PROVIDER_DESCRIPTIONS[""]} Gemini is currently unavailable on this deployment.`;
+  }
+  description.textContent = text;
+  document.querySelectorAll('[data-ai-provider="gemini"]').forEach(button => {
+    const unavailable = backendAiStatus.loaded && !backendAiStatus.geminiConfigured;
+    button.title = unavailable ? geminiProviderUnavailableMessage() : (AI_PROVIDER_DESCRIPTIONS.gemini || "");
+    button.setAttribute("data-gemini-available", unavailable ? "false" : "true");
+  });
+}
+
+async function refreshBackendAiStatus() {
+  try {
+    const client = (typeof apiClient !== "undefined" && apiClient)
+      || globalThis.apiClient
+      || null;
+    if (!client || typeof client.fetch !== "function") return backendAiStatus;
+    const response = await client.fetch("/health", { method: "GET", timeoutMs: 12000 });
+    if (!response?.ok) return backendAiStatus;
+    const data = await response.json();
+    backendAiStatus = {
+      loaded: true,
+      textProvider: String(data.text_provider || "openai"),
+      geminiConfigured: Boolean(data.gemini_configured),
+      geminiApiKeyLoaded: Boolean(data.gemini_api_key_loaded),
+      geminiAuthMode: String(data.gemini_auth_mode || ""),
+      openaiApiKeyLoaded: Boolean(data.openai_api_key_loaded),
+      tutorWebResearchEnabled: Boolean(data.tutor_web_research_enabled),
+      activeChatModel: String(data.active_chat_model || data.chat_model || "")
+    };
+    refreshAiProviderDescription();
+  } catch {
+    // Keep last known status; tutor still works via GPT when OpenAI is configured.
+  }
+  return backendAiStatus;
+}
+
 function normaliseAiGenerationDiagnostics(value) {
   if (!value || typeof value !== "object") return null;
   return {
@@ -378,10 +437,7 @@ function setAiProvider(value) {
     button.setAttribute("aria-pressed", String(active));
   });
 
-  const description = document.getElementById("aiProviderDescription");
-  if (description) {
-    description.textContent = AI_PROVIDER_DESCRIPTIONS[provider] || AI_PROVIDER_DESCRIPTIONS.openai;
-  }
+  refreshAiProviderDescription();
 }
 
 document.addEventListener("change", event => {
@@ -399,6 +455,9 @@ setAiProvider(initialAiProvider);
 requestAnimationFrame(updateNoteLengthDescription);
 requestAnimationFrame(updatePromptModeDescription);
 requestAnimationFrame(() => setAiProvider(normaliseAiProvider(safeGetLocalStorage(AI_PROVIDER_STORAGE_KEY, initialAiProvider))));
+requestAnimationFrame(() => {
+  refreshBackendAiStatus().catch(() => {});
+});
 
 const TIMELINE_STORAGE_KEY = "synapse.timeline.path.v1";
 const TIMELINE_TYPE_OPTIONS = [

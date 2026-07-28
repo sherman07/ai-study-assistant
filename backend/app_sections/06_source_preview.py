@@ -160,8 +160,21 @@ Requirements:
             "provider_warning": provider_warning,
             "model": chat_model,
             "research_sources": [
-                {"title": item.get("title"), "url": item.get("url")} for item in research_results[:MAX_TUTOR_SEARCH_RESULTS]
+                {
+                    "title": item.get("title"),
+                    "url": item.get("url"),
+                    "provider": item.get("provider") or "",
+                }
+                for item in research_results[:MAX_TUTOR_SEARCH_RESULTS]
             ],
+            "research_provider": next(
+                (
+                    str(item.get("provider") or "").strip()
+                    for item in research_results
+                    if str(item.get("provider") or "").strip()
+                ),
+                "",
+            ),
         }
     except Exception as error:
         return analysis_error_response(str(error), analysis_exception_status(error))

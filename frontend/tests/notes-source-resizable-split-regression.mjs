@@ -47,9 +47,9 @@ assert.match(
   "mobile should disable the horizontal splitter"
 );
 
-assert.ok(index.includes("style.css?v=gemini-tutor-v1"), "styles should cache-bust for the resizable split");
+assert.ok(index.includes("style.css?v=gemini-tutor-v2"), "styles should cache-bust for the resizable split");
 assert.ok(
-  index.includes("synapse-legacy-controller-combined.js?v=gemini-tutor-v1"),
+  index.includes("synapse-legacy-controller-combined.js?v=gemini-tutor-v2"),
   "controller should cache-bust for the resizable split"
 );
 

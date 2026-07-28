@@ -66,7 +66,7 @@ for (const page of ["index.html", "landing.html", "focus-room.html", "login.html
   assert.match(html, /styles\/00-theme\.css\?v=(?:theme-type-scale-v1|ui-english-v1|notes-source-priority-v1)/, `${page} loads the current semantic theme stylesheet`);
   assert.match(html, /styles\/99-dark-mode\.css\?v=(?:dark-mode-v6|notes-source-priority-v1|notes-source-split-v1|source-preview-instant-v1|source-preview-pages-v1)/, `${page} loads the current dark-mode compatibility layer`);
   if (html.includes("config.js")) {
-    assert.match(html, /config\.js\?v=public-auth-session-v4/, `${page} loads the current runtime config`);
+    assert.match(html, /config\.js\?v=(?:public-auth-session-v4|login-remember-v1)/, `${page} loads the current runtime config`);
   }
 }
 

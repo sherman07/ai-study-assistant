@@ -75,10 +75,23 @@ assert.ok(forgotPage.includes("Send Reset Link"), "Password recovery page should
 assert.ok(signupPage.includes("password-strength"), "Sign-up should expose a password strength indicator");
 assert.ok(signupPage.includes("password-requirements"), "Sign-up should expose live password requirements");
 assert.ok(loginPage.includes("data-testid=\"login-status\""), "Login should expose a status region");
-for (const page of [loginPage, signupPage, forgotPage, resetPage, verifyPage, workspacePage]) {
-  assert.ok(page.includes("config.js?v=public-auth-session-v4"), "Public pages must bypass cached pre-fix runtime config");
-  assert.ok(page.includes("auth-client.js?v=public-auth-session-v3"), "Public pages must bypass cached pre-fix auth client code");
+assert.ok(loginPage.includes("data-testid=\"login-resume\""), "Login should expose a remembered-session resume panel");
+assert.ok(loginPage.includes("Remember me on this device"), "Login should describe durable device remember-me");
+assert.ok(authClientScript.includes("getLastEmail"), "Auth client should expose last-email restore");
+assert.ok(authClientScript.includes("hasRememberedSession"), "Auth client should expose remembered-session detection");
+assert.ok(authClientScript.includes("listSessionStorages"), "Auth client should read sessions from local and session storage");
+assert.ok(authScript.includes("resumeRememberedSession"), "Login page should resume a remembered session");
+assert.ok(authScript.includes("applyLoginPrefill"), "Login page should prefill the last email");
+assert.ok(authScript.includes("showLoginResume"), "Login page should offer one-click continue for remembered sessions");
+assert.ok(!authClientScript.includes("localStorage.setItem(LAST_EMAIL_KEY, password") && !/password.*LAST_EMAIL|LAST_EMAIL.*password/.test(authClientScript), "Remember-me must never store passwords");
+for (const page of [signupPage, forgotPage, resetPage, verifyPage, workspacePage]) {
+  assert.ok(page.includes("config.js?v=login-remember-v1"), "Public pages must bypass cached pre-fix runtime config");
+  assert.ok(page.includes("auth-client.js?v=login-remember-v1"), "Public pages must bypass cached pre-fix auth client code");
 }
+assert.ok(loginPage.includes("config.js?v=login-remember-v1"), "Login should cache-bust the remember-me runtime config");
+assert.ok(loginPage.includes("auth-client.js?v=login-remember-v1"), "Login should cache-bust the remember-me auth client");
+assert.ok(loginPage.includes("landing-auth.js?v=login-remember-v1"), "Login should cache-bust the remember-me landing auth script");
+assert.ok(loginPage.includes("landing-auth.css?v=login-remember-v1"), "Login should cache-bust remember-me styles");
 assert.ok(workspacePage.includes("style.css?v=source-preview-pages-v1"), "Workspace should bypass cached pre-fix contrast styles");
 assert.ok(forgotPage.includes("data-testid=\"reset-success\""), "Forgot password should expose a success state");
 assert.ok(resetPage.includes("data-testid=\"reset-password-success\""), "Reset password should expose a success state");
@@ -186,12 +199,18 @@ function simulateAuthSubmit({ pathname, page, store, values = {} }) {
   };
   const termsCheckbox = makeElement();
   termsCheckbox.checked = values.termsChecked ?? true;
+  const rememberCheckbox = makeElement();
+  rememberCheckbox.checked = values.rememberChecked ?? true;
   const loginForm = {
+    classList: makeClassList(),
     addEventListener(type, handler) {
       if (type === "submit") submitHandler = handler;
     },
     querySelector(selector) {
-      return selector === 'button[type="submit"]' ? submitButton : null;
+      if (selector === 'button[type="submit"]') return submitButton;
+      if (selector === 'input[name="remember"]') return rememberCheckbox;
+      if (selector === ".auth-form-status") return elements.loginStatus;
+      return null;
     }
   };
   const signupForm = {
@@ -218,6 +237,13 @@ function simulateAuthSubmit({ pathname, page, store, values = {} }) {
     loginEmail: makeElement(values.email || "student@example.com"),
     loginPassword: makeElement(values.password || "password123"),
     loginSpinner: makeElement(),
+    loginStatus: makeElement(),
+    loginResume: null,
+    loginResumeEmail: null,
+    loginResumeContinue: null,
+    loginResumeSwitch: null,
+    loginResumeForget: null,
+    rememberMe: rememberCheckbox,
     togglePassword: null,
     signupForm: page === "signup" ? signupForm : null,
     firstName: makeElement(values.firstName || "Sherman"),
@@ -260,6 +286,7 @@ function simulateAuthSubmit({ pathname, page, store, values = {} }) {
     Date,
     JSON,
     Math,
+    URLSearchParams: globalThis.URLSearchParams,
     window: windowStub,
     document: documentStub,
     console: { log() {}, warn() {} },
@@ -274,7 +301,7 @@ function simulateAuthSubmit({ pathname, page, store, values = {} }) {
   vm.runInContext(authScript, context);
   assert.equal(typeof submitHandler, "function");
   submitHandler({ preventDefault() {} });
-  return { href: windowStub.location.href, elements, store };
+  return { href: windowStub.location.href, elements, store, rememberChecked: rememberCheckbox.checked };
 }
 
 const store = makeLocalStorage();

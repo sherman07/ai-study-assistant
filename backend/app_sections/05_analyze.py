@@ -803,21 +803,19 @@ def probe_tutor_web_research(query: str = "evolutionary psychology") -> dict:
         report["error"] = "ENABLE_TUTOR_WEB_RESEARCH is false"
         return report
     try:
-        # Probe each backend independently so one timeout does not hide the others.
+        # Skip DuckDuckGo HTML here — it is often slow/blocked from cloud IPs and
+        # would make the health probe exceed Render's request budget.
         instant = search_web_duckduckgo_instant(query, max_results=2)
         report["duckduckgo_instant_count"] = len(instant or [])
         wiki = search_web_wikipedia(query, max_results=2)
         report["wikipedia_count"] = len(wiki or [])
-        chained = search_web_duckduckgo(query, max_results=2)
-        report["duckduckgo_html_count"] = len([
-            item for item in (chained or [])
-            if str(item.get("provider") or "").startswith("duckduckgo")
-        ])
-        selected = chained or wiki or instant or []
+        selected = wiki or instant or []
         if selected:
             report["ok"] = True
             report["selected_provider"] = str(selected[0].get("provider") or "")
             report["sample_titles"] = [str(item.get("title") or "") for item in selected[:3]]
+        else:
+            report["error"] = "No research backend returned results"
     except Exception as error:
         report["error"] = str(error)[:280]
     return report

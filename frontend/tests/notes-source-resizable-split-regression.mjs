@@ -47,9 +47,9 @@ assert.match(
   "mobile should disable the horizontal splitter"
 );
 
-assert.ok(index.includes("style.css?v=source-preview-pages-v1"), "styles should cache-bust for the resizable split");
+assert.ok(index.includes("style.css?v=source-review-primary-v1"), "styles should cache-bust for the resizable split");
 assert.ok(
-  index.includes("synapse-legacy-controller-combined.js?v=source-preview-pages-v1"),
+  index.includes("synapse-legacy-controller-combined.js?v=source-review-primary-v1"),
   "controller should cache-bust for the resizable split"
 );
 

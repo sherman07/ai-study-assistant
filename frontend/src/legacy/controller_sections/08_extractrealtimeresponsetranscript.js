@@ -1456,7 +1456,8 @@ function restoreSourceViewerItems(items) {
   revokeSourceObjectURLs();
   sourceViewerItems = (items || [])
     .map((item, index) => normaliseSourceViewerItem(item, index))
-    .filter(Boolean);
+    .filter(Boolean)
+    .filter(item => typeof isPrimarySourceReviewItem !== "function" || isPrimarySourceReviewItem(item));
   activeSourceItemId = sourceViewerItems[0]?.id || "";
   renderSourceViewer();
   if (typeof scheduleSourcePreviewPrefetch === "function") {
@@ -1470,7 +1471,11 @@ function restoreSourceViewerItems(items) {
 async function buildCurrentSourceItems(rawSource, backendSources = []) {
   revokeSourceObjectURLs();
   const parsed = parseMixedSources(rawSource);
-  const sourceLinks = uniqueSourceLinks([...uploadedLinks, ...parsed.links]);
+  // Source review is for primary study inputs only: uploads, pasted text, and YouTube.
+  // Do not promote generic websites discovered inside notes into the review tabs.
+  const sourceLinks = typeof youtubeSourceLinks === "function"
+    ? youtubeSourceLinks([...(uploadedLinks || []), ...(parsed.links || [])])
+    : uniqueSourceLinks([...(uploadedLinks || []), ...(parsed.links || [])]).filter(url => /(?:youtube\.com|youtu\.be)/i.test(url));
   const backendByName = new Map();
   (backendSources || []).forEach(source => {
     const name = String(source.display_name || source.title_candidate || "").toLowerCase();
@@ -1512,16 +1517,15 @@ async function buildCurrentSourceItems(rawSource, backendSources = []) {
   });
 
   sourceLinks.forEach((url, index) => {
-    const isYoutube = /(?:youtube\.com|youtu\.be)/i.test(url);
     const backend = backendByUrl.get(sourceUrlKey(url)) || {};
-    const sourceTitle = backend.title_candidate || backend.display_name || (isYoutube ? `YouTube source ${index + 1}` : `Web source ${index + 1}`);
+    const sourceTitle = backend.title_candidate || backend.display_name || `YouTube source ${index + 1}`;
     items.push(normaliseSourceViewerItem({
       id: `link:${encodeURIComponent(url).slice(0, 140)}`,
       index: items.length + 1,
       name: sourceTitle,
       title: sourceTitle,
       displayName: backend.display_name || sourceTitle,
-      kind: backend.kind || (isYoutube ? "youtube" : "link"),
+      kind: "youtube",
       sourceIdentity: backend.source_identity || "",
       originalUrl: url,
       url,
@@ -1546,10 +1550,13 @@ async function buildCurrentSourceItems(rawSource, backendSources = []) {
     const identity = source.source_identity || "";
     const displayName = source.display_name || source.title_candidate || "";
     const isYoutube = sourceItemLooksLikeYouTube(source);
+    const isText = String(identity).startsWith("text:") || /pasted text/i.test(displayName);
+    if (!isYoutube && !isText) return;
     const sourceUrl = source.embedded_url || source.url || (isYoutube ? youtubeWatchUrlFromItem({ sourceIdentity: identity }) : "");
     const alreadyIncluded = items.some(item =>
       (identity && item.sourceIdentity === identity) ||
-      (displayName && item.displayName === displayName)
+      (displayName && item.displayName === displayName) ||
+      (sourceUrl && sourceUrlKey(item.originalUrl || item.url) === sourceUrlKey(sourceUrl))
     );
     if (!alreadyIncluded) {
       items.push(normaliseSourceViewerItem({
@@ -1558,7 +1565,7 @@ async function buildCurrentSourceItems(rawSource, backendSources = []) {
         name: displayName || `Source ${index + 1}`,
         title: source.title_candidate || displayName || `Source ${index + 1}`,
         displayName,
-        kind: isYoutube ? "youtube" : "file",
+        kind: isYoutube ? "youtube" : "note",
         sourceIdentity: identity,
         originalUrl: sourceUrl,
         url: sourceUrl,
@@ -1567,7 +1574,9 @@ async function buildCurrentSourceItems(rawSource, backendSources = []) {
     }
   });
 
-  sourceViewerItems = items.filter(Boolean);
+  sourceViewerItems = items
+    .filter(Boolean)
+    .filter(item => typeof isPrimarySourceReviewItem !== "function" || isPrimarySourceReviewItem(item));
   activeSourceItemId = sourceViewerItems[0]?.id || "";
   renderSourceViewer();
   if (typeof scheduleSourcePreviewPrefetch === "function") {

@@ -67,6 +67,76 @@
   font-weight: 850;
 }
 
+.flashcard-study-hint {
+  margin: 12px 0 0;
+  text-align: center;
+  color: #6c7a96;
+  font-size: 0.9rem;
+}
+
+.flashcard-grade-row {
+  margin-top: 18px;
+  display: grid;
+  gap: 10px;
+  justify-items: center;
+}
+
+.flashcard-grade-label {
+  font-size: 0.82rem;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6c7a96;
+}
+
+.flashcard-grade-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.flashcard-grade-btn {
+  min-width: 78px;
+  border-radius: 12px;
+  border: 1px solid #d7dff7;
+  background: #f7f9ff;
+  color: #314164;
+  font-weight: 800;
+  padding: 10px 14px;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.flashcard-grade-btn:hover,
+.flashcard-grade-btn:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(49, 65, 100, 0.12);
+}
+
+.flashcard-grade-again {
+  background: #fff1f2;
+  border-color: #fecdd3;
+  color: #9f1239;
+}
+
+.flashcard-grade-hard {
+  background: #fff7ed;
+  border-color: #fed7aa;
+  color: #9a3412;
+}
+
+.flashcard-grade-good {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.flashcard-grade-easy {
+  background: #ecfdf5;
+  border-color: #a7f3d0;
+  color: #047857;
+}
+
 .flashcard-footer-actions {
   display: flex;
   justify-content: center;

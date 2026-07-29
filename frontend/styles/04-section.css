@@ -1872,8 +1872,19 @@ html[data-theme="dark"] .mobile-menu-btn {
 
 .tool-switcher {
   display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
+  flex-wrap: nowrap;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 2px 8px;
+  margin: 0 -2px;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+.tool-switcher::-webkit-scrollbar {
+  height: 4px;
 }
 
 .tool-switch-btn {
@@ -1884,6 +1895,14 @@ html[data-theme="dark"] .mobile-menu-btn {
   border-radius: 999px;
   font-weight: 600;
   transition: all 0.2s ease;
+  white-space: nowrap;
+  scroll-snap-align: start;
+  flex: 0 0 auto;
+}
+
+.tool-switch-btn:focus-visible {
+  outline: 2px solid rgba(74, 124, 255, 0.55);
+  outline-offset: 2px;
 }
 
 .tool-switch-btn.active {
@@ -1905,6 +1924,16 @@ html[data-theme="dark"] .mobile-menu-btn {
 
 .tool-panel.active {
   display: block;
+  animation: studyToolPanelIn 0.28s ease;
+}
+
+.tool-panel[hidden] {
+  display: none !important;
+}
+
+@keyframes studyToolPanelIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .study-tool-launch {
@@ -1922,6 +1951,95 @@ html[data-theme="dark"] .mobile-menu-btn {
   flex-direction: column;
   gap: 14px;
   text-align: center;
+}
+
+.study-tool-launch-points {
+  list-style: none;
+  margin: 10px auto 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-width: 34rem;
+  text-align: left;
+}
+
+.study-tool-launch-points li {
+  position: relative;
+  padding-left: 1.35rem;
+  color: #4b5d82;
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.study-tool-launch-points li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.45rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #5f7cff, #7aa2ff);
+}
+
+.study-tool-launch-hint {
+  margin: 8px 0 0;
+  color: #6c7a96;
+  font-size: 0.88rem;
+}
+
+.study-tool-notice-host {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 2400;
+  display: grid;
+  gap: 10px;
+  width: min(360px, calc(100vw - 24px));
+  pointer-events: none;
+}
+
+.study-tool-notice {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid #d7dff7;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16px 40px rgba(25, 40, 80, 0.16);
+  color: #243356;
+  font-weight: 600;
+  animation: studyToolNoticeIn 0.24s ease;
+}
+
+.study-tool-notice--success {
+  border-color: #b7ebc6;
+  background: #f3fff6;
+  color: #166534;
+}
+
+.study-tool-notice--error {
+  border-color: #fecaca;
+  background: #fff5f5;
+  color: #991b1b;
+}
+
+.study-tool-notice button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-size: 1.1rem;
+  line-height: 1;
+  padding: 0;
+  opacity: 0.7;
+}
+
+@keyframes studyToolNoticeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .study-tool-launch-icon {

@@ -595,6 +595,7 @@ function switchTool(toolName, clickedBtn = null) {
     if (typeof renderCurrentBroadcastOrSetup === "function") renderCurrentBroadcastOrSetup();
     else renderBroadcastSetupPanel();
   }
+  if (typeof syncStudyToolTabState === "function") syncStudyToolTabState(toolName);
 }
 
 const STUDY_TOOL_SETTINGS_STORAGE_KEY = "synapse.study-tool.settings.v1";

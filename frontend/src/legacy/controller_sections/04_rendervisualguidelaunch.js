@@ -10,13 +10,18 @@ function renderVisualGuideLaunch() {
     action: "generateVisualGuide(true)",
     actionLabel: "Generate image guide",
     hasNotes,
-    kicker: "Visual understanding"
+    kicker: "Visual understanding",
+    estimate: "~30–90 sec"
   });
 }
 
 async function generateVisualGuide(force = false) {
   if (!fullSummary || !fullSummary.trim()) {
-    alert("Generate notes first, then create a visual image guide.");
+    if (typeof showStudyToolNotice === "function") {
+      showStudyToolNotice("Generate notes first, then create a visual image guide.", "error");
+    } else {
+      alert("Generate notes first, then create a visual image guide.");
+    }
     return;
   }
   if (currentVisualGuide && !force) {

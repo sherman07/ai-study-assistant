@@ -365,7 +365,17 @@ html[data-theme="dark"] :where(.study-tool-launch) {
 }
 html[data-theme="dark"] :where(.study-tool-launch-copy h4) { color: var(--color-text-primary) !important; }
 html[data-theme="dark"] :where(.study-tool-launch-copy p, .study-tool-launch-meta) { color: var(--color-text-secondary) !important; }
-html[data-theme="dark"] :where(.study-tool-launch-kicker, .study-tool-launch-meta i) { color: var(--color-accent) !important; }
+html[data-theme="dark"] :where(.study-tool-launch-points li) { color: var(--color-text-secondary) !important; }
+html[data-theme="dark"] :where(.study-tool-notice) {
+  background: rgba(20, 28, 48, 0.96) !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: var(--color-text-primary) !important;
+}
+html[data-theme="dark"] :where(.flashcard-grade-btn) {
+  background: rgba(30, 41, 59, 0.9) !important;
+  border-color: rgba(148, 163, 184, 0.28) !important;
+  color: var(--color-text-primary) !important;
+}
 html[data-theme="dark"] :where(.mm-root-dot, .mm-branch-dot, .mm-point-dot, .mm-tree-dot, .mm-leaf-dot) {
   background: var(--color-surface-secondary) !important;
 }

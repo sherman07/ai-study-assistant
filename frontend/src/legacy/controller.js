@@ -92,19 +92,36 @@ function renderStudyToolLaunch({
   action,
   actionLabel,
   hasNotes = true,
-  kicker = "Ready when you are"
+  kicker = "Ready when you are",
+  points = [],
+  estimate = "",
+  secondaryHint = ""
 } = {}) {
   const disabled = hasNotes ? "" : "disabled";
   const helper = hasNotes
-    ? "No tokens used for this first generation"
+    ? (estimate ? `No tokens used for this first generation · ${estimate}` : "No tokens used for this first generation")
     : "Generate your study notes first to unlock this tool";
+  const defaultPoints = {
+    flashcards: ["Atomic prompts from the current notes", "Reveal, then grade Again / Hard / Good / Easy", "Match mode for quick recognition drills"],
+    quiz: ["Exam-style and practice question mixes", "Save history against this note", "Review explanations after each attempt"],
+    timeline: ["Warm-up → learn → practise → check", "Mark tasks complete as you go", "Pace settings for quick or deep revision"],
+    masterygraph: ["Due and missed review queues", "Weak-topic map from your activity", "Self-grade what still feels shaky"],
+    visualguide: ["One finished revision poster", "Grounded in the current notes", "Export as PNG when ready"],
+    broadcast: ["Natural spoken episode from these notes", "Chapter markers while you listen", "Jump into quiz or flashcards after"]
+  };
+  const bullets = (Array.isArray(points) && points.length ? points : defaultPoints[tool] || [])
+    .slice(0, 4)
+    .map(item => `<li>${escapeHTML(item)}</li>`)
+    .join("");
   return `
-    <div class="study-tool-launch" data-study-tool-launch="${escapeAttr(tool)}" data-generation-cost="0">
+    <div class="study-tool-launch study-tool-launch--v2" data-study-tool-launch="${escapeAttr(tool)}" data-generation-cost="0">
       <div class="study-tool-launch-icon" aria-hidden="true"><i class="bi ${escapeAttr(iconClass)}"></i></div>
       <div class="study-tool-launch-copy">
         <span class="study-tool-launch-kicker">${escapeHTML(kicker)}</span>
         <h4>${escapeHTML(title)}</h4>
         <p>${escapeHTML(description)}</p>
+        ${bullets ? `<ul class="study-tool-launch-points">${bullets}</ul>` : ""}
+        ${secondaryHint ? `<p class="study-tool-launch-hint">${escapeHTML(secondaryHint)}</p>` : ""}
       </div>
       <div class="study-tool-launch-meta"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>${escapeHTML(helper)}</div>
       <button class="btn btn-primary study-tool-generate-btn" type="button" data-study-tool-generate="${escapeAttr(tool)}" data-token-cost="0" onclick="${escapeAttr(action)}" ${disabled}>
@@ -112,6 +129,45 @@ function renderStudyToolLaunch({
       </button>
     </div>
   `;
+}
+
+function showStudyToolNotice(message, tone = "info") {
+  const text = String(message || "").trim();
+  if (!text) return;
+  let host = document.getElementById("studyToolNoticeHost");
+  if (!host) {
+    host = document.createElement("div");
+    host.id = "studyToolNoticeHost";
+    host.className = "study-tool-notice-host";
+    host.setAttribute("aria-live", "polite");
+    document.body.appendChild(host);
+  }
+  const note = document.createElement("div");
+  note.className = `study-tool-notice study-tool-notice--${tone === "error" ? "error" : tone === "success" ? "success" : "info"}`;
+  note.innerHTML = `<span>${typeof escapeHTML === "function" ? escapeHTML(text) : text}</span><button type="button" aria-label="Dismiss">×</button>`;
+  const dismiss = () => note.remove();
+  note.querySelector("button")?.addEventListener("click", dismiss);
+  host.appendChild(note);
+  window.setTimeout(dismiss, tone === "error" ? 7000 : 4200);
+}
+
+function syncStudyToolTabState(toolName) {
+  document.querySelectorAll(".tool-switch-btn").forEach(button => {
+    const isActive = button.classList.contains("active") && !button.disabled;
+    button.setAttribute("aria-selected", String(isActive));
+    button.setAttribute("role", button.getAttribute("role") || "tab");
+    if (isActive) {
+      try { button.scrollIntoView({ block: "nearest", inline: "center", behavior: "smooth" }); } catch {}
+    }
+  });
+  document.querySelectorAll(".tool-panel").forEach(panel => {
+    const isActive = panel.classList.contains("active");
+    panel.setAttribute("role", panel.getAttribute("role") || "tabpanel");
+    if (isActive) panel.removeAttribute("hidden");
+    else panel.setAttribute("hidden", "true");
+  });
+  const activeBtn = document.querySelector(".tool-switch-btn.active");
+  if (activeBtn && toolName) activeBtn.setAttribute("data-study-tool", toolName);
 }
 
 const controllerLoader = new LegacyControllerLoader({
@@ -154,6 +210,8 @@ const controllerLoader = new LegacyControllerLoader({
     removeAutoBilingualHeadings,
     removeDetectedUrlsClient,
     renderStudyToolLaunch,
+    showStudyToolNotice,
+    syncStudyToolTabState,
     renderMath,
     renderStudyNotesSurface,
     retryBroadcastJobInDataApi,

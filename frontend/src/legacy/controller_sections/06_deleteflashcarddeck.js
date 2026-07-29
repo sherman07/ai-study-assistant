@@ -77,7 +77,9 @@ function renderFlashcardLaunch() {
     action: "generateFlashcards()",
     actionLabel: "Generate flashcards",
     hasNotes,
-    kicker: "Active recall deck"
+    kicker: "Active recall deck",
+    estimate: "~30–90 sec",
+    secondaryHint: "After each reveal, rate Again / Hard / Good / Easy — same idea as Anki and Quizlet Learn."
   });
 }
 
@@ -161,6 +163,19 @@ function renderFlashcardStudyView() {
             ${flashcardSide === "front" && card.hint ? `<div class="flashcard-hint"><strong>Hint:</strong> ${markdownToHTML(card.hint)}</div>` : ""}
             ${flashcardSide === "back" && card.sourceReference ? `<div class="flashcard-source"><strong>Source basis:</strong> ${inlineMarkdownHTML(card.sourceReference)}</div>` : ""}
           </button>
+          ${flashcardSide === "back" ? `
+            <div class="flashcard-grade-row" role="group" aria-label="How well did you recall this card?">
+              <span class="flashcard-grade-label">Rate your recall</span>
+              <div class="flashcard-grade-actions">
+                <button class="flashcard-grade-btn flashcard-grade-again" type="button" onclick="gradeFlashcard('again')">Again</button>
+                <button class="flashcard-grade-btn flashcard-grade-hard" type="button" onclick="gradeFlashcard('hard')">Hard</button>
+                <button class="flashcard-grade-btn flashcard-grade-good" type="button" onclick="gradeFlashcard('good')">Good</button>
+                <button class="flashcard-grade-btn flashcard-grade-easy" type="button" onclick="gradeFlashcard('easy')">Easy</button>
+              </div>
+            </div>
+          ` : `
+            <p class="flashcard-study-hint">Try to answer mentally, then reveal — like Quizlet/Anki active recall.</p>
+          `}
           <div class="flashcard-nav-row">
             <button class="btn btn-outline-primary" type="button" onclick="setActiveFlashcard(${activeFlashcardIndex - 1})" ${activeFlashcardIndex <= 0 ? "disabled" : ""}>
               <i class="bi bi-chevron-left me-1"></i>Previous
@@ -725,6 +740,36 @@ function flipFlashcard() {
     label: `Flipped flashcard ${activeFlashcardIndex + 1}`
   });
   renderFlashcardPanel();
+}
+
+function gradeFlashcard(rating) {
+  if (!currentFlashcards.length) return;
+  const normalised = String(rating || "").toLowerCase();
+  if (!["again", "hard", "good", "easy"].includes(normalised)) return;
+  const card = currentFlashcards[activeFlashcardIndex] || {};
+  if (typeof recordStudyActivity === "function") {
+    recordStudyActivity("flashcard_graded", {
+      tool: "flashcards",
+      sectionTitle: card.sourceReference || card.front || "",
+      label: `Rated flashcard ${activeFlashcardIndex + 1} as ${normalised}`,
+      metadata: { rating: normalised, cardIndex: activeFlashcardIndex + 1 }
+    });
+  }
+  if (normalised === "again") {
+    flashcardSide = "front";
+    renderFlashcardPanel();
+    if (typeof showStudyToolNotice === "function") showStudyToolNotice("Keep this one in the rotation — try it again soon.", "info");
+    return;
+  }
+  if (activeFlashcardIndex >= currentFlashcards.length - 1) {
+    flashcardSide = "front";
+    renderFlashcardPanel();
+    if (typeof showStudyToolNotice === "function") {
+      showStudyToolNotice("Deck complete. Open Exam Readiness to see what still needs review.", "success");
+    }
+    return;
+  }
+  setActiveFlashcard(activeFlashcardIndex + 1);
 }
 
 function setActiveFlashcard(index) {

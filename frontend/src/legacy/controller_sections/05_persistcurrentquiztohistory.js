@@ -220,7 +220,9 @@ function renderQuizEmptyActions() {
         action: "generateQuiz()",
         actionLabel: "Generate quiz",
         hasNotes,
-        kicker: "Active recall practice"
+        kicker: "Active recall practice",
+        estimate: "~20–60 sec",
+        secondaryHint: "Use Exam mode when you want scored feedback closer to a real paper."
       })}
       ${renderQuizHistoryPreview()}
     </div>

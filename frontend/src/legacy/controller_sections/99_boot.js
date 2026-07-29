@@ -49,6 +49,7 @@ Object.assign(window, {
   exportVisualGuidePDF,
   exportVisualGuidePNG,
   flipFlashcard,
+  gradeFlashcard,
   focusInlineVisual,
   generateFlashcards,
   generateQuiz,
@@ -253,6 +254,9 @@ setupMasteryGraphTool();
 setupQuizTool();
 setupFlashcardTool();
 setupBroadcastTool();
+if (typeof syncStudyToolTabState === "function") syncStudyToolTabState("mindmap");
+if (typeof showStudyToolNotice === "function") window.showStudyToolNotice = showStudyToolNotice;
+if (typeof syncStudyToolTabState === "function") window.syncStudyToolTabState = syncStudyToolTabState;
 renderAccountMenu();
 if (typeof bindNotesSourceSplitter === "function") {
   bindNotesSourceSplitter();

@@ -1,4 +1,4 @@
-import { API_BASE } from "./apiConfig.js?v=settings-modal-pattern-20260720-06";
+import { API_BASE } from "./apiConfig.js?v=study-tools-guards-v1";
 import { ApiConnectionError, SynapseApiClient } from "./apiClient.js";
 import {
   DATA_API_BASE,
@@ -14,7 +14,7 @@ import {
   patchBroadcastJobInDataApi,
   persistGeneratedContentToDataApi,
   retryBroadcastJobInDataApi
-} from "./dataApiClient.js?v=settings-modal-pattern-20260720-06";
+} from "./dataApiClient.js?v=study-tools-guards-v1";
 import {
   safeGetLocalStorage,
   safeReadJSONStorage,
@@ -60,10 +60,10 @@ import {
   renderMath,
   shorten,
   typeInto
-} from "./markdownRenderer.js?v=settings-modal-pattern-20260720-06";
-import { LegacyControllerLoader } from "./controllerLoader.js?v=settings-modal-pattern-20260720-06";
+} from "./markdownRenderer.js?v=study-tools-guards-v1";
+import { LegacyControllerLoader } from "./controllerLoader.js?v=study-tools-guards-v1";
 
-const CONTROLLER_VERSION = "settings-modal-pattern-20260720-06";
+const CONTROLLER_VERSION = "study-tools-guards-v1";
 const CONTROLLER_DEFINITION_FILES = [
   "01_uploadedfiles.js",
   "02_openvisualmodal.js",

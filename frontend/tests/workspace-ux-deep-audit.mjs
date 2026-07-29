@@ -5,10 +5,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { createRequire } from "node:module";
+import { prepareChromeProbe } from "./chrome-probe-guard.mjs";
 
-const require = createRequire(import.meta.url);
-const puppeteer = require("puppeteer-core");
+const probe = prepareChromeProbe("workspace-ux-deep-audit");
+if (!probe.ok) {
+  console.log(probe.reason);
+  process.exit(0);
+}
+const { puppeteer, executablePath } = probe;
 
 const artifactDir = "/opt/cursor/artifacts/ux-audit";
 fs.mkdirSync(artifactDir, { recursive: true });
@@ -587,7 +591,7 @@ async function run() {
   }
 
   const browser = await puppeteer.launch({
-    executablePath: "/usr/bin/google-chrome-stable",
+    executablePath,
     headless: "new",
     args: ["--no-sandbox", "--disable-dev-shm-usage", "--window-size=1440,960"],
   });

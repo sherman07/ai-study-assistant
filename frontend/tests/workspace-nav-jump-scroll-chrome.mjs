@@ -5,14 +5,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import { prepareChromeProbe } from "./chrome-probe-guard.mjs";
 
-const require = createRequire(import.meta.url);
-const puppeteer = require("puppeteer-core");
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const distRoot = path.join(root, "dist");
+const probe = prepareChromeProbe("workspace-nav-jump-scroll-chrome");
+if (!probe.ok) {
+  console.log(probe.reason);
+  process.exit(0);
+}
+const { puppeteer, executablePath, distRoot } = probe;
 const artifactDir = "/opt/cursor/artifacts";
 fs.mkdirSync(artifactDir, { recursive: true });
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -84,7 +84,7 @@ async function enterGeneratedNotes(page) {
 async function run() {
   const { server, port } = await startStaticServer();
   const browser = await puppeteer.launch({
-    executablePath: "/usr/bin/google-chrome-stable",
+    executablePath,
     headless: "new",
     args: ["--no-sandbox", "--disable-dev-shm-usage", "--window-size=1440,960"],
     defaultViewport: { width: 1440, height: 960 },

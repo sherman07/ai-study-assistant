@@ -2152,7 +2152,7 @@ async def generate_visual_image_guide(data: dict):
         title = clean_quiz_string(data.get("title"), stored_title or "Study Material")
         context = quiz_summary_context(data)
         if not context:
-            return {"error": "No generated notes are available for visual image guide generation yet."}
+            return analysis_error_response("No generated notes are available for visual image guide generation yet.", 400)
 
         requested_language = data.get("preferred_language", "auto")
         preferred_language = (
@@ -2261,13 +2261,16 @@ async def generate_visual_image_guide(data: dict):
                     preferred_language=preferred_language,
                     warning=last_warning,
                 )
-            return {"error": f"Image generation failed with {last_warning}"}
+            return analysis_error_response(f"Image generation failed with {last_warning}", 502)
         if not response.ok:
             try:
                 detail = response.json()
             except Exception:
                 detail = response.text
-            return {"error": f"Image generation failed with {visual_image_error_summary(response.status_code, detail)}"}
+            return analysis_error_response(
+                f"Image generation failed with {visual_image_error_summary(response.status_code, detail)}",
+                502,
+            )
 
         parsed = response.json()
         image_items = parsed.get("data") if isinstance(parsed, dict) else []
@@ -2297,7 +2300,7 @@ async def generate_visual_image_guide(data: dict):
             "created": parsed.get("created"),
         }
     except Exception as error:
-        return {"error": str(error)}
+        return analysis_error_response(str(error), analysis_exception_status(error))
 
 
 def fetch_image_data_url(url: str, max_bytes: int = 320_000) -> str:
@@ -2630,7 +2633,7 @@ async def generate_visual_guide(data: dict):
         source_context = visual_guide_source_context(data)
         figure_context = visual_guide_figure_context(data)
         if not context:
-            return {"error": "No generated notes are available for visual guide generation yet."}
+            return analysis_error_response("No generated notes are available for visual guide generation yet.", 400)
         requested_language = data.get("preferred_language", "auto")
         preferred_language = (
             resolve_generation_language_key("auto", context)
@@ -2743,7 +2746,7 @@ Available source figures:
         )
         return guide
     except Exception as error:
-        return {"error": str(error)}
+        return analysis_error_response(str(error), analysis_exception_status(error))
 
 
 # -----------------------------------------------------------------------------

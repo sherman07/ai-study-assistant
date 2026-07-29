@@ -1,5 +1,5 @@
-import { App } from "./react/App.js?v=ai-broadcast-v19";
-import { loadLegacyController } from "./legacy/loadLegacyController.js?v=settings-modal-pattern-20260720-06";
+import { App } from "./react/App.js?v=study-tools-guards-v1";
+import { loadLegacyController } from "./legacy/loadLegacyController.js?v=study-tools-guards-v1";
 import {
   activateLearningCompanionThread,
   companionHistoryId,

@@ -664,14 +664,10 @@ function applyAccountStudyPreference(key, value) {
     control.dispatchEvent(new Event("change", { bubbles: true }));
   }
   if (key === "provider") {
-    try { window.localStorage.setItem("synapse.ai.provider.v1", value); } catch {}
-    document.querySelectorAll("[data-ai-provider]").forEach(button => {
-      const active = button.getAttribute("data-ai-provider") === value;
-      button.classList.toggle("active", active);
-      button.classList.toggle("btn-primary", active);
-      button.classList.toggle("btn-outline-primary", !active);
-      button.setAttribute("aria-pressed", String(active));
-    });
+    if (typeof setAiProvider === "function") setAiProvider(value);
+    else {
+      try { window.localStorage.setItem("synapse.ai.provider.v1", value); } catch {}
+    }
   }
 }
 
@@ -840,6 +836,15 @@ function renderAccountMenu() {
   document.querySelectorAll(".account-signed-out-only").forEach(node => {
     node.style.display = signedIn ? "none" : "";
   });
+  const email = String(session?.email || "").trim().toLowerCase();
+  const isController = Boolean(
+    session?.isController
+    || session?.platformRole === "controller"
+    || email === "shermanzheng8@gmail.com"
+  );
+  document.querySelectorAll(".account-controller-only").forEach(node => {
+    node.style.display = signedIn && isController ? "" : "none";
+  });
 }
 
 async function refreshAccountSessionFromProvider() {
@@ -991,16 +996,23 @@ function accountSettingsContent(section, session) {
     const languageOptions = accountPreferenceOptions("preferredLanguage", [["auto", "Auto-detect source language"], ["english", "English"]]);
     const promptOptions = accountPreferenceOptions("promptMode", [["professor_mode", "Professional Mode"]]);
     const depthOptions = accountPreferenceOptions("noteLength", [["standard_notes", "Standard Notes"]]);
+    let savedProvider = preferences.provider;
+    if (savedProvider === undefined) {
+      try { savedProvider = window.localStorage.getItem("synapse.ai.provider.v1") || ""; } catch { savedProvider = ""; }
+    }
+    if (savedProvider === undefined || savedProvider === null) {
+      savedProvider = document.getElementById("aiProvider")?.value || "";
+    }
     return `
       <section class="account-settings-section" aria-labelledby="settings-study-title">
         <p class="account-settings-kicker">Study defaults</p>
         <h4 id="settings-study-title">Start each workspace with your preferred setup</h4>
-        <p class="account-section-copy">These defaults are applied to the upload screen. You can still change them for an individual analysis.</p>
+        <p class="account-section-copy">These defaults apply to new analyses. Prompt mode and study depth still appear on the upload screen; Generate AI is only changed here.</p>
         <div class="account-settings-fields">
           ${accountPreferenceSelect("language", "Output language", "Notes, explanations, quizzes, and flashcards.", languageOptions, preferences.language || document.getElementById("preferredLanguage")?.value || "auto")}
+          ${accountPreferenceSelect("provider", "Generate AI", "Choose Backend default, GPT, or Gemini for note generation.", [["", "Backend default"], ["openai", "GPT"], ["gemini", "Gemini"]], savedProvider)}
           ${accountPreferenceSelect("promptMode", "Response style", "How Synapse explains your material.", promptOptions, preferences.promptMode || document.getElementById("promptMode")?.value || "professor_mode")}
           ${accountPreferenceSelect("studyDepth", "Study depth", "The default level of detail for new notes.", depthOptions, preferences.studyDepth || document.getElementById("noteLength")?.value || "standard_notes")}
-          ${accountPreferenceSelect("provider", "Generation provider", "Choose backend default, GPT, or Gemini when available.", [["", "Backend default"], ["openai", "GPT"], ["gemini", "Gemini"]], preferences.provider ?? document.getElementById("aiProvider")?.value ?? "")}
         </div>
       </section>
     `;

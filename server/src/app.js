@@ -4,6 +4,7 @@ import helmet from "helmet";
 import { config } from "./config.js";
 import { errorHandler, notFound } from "./middleware/errors.js";
 import { billingRouter, billingWebhookRouter } from "./routes/billing.js";
+import { adminRouter } from "./routes/admin.js";
 import { broadcastJobsRouter } from "./routes/broadcastJobs.js";
 import { cardsRouter, decksRouter } from "./routes/flashcards.js";
 import { focusSessionsRouter } from "./routes/focusSessions.js";
@@ -98,6 +99,7 @@ function createApp() {
   app.use("/api/internal/generated-content", express.json({ limit: "12mb" }), internalGeneratedContentRouter);
   app.use(express.json({ limit: "1mb" }));
   app.use("/api/billing", billingRouter);
+  app.use("/api/admin", adminRouter);
   app.use("/api/users", usersRouter);
   app.use("/api/study-rooms", studyRoomsRouter);
   app.use("/api/focus-sessions", focusSessionsRouter);

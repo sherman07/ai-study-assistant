@@ -36,7 +36,9 @@ const REQUIRED_SUPABASE_TABLES = [
   "study_rooms",
   "study_room_members",
   "progress_records",
-  "broadcast_jobs"
+  "broadcast_jobs",
+  "platform_settings",
+  "site_access_allowlist"
 ];
 
 function tableIsMissingError(message) {

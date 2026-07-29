@@ -1,4 +1,4 @@
-import { AI_PROVIDER_OPTIONS, NOTE_LENGTH_OPTIONS, PROMPT_MODE_OPTIONS } from "../constants.js";
+import { NOTE_LENGTH_OPTIONS, PROMPT_MODE_OPTIONS } from "../constants.js";
 import { h, icon, legacyAction } from "../runtime.js";
 import { LanguageSelect } from "./LanguageOptions.js?v=react-shell-v2";
 
@@ -16,24 +16,6 @@ function promptModeDescription(value) {
 function noteLengthOptions() {
   return NOTE_LENGTH_OPTIONS.map(([value, label]) =>
     h("option", { key: value, value }, label)
-  );
-}
-
-function aiProviderButtons() {
-  return AI_PROVIDER_OPTIONS.map(([value, label, description], index) =>
-    h(
-      "button",
-      {
-        key: value,
-        type: "button",
-        className: `btn ${index === 0 ? "btn-primary active" : "btn-outline-primary"} ai-provider-btn`,
-        "data-ai-provider": value,
-        title: description,
-        "aria-pressed": index === 0 ? "true" : "false",
-        onClick: legacyAction("setAiProvider", value),
-      },
-      label
-    )
   );
 }
 
@@ -195,31 +177,8 @@ export function UploadStage() {
         })
       ),
       h("input", { type: "hidden", id: "detailLevel", value: "auto", readOnly: true }),
-      h(
-        "div",
-        { className: "language-box prompt-mode-box ai-provider-box" },
-        h("label", { htmlFor: "aiProvider", className: "form-label" }, "Generate AI"),
-        h(
-          "p",
-          { className: "language-note" },
-          "Choose which backend AI provider generates the notes. Both use the same Synapse prompts, source context, and validators."
-        ),
-        h("input", { type: "hidden", id: "aiProvider", value: "", readOnly: true }),
-        h(
-          "div",
-          {
-            className: "btn-group w-100 ai-provider-toggle",
-            role: "group",
-            "aria-label": "Generate AI provider",
-          },
-          aiProviderButtons()
-        ),
-        h(
-          "p",
-          { id: "aiProviderDescription", className: "language-note compact-note" },
-          "Backend default uses the provider selected in backend environment settings."
-        )
-      ),
+      // Provider is chosen in Account → Settings → Study defaults (kept as a hidden field for analyze payloads).
+      h("input", { type: "hidden", id: "aiProvider", value: "", readOnly: true }),
       h(
         "div",
         { className: "language-box prompt-mode-box" },

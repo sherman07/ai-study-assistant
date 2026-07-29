@@ -379,12 +379,16 @@
   function mergeServerUserIntoSession(session, user = {}) {
     if (!session) return session;
     const plan = user.plan || session.plan || "free";
+    const platformRole = user.platformRole || user.platform_role || session.platformRole || "user";
+    const isController = Boolean(user.isController) || platformRole === "controller";
     return {
       ...session,
       accountId: user.id || session.accountId,
       email: user.email || session.email,
       displayName: user.displayName || session.displayName,
       role: user.role || session.role,
+      platformRole: isController ? "controller" : "user",
+      isController,
       plan: displayPlan(plan),
       billingPlan: plan,
       subscriptionStatus: user.subscriptionStatus || session.subscriptionStatus || "inactive",

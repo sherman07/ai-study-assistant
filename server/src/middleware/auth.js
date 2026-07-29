@@ -1,5 +1,12 @@
 import { config } from "../config.js";
-import { upsertUser } from "../repositories/usersRepository.js";
+import {
+  isBootstrapControllerEmail,
+  isControllerUser,
+  normalizePlatformRole
+} from "../admin/controllers.js";
+import { getPlatformSetting } from "../repositories/platformSettingsRepository.js";
+import { isEmailAllowlisted } from "../repositories/siteAccessRepository.js";
+import { patchUser, upsertUser } from "../repositories/usersRepository.js";
 import { cleanString } from "../utils/validators.js";
 
 function bearerToken(req) {
@@ -75,14 +82,72 @@ async function identityFromRequest(req) {
   return (await supabaseIdentity(req)) || localDemoIdentity(req);
 }
 
+async function ensureBootstrapController(user) {
+  if (!user?.id || !isBootstrapControllerEmail(user.email)) return user;
+  if (normalizePlatformRole(user.platformRole) === "controller") return user;
+  try {
+    return (await patchUser(user.id, { platformRole: "controller" })) || {
+      ...user,
+      platformRole: "controller"
+    };
+  } catch (error) {
+    console.warn("Could not persist bootstrap controller role:", error?.message || error);
+    return { ...user, platformRole: "controller" };
+  }
+}
+
+async function assertSiteAccess(user) {
+  if (!user || isControllerUser(user)) return;
+  let mode = "open";
+  try {
+    mode = String((await getPlatformSetting("site_access_mode")) || "open").toLowerCase();
+  } catch (error) {
+    console.warn("Could not read site_access_mode:", error?.message || error);
+    return;
+  }
+  if (mode !== "allowlist") return;
+  const allowed = await isEmailAllowlisted(user.email).catch(() => false);
+  if (allowed) return;
+  const error = new Error("This Synapse workspace is invite-only. Ask a controller to grant access.");
+  error.status = 403;
+  error.code = "site_access_denied";
+  throw error;
+}
+
+async function loadAuthenticatedUser(req) {
+  const identity = await identityFromRequest(req);
+  if (!identity) return null;
+  let user = await upsertUser(identity);
+  user = await ensureBootstrapController(user);
+  await assertSiteAccess(user);
+  return { identity, user };
+}
+
 async function requireUser(req, res, next) {
   try {
-    const identity = await identityFromRequest(req);
-    if (!identity) {
+    const loaded = await loadAuthenticatedUser(req);
+    if (!loaded) {
       return res.status(401).json({ ok: false, error: "Authentication is required." });
     }
-    req.user = await upsertUser(identity);
-    req.identity = identity;
+    req.user = loaded.user;
+    req.identity = loaded.identity;
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+}
+
+async function requireController(req, res, next) {
+  try {
+    const loaded = await loadAuthenticatedUser(req);
+    if (!loaded) {
+      return res.status(401).json({ ok: false, error: "Authentication is required." });
+    }
+    if (!isControllerUser(loaded.user)) {
+      return res.status(403).json({ ok: false, error: "Controller access is required." });
+    }
+    req.user = { ...loaded.user, platformRole: "controller" };
+    req.identity = loaded.identity;
     return next();
   } catch (error) {
     return next(error);
@@ -105,4 +170,13 @@ async function requireUserOrInternal(req, res, next) {
   return requireUser(req, res, next);
 }
 
-export { identityFromRequest, internalTokenMatches, requireInternal, requireUser, requireUserOrInternal };
+export {
+  assertSiteAccess,
+  ensureBootstrapController,
+  identityFromRequest,
+  internalTokenMatches,
+  requireController,
+  requireInternal,
+  requireUser,
+  requireUserOrInternal
+};

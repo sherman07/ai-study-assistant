@@ -3,17 +3,17 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Site Access | Synapse</title>
+  <title>Users | Synapse</title>
   <meta name="robots" content="noindex,nofollow" />
   <meta name="theme-color" content="#4a7cff" />
   <script src="theme-bootstrap.js?v=theme-system-v2"></script>
   <link rel="icon" type="image/png" href="/logos/synapse.png">
   <link rel="stylesheet" href="billing-pages.css?v=stripe-billing-v1">
-  <link rel="stylesheet" href="admin-pages.css?v=admin-controller-v1">
+  <link rel="stylesheet" href="admin-pages.css?v=admin-users-v1">
   <link rel="stylesheet" href="styles/00-theme.css?v=ui-english-v1">
   <link rel="stylesheet" href="styles/99-dark-mode.css?v=dark-mode-v6">
   <script src="config.js"></script>
-  <script src="auth-client.js?v=admin-controller-v1"></script>
+  <script src="auth-client.js?v=admin-users-v1"></script>
 </head>
 <body>
   <div class="billing-shell admin-shell">
@@ -25,7 +25,7 @@
         </a>
         <div class="billing-nav-links">
           <a href="admin-settings.html">Controller settings</a>
-          <a href="admin-access.html" aria-current="page">Site access</a>
+          <a href="admin-access.html" aria-current="page">Users</a>
           <a href="index.html">Workspace</a>
         </div>
       </div>
@@ -34,8 +34,8 @@
     <main class="admin-main">
       <section class="billing-container admin-hero">
         <p class="billing-kicker">Controller only</p>
-        <h1>Who can access Synapse</h1>
-        <p>Assign people to the invite list and promote signed-up users to controllers. All changes write to Supabase.</p>
+        <h1>Users</h1>
+        <p>See everyone signed up in Synapse. Edit plan, credits, subscription status, and controller rights. Changes write to Supabase.</p>
       </section>
 
       <section class="billing-container">
@@ -43,58 +43,116 @@
 
         <div id="adminContent" class="admin-stack" hidden>
           <article class="admin-card">
-            <h2>Invite someone</h2>
-            <p class="admin-copy" id="accessModeHint"></p>
-            <form id="accessForm" class="admin-form">
-              <label class="admin-field">
-                <span>Email</span>
-                <input id="accessEmail" type="email" required placeholder="learner@school.edu" autocomplete="off" />
-              </label>
-              <label class="admin-field">
-                <span>Note (optional)</span>
-                <input id="accessNote" type="text" maxlength="255" placeholder="Class cohort, pilot user…" />
-              </label>
-              <div class="admin-actions">
-                <button class="billing-button primary" type="submit">Add to access list</button>
+            <div class="admin-toolbar">
+              <div>
+                <h2>Current users</h2>
+                <p class="admin-copy" id="usersCountHint">Loading users from Supabase…</p>
               </div>
-            </form>
-            <p class="billing-status" id="accessStatus" role="status" aria-live="polite"></p>
+              <form id="usersSearchForm" class="admin-search" role="search">
+                <label class="admin-field">
+                  <span class="visually-hidden">Search users</span>
+                  <input id="usersSearch" type="search" placeholder="Search email or name…" autocomplete="off" />
+                </label>
+                <button class="billing-button" type="submit">Search</button>
+                <button class="billing-button" type="button" id="usersRefresh">Refresh</button>
+              </form>
+            </div>
+            <p class="billing-status" id="usersStatus" role="status" aria-live="polite"></p>
             <div class="admin-table-wrap">
-              <table class="admin-table" aria-label="Site access allowlist">
+              <table class="admin-table" aria-label="Synapse users">
                 <thead>
-                  <tr><th>Email</th><th>Note</th><th>Granted by</th><th></th></tr>
+                  <tr>
+                    <th>Email</th>
+                    <th>Name</th>
+                    <th>Plan</th>
+                    <th>Credits</th>
+                    <th>Status</th>
+                    <th>Access</th>
+                    <th></th>
+                  </tr>
                 </thead>
-                <tbody id="accessTableBody"></tbody>
+                <tbody id="usersTableBody"></tbody>
               </table>
             </div>
           </article>
 
-          <article class="admin-card">
-            <h2>Controllers</h2>
-            <p class="admin-copy">Controllers can open these admin pages and manage access. The primary controller <strong>shermanzheng8@gmail.com</strong> cannot be demoted.</p>
-            <form id="controllerForm" class="admin-form">
+          <article class="admin-card" id="userEditor" hidden>
+            <div class="admin-toolbar">
+              <div>
+                <h2>Edit user</h2>
+                <p class="admin-copy" id="editorSubtitle">Update billing, credits, and rights for the selected account.</p>
+              </div>
+              <button class="billing-button" type="button" id="editorClose">Close</button>
+            </div>
+            <form id="userEditForm" class="admin-form admin-edit-grid">
+              <input type="hidden" id="editUserId" />
               <label class="admin-field">
-                <span>Promote signed-up user</span>
-                <input id="controllerEmail" type="email" required placeholder="someone@already-signed-up.com" autocomplete="off" />
+                <span>Email</span>
+                <input id="editEmail" type="email" disabled />
               </label>
-              <div class="admin-actions">
-                <button class="billing-button primary" type="submit">Make controller</button>
+              <label class="admin-field">
+                <span>Display name</span>
+                <input id="editDisplayName" type="text" maxlength="255" placeholder="Display name" />
+              </label>
+              <label class="admin-field">
+                <span>Plan</span>
+                <select id="editPlan">
+                  <option value="free">Free</option>
+                  <option value="pro_monthly">Pro Monthly</option>
+                  <option value="pro_yearly">Pro Yearly</option>
+                </select>
+              </label>
+              <label class="admin-field">
+                <span>Credits</span>
+                <input id="editCredits" type="number" min="0" step="1" />
+              </label>
+              <label class="admin-field">
+                <span>Subscription status</span>
+                <select id="editSubscriptionStatus">
+                  <option value="inactive">inactive</option>
+                  <option value="active">active</option>
+                  <option value="trialing">trialing</option>
+                  <option value="past_due">past_due</option>
+                  <option value="canceled">canceled</option>
+                  <option value="unpaid">unpaid</option>
+                </select>
+              </label>
+              <label class="admin-field">
+                <span>Period end</span>
+                <input id="editPeriodEnd" type="datetime-local" />
+              </label>
+              <label class="admin-field">
+                <span>App role</span>
+                <select id="editRole">
+                  <option value="student">student</option>
+                  <option value="teacher">teacher</option>
+                  <option value="tutor">tutor</option>
+                  <option value="admin">admin</option>
+                </select>
+              </label>
+              <label class="admin-field">
+                <span>Platform access</span>
+                <select id="editPlatformRole">
+                  <option value="user">user</option>
+                  <option value="controller">controller</option>
+                </select>
+              </label>
+              <label class="admin-checkbox admin-field-span">
+                <input id="editResetCredits" type="checkbox" />
+                <span>When changing plan, also set credits to that plan’s default</span>
+              </label>
+              <div class="admin-actions admin-field-span">
+                <button class="billing-button primary" type="submit">Save changes</button>
+                <button class="billing-button" type="button" id="editApplyPlanCredits">Apply plan credits</button>
               </div>
             </form>
-            <p class="billing-status" id="controllerStatus" role="status" aria-live="polite"></p>
-            <div class="admin-table-wrap">
-              <table class="admin-table" aria-label="Controllers">
-                <thead>
-                  <tr><th>Email</th><th>Name</th><th>Role</th><th></th></tr>
-                </thead>
-                <tbody id="controllerTableBody"></tbody>
-              </table>
-            </div>
+            <p class="billing-status" id="editorStatus" role="status" aria-live="polite"></p>
+            <div class="admin-meta" id="editorMeta"></div>
           </article>
         </div>
       </section>
     </main>
   </div>
-  <script src="admin-access.js?v=admin-controller-v1"></script>
+  <script src="admin-access.js?v=admin-users-v1"></script>
 </body>
 </html>

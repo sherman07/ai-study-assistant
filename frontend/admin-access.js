@@ -1,6 +1,14 @@
 (function () {
   "use strict";
 
+  let plansById = {
+    free: { id: "free", label: "Free", credits: 500 },
+    pro_monthly: { id: "pro_monthly", label: "Pro Monthly", credits: 4000 },
+    pro_yearly: { id: "pro_yearly", label: "Pro Yearly", credits: 4000 }
+  };
+  let usersCache = [];
+  let selectedUserId = "";
+
   function setGate(message, type = "info") {
     const gate = document.getElementById("adminGate");
     if (!gate) return;
@@ -29,6 +37,25 @@
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
+  }
+
+  function planLabel(plan) {
+    return plansById[plan]?.label || plan || "Free";
+  }
+
+  function formatDate(value) {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return "—";
+    return date.toLocaleString();
+  }
+
+  function toLocalInputValue(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (!Number.isFinite(date.getTime())) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 
   async function adminFetch(path, options = {}) {
@@ -89,116 +116,142 @@
     }
   }
 
-  function renderAccess(entries) {
-    const body = document.getElementById("accessTableBody");
+  function renderUsers(users) {
+    const body = document.getElementById("usersTableBody");
+    const hint = document.getElementById("usersCountHint");
     if (!body) return;
-    if (!entries.length) {
-      body.innerHTML = `<tr><td colspan="4">No allowlist entries yet.</td></tr>`;
+    if (hint) {
+      hint.textContent = users.length
+        ? `${users.length} user${users.length === 1 ? "" : "s"} loaded from Supabase.`
+        : "No users found yet. People appear here after they sign up.";
+    }
+    if (!users.length) {
+      body.innerHTML = `<tr><td colspan="7">No users match this search.</td></tr>`;
       return;
     }
-    body.innerHTML = entries.map(entry => `
-      <tr>
-        <td>${escapeHtml(entry.email)}</td>
-        <td>${escapeHtml(entry.note || "—")}</td>
-        <td>${escapeHtml(entry.grantedByEmail || "—")}</td>
+    body.innerHTML = users.map((user) => `
+      <tr class="${user.id === selectedUserId ? "is-selected" : ""}" data-user-row="${escapeHtml(user.id)}">
         <td>
-          <button type="button" data-remove-access="${escapeHtml(entry.email)}">Remove</button>
+          ${escapeHtml(user.email || "—")}
+          ${user.bootstrap ? ' <span class="admin-badge">primary</span>' : ""}
+          ${user.platformRole === "controller" && !user.bootstrap ? ' <span class="admin-badge">controller</span>' : ""}
         </td>
-      </tr>
-    `).join("");
-  }
-
-  function renderControllers(controllers) {
-    const body = document.getElementById("controllerTableBody");
-    if (!body) return;
-    body.innerHTML = controllers.map(user => `
-      <tr>
-        <td>${escapeHtml(user.email)}${user.bootstrap ? ' <span class="admin-badge">primary</span>' : ""}</td>
         <td>${escapeHtml(user.displayName || "—")}</td>
-        <td>controller</td>
+        <td>${escapeHtml(planLabel(user.plan))}</td>
+        <td>${escapeHtml(String(user.credits ?? 0))}</td>
+        <td>${escapeHtml(user.subscriptionStatus || "inactive")}</td>
+        <td>${escapeHtml(user.platformRole || "user")}</td>
         <td>
-          ${user.bootstrap
-            ? "—"
-            : `<button type="button" data-remove-controller="${escapeHtml(user.email)}">Demote</button>`}
+          <button type="button" class="admin-edit-btn" data-edit-user="${escapeHtml(user.id)}">Edit</button>
         </td>
       </tr>
     `).join("");
   }
 
-  async function refreshLists() {
-    const [access, controllers] = await Promise.all([
-      adminFetch("/api/admin/access"),
-      adminFetch("/api/admin/controllers")
-    ]);
-    const hint = document.getElementById("accessModeHint");
-    if (hint) {
-      hint.textContent = access.siteAccessMode === "allowlist"
-        ? "Invite-only mode is on. Only listed emails and controllers can use Synapse."
-        : "Access mode is currently open. The list below is ready for when you switch to invite-only in Controller settings.";
-    }
-    renderAccess(access.entries || []);
-    renderControllers(controllers.controllers || []);
+  function fillPlanSelect(plans) {
+    const select = document.getElementById("editPlan");
+    if (!select || !plans?.length) return;
+    select.innerHTML = plans.map((plan) => (
+      `<option value="${escapeHtml(plan.id)}">${escapeHtml(plan.label || plan.id)}</option>`
+    )).join("");
   }
 
-  async function addAccess(event) {
+  function openEditor(user) {
+    selectedUserId = user.id;
+    const editor = document.getElementById("userEditor");
+    if (editor) editor.hidden = false;
+    document.getElementById("editUserId").value = user.id || "";
+    document.getElementById("editEmail").value = user.email || "";
+    document.getElementById("editDisplayName").value = user.displayName || "";
+    document.getElementById("editPlan").value = user.plan || "free";
+    document.getElementById("editCredits").value = String(user.credits ?? plansById[user.plan]?.credits ?? 500);
+    document.getElementById("editSubscriptionStatus").value = user.subscriptionStatus || "inactive";
+    document.getElementById("editPeriodEnd").value = toLocalInputValue(user.currentPeriodEnd);
+    document.getElementById("editRole").value = user.role || "student";
+    document.getElementById("editPlatformRole").value = user.platformRole || "user";
+    document.getElementById("editPlatformRole").disabled = Boolean(user.bootstrap);
+    document.getElementById("editResetCredits").checked = false;
+    document.getElementById("editorSubtitle").textContent = user.email
+      ? `Editing ${user.email}`
+      : "Update billing, credits, and rights for the selected account.";
+    document.getElementById("editorMeta").innerHTML = `
+      <div><span>User id</span><strong>${escapeHtml(user.id || "—")}</strong></div>
+      <div><span>Auth provider</span><strong>${escapeHtml(user.authProvider || "—")}</strong></div>
+      <div><span>Stripe customer</span><strong>${escapeHtml(user.stripeCustomerId || "—")}</strong></div>
+      <div><span>Created</span><strong>${escapeHtml(formatDate(user.createdAt))}</strong></div>
+      <div><span>Updated</span><strong>${escapeHtml(formatDate(user.updatedAt))}</strong></div>
+    `;
+    setStatus("editorStatus", "");
+    renderUsers(usersCache);
+    editor?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function closeEditor() {
+    selectedUserId = "";
+    const editor = document.getElementById("userEditor");
+    if (editor) editor.hidden = true;
+    setStatus("editorStatus", "");
+    renderUsers(usersCache);
+  }
+
+  async function refreshUsers(query = "") {
+    setStatus("usersStatus", "Loading users…", "info");
+    const data = await adminFetch(`/api/admin/users?limit=200&q=${encodeURIComponent(query)}`);
+    if (Array.isArray(data.plans)) {
+      plansById = Object.fromEntries(data.plans.map((plan) => [plan.id, plan]));
+      fillPlanSelect(data.plans);
+    }
+    usersCache = data.users || [];
+    renderUsers(usersCache);
+    if (selectedUserId) {
+      const selected = usersCache.find((user) => user.id === selectedUserId);
+      if (selected) openEditor(selected);
+      else closeEditor();
+    }
+    setStatus("usersStatus", usersCache.length ? "" : "No users found.", usersCache.length ? "" : "info");
+  }
+
+  async function saveUser(event) {
     event.preventDefault();
-    setStatus("accessStatus", "Saving to Supabase…", "info");
+    const userId = document.getElementById("editUserId")?.value || "";
+    if (!userId) return;
+    const plan = document.getElementById("editPlan")?.value || "free";
+    const resetCredits = Boolean(document.getElementById("editResetCredits")?.checked);
+    const body = {
+      displayName: document.getElementById("editDisplayName")?.value || "",
+      plan,
+      credits: Number(document.getElementById("editCredits")?.value || 0),
+      subscriptionStatus: document.getElementById("editSubscriptionStatus")?.value || "inactive",
+      currentPeriodEnd: document.getElementById("editPeriodEnd")?.value
+        ? new Date(document.getElementById("editPeriodEnd").value).toISOString()
+        : null,
+      role: document.getElementById("editRole")?.value || "student",
+      platformRole: document.getElementById("editPlatformRole")?.value || "user",
+      resetCredits
+    };
+    if (resetCredits) {
+      body.credits = plansById[plan]?.credits ?? body.credits;
+    }
+    setStatus("editorStatus", "Saving to Supabase…", "info");
     try {
-      await adminFetch("/api/admin/access", {
-        method: "POST",
-        body: JSON.stringify({
-          email: document.getElementById("accessEmail")?.value || "",
-          note: document.getElementById("accessNote")?.value || ""
-        })
+      const data = await adminFetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+        method: "PATCH",
+        body: JSON.stringify(body)
       });
-      event.target.reset();
-      setStatus("accessStatus", "Access granted.", "success");
-      await refreshLists();
+      setStatus("editorStatus", "User updated.", "success");
+      const query = document.getElementById("usersSearch")?.value || "";
+      await refreshUsers(query);
+      if (data.user) openEditor(data.user);
     } catch (error) {
-      setStatus("accessStatus", error.message || "Could not add access.", "error");
+      setStatus("editorStatus", error.message || "Could not save user.", "error");
     }
   }
 
-  async function addController(event) {
-    event.preventDefault();
-    setStatus("controllerStatus", "Saving to Supabase…", "info");
-    try {
-      await adminFetch("/api/admin/controllers", {
-        method: "POST",
-        body: JSON.stringify({
-          email: document.getElementById("controllerEmail")?.value || ""
-        })
-      });
-      event.target.reset();
-      setStatus("controllerStatus", "Controller assigned.", "success");
-      await refreshLists();
-    } catch (error) {
-      setStatus("controllerStatus", error.message || "Could not assign controller.", "error");
-    }
-  }
-
-  document.addEventListener("click", async (event) => {
-    const accessEmail = event.target?.getAttribute?.("data-remove-access");
-    const controllerEmail = event.target?.getAttribute?.("data-remove-controller");
-    if (accessEmail) {
-      setStatus("accessStatus", "Updating Supabase…", "info");
-      try {
-        await adminFetch(`/api/admin/access/${encodeURIComponent(accessEmail)}`, { method: "DELETE" });
-        setStatus("accessStatus", "Access removed.", "success");
-        await refreshLists();
-      } catch (error) {
-        setStatus("accessStatus", error.message || "Could not remove access.", "error");
-      }
-    }
-    if (controllerEmail) {
-      setStatus("controllerStatus", "Updating Supabase…", "info");
-      try {
-        await adminFetch(`/api/admin/controllers/${encodeURIComponent(controllerEmail)}`, { method: "DELETE" });
-        setStatus("controllerStatus", "Controller demoted.", "success");
-        await refreshLists();
-      } catch (error) {
-        setStatus("controllerStatus", error.message || "Could not demote controller.", "error");
-      }
+  document.addEventListener("click", (event) => {
+    const editId = event.target?.getAttribute?.("data-edit-user");
+    if (editId) {
+      const user = usersCache.find((entry) => entry.id === editId);
+      if (user) openEditor(user);
     }
   });
 
@@ -206,12 +259,40 @@
     const ok = await ensureController();
     if (!ok) return;
     try {
-      await refreshLists();
+      await refreshUsers();
     } catch (error) {
-      setGate(error.message || "Could not load access data from Supabase.", "error");
+      setGate(error.message || "Could not load users from Supabase.", "error");
       return;
     }
-    document.getElementById("accessForm")?.addEventListener("submit", addAccess);
-    document.getElementById("controllerForm")?.addEventListener("submit", addController);
+
+    document.getElementById("usersSearchForm")?.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        await refreshUsers(document.getElementById("usersSearch")?.value || "");
+      } catch (error) {
+        setStatus("usersStatus", error.message || "Search failed.", "error");
+      }
+    });
+
+    document.getElementById("usersRefresh")?.addEventListener("click", async () => {
+      try {
+        await refreshUsers(document.getElementById("usersSearch")?.value || "");
+      } catch (error) {
+        setStatus("usersStatus", error.message || "Refresh failed.", "error");
+      }
+    });
+
+    document.getElementById("userEditForm")?.addEventListener("submit", saveUser);
+    document.getElementById("editorClose")?.addEventListener("click", closeEditor);
+    document.getElementById("editApplyPlanCredits")?.addEventListener("click", () => {
+      const plan = document.getElementById("editPlan")?.value || "free";
+      document.getElementById("editCredits").value = String(plansById[plan]?.credits ?? 500);
+    });
+    document.getElementById("editPlan")?.addEventListener("change", () => {
+      if (document.getElementById("editResetCredits")?.checked) {
+        const plan = document.getElementById("editPlan")?.value || "free";
+        document.getElementById("editCredits").value = String(plansById[plan]?.credits ?? 500);
+      }
+    });
   });
 })();

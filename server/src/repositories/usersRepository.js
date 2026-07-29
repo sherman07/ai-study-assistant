@@ -1,3 +1,4 @@
+import { creditsForPlan } from "../billing/plans.js";
 import { firstSupabaseRow, supabaseRequest } from "../supabase/rest.js";
 import { stableUserId } from "../utils/ids.js";
 import { cleanString, jsonValue, nullableString } from "../utils/validators.js";
@@ -21,6 +22,13 @@ function normalizeIdentity(identity = {}) {
 }
 
 function mapUser(row = {}) {
+  const metadata = jsonValue(row.metadata_json, {});
+  const plan = row.plan || "free";
+  const creditsRaw = metadata.credits;
+  const creditsParsed = Number(creditsRaw);
+  const credits = Number.isFinite(creditsParsed) && creditsParsed >= 0
+    ? Math.floor(creditsParsed)
+    : creditsForPlan(plan);
   return {
     id: row.id,
     authProvider: row.auth_provider,
@@ -32,10 +40,11 @@ function mapUser(row = {}) {
     platformRole: row.platform_role || "user",
     stripeCustomerId: row.stripe_customer_id || "",
     stripeSubscriptionId: row.stripe_subscription_id || "",
-    plan: row.plan || "free",
+    plan,
     subscriptionStatus: row.subscription_status || "inactive",
     currentPeriodEnd: row.current_period_end || null,
-    metadata: jsonValue(row.metadata_json, {}),
+    credits,
+    metadata,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -55,7 +64,7 @@ function supabaseUserRow(identity = {}) {
   };
 }
 
-function supabaseUserPatch(patch = {}) {
+function supabaseUserPatch(patch = {}, existingMetadata = {}) {
   const next = {};
   if (patch.email !== undefined) next.email = nullableString(patch.email, 255);
   if (patch.displayName !== undefined || patch.display_name !== undefined) {
@@ -68,8 +77,15 @@ function supabaseUserPatch(patch = {}) {
     const role = cleanString(patch.platformRole || patch.platform_role, 40).toLowerCase();
     next.platform_role = role === "controller" ? "controller" : "user";
   }
-  if (patch.metadata !== undefined) {
-    next.metadata_json = patch.metadata || {};
+  let metadata = patch.metadata !== undefined
+    ? (patch.metadata || {})
+    : null;
+  if (patch.credits !== undefined) {
+    const credits = Math.max(0, Math.floor(Number(patch.credits) || 0));
+    metadata = { ...(metadata || existingMetadata || {}), credits };
+  }
+  if (metadata !== null) {
+    next.metadata_json = metadata;
   }
   if (patch.stripeCustomerId !== undefined || patch.stripe_customer_id !== undefined) {
     next.stripe_customer_id = nullableString(patch.stripeCustomerId || patch.stripe_customer_id, 255);
@@ -84,7 +100,8 @@ function supabaseUserPatch(patch = {}) {
     next.subscription_status = cleanString(patch.subscriptionStatus || patch.subscription_status, 80) || "inactive";
   }
   if (patch.currentPeriodEnd !== undefined || patch.current_period_end !== undefined) {
-    next.current_period_end = patch.currentPeriodEnd || patch.current_period_end || null;
+    const value = patch.currentPeriodEnd ?? patch.current_period_end;
+    next.current_period_end = value ? value : null;
   }
   return next;
 }
@@ -120,8 +137,10 @@ async function supabaseUpsertUser(identity = {}) {
 }
 
 async function supabasePatchUser(userId, patch = {}) {
-  const next = supabaseUserPatch(patch);
-  if (!Object.keys(next).length) return supabaseGetUserById(userId);
+  const needsExisting = patch.credits !== undefined && patch.metadata === undefined;
+  const existing = needsExisting ? await supabaseGetUserById(userId) : null;
+  const next = supabaseUserPatch(patch, existing?.metadata || {});
+  if (!Object.keys(next).length) return existing || supabaseGetUserById(userId);
   const payload = await supabaseRequest("PATCH", "users", {
     query: { id: `eq.${cleanString(userId, 80)}` },
     body: next,
@@ -177,6 +196,23 @@ async function supabaseSearchUsersByEmail(query, limit = 20) {
   return (Array.isArray(payload) ? payload : []).map(mapUser);
 }
 
+async function supabaseListUsers({ query = "", limit = 100, offset = 0 } = {}) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
+  const safeOffset = Math.max(Number(offset) || 0, 0);
+  const needle = cleanString(query, 255).toLowerCase().replace(/[*%,]/g, "");
+  const requestQuery = {
+    select: "*",
+    order: "created_at.desc",
+    limit: safeLimit,
+    offset: safeOffset
+  };
+  if (needle) {
+    requestQuery.or = `(email.ilike.*${needle}*,display_name.ilike.*${needle}*)`;
+  }
+  const payload = await supabaseRequest("GET", "users", { query: requestQuery });
+  return (Array.isArray(payload) ? payload : []).map(mapUser);
+}
+
 
 async function upsertUser(identity = {}) {
   return supabaseUpsertUser(identity);
@@ -199,6 +235,9 @@ async function listControllers(limit = 100) {
 async function searchUsersByEmail(query, limit = 20) {
   return supabaseSearchUsersByEmail(query, limit);
 }
+async function listUsers(options = {}) {
+  return supabaseListUsers(options);
+}
 async function patchUser(userId, patch = {}) {
   return supabasePatchUser(userId, patch);
 }
@@ -214,6 +253,7 @@ export {
   getUserByStripeCustomerId,
   getUserByStripeSubscriptionId,
   listControllers,
+  listUsers,
   mapUser,
   normalizeIdentity,
   patchUser,

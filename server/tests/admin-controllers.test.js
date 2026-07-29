@@ -30,6 +30,19 @@ test("publicAdminUser normalizes controller flag", () => {
     plan: "pro_monthly"
   });
   assert.equal(user.platformRole, "controller");
+  assert.equal(user.credits, 4000);
   assert.equal(normalizePlatformRole("CONTROLLER"), "controller");
   assert.equal(normalizePlatformRole("admin"), "user");
+});
+
+test("publicAdminUser keeps explicit credit overrides", () => {
+  const user = publicAdminUser({
+    id: "u2",
+    email: "learner@school.edu",
+    plan: "free",
+    credits: 120
+  });
+  assert.equal(user.platformRole, "user");
+  assert.equal(user.credits, 120);
+  assert.equal(user.plan, "free");
 });

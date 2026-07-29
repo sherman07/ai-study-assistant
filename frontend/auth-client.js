@@ -393,7 +393,9 @@
       billingPlan: plan,
       subscriptionStatus: user.subscriptionStatus || session.subscriptionStatus || "inactive",
       currentPeriodEnd: user.currentPeriodEnd || session.currentPeriodEnd || null,
-      credits: creditsForPlan(plan)
+      credits: Number.isFinite(Number(user.credits))
+        ? Math.max(0, Math.floor(Number(user.credits)))
+        : creditsForPlan(plan)
     };
   }
 

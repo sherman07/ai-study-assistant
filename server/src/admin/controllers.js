@@ -1,4 +1,5 @@
 import { config } from "../config.js";
+import { resolveUserCredits } from "../billing/plans.js";
 import { cleanString } from "../utils/validators.js";
 
 const PRIMARY_CONTROLLER_EMAIL = "shermanzheng8@gmail.com";
@@ -45,8 +46,13 @@ function publicAdminUser(user = {}) {
     platformRole: isControllerUser(user) ? "controller" : "user",
     plan: user.plan || "free",
     subscriptionStatus: user.subscriptionStatus || user.subscription_status || "inactive",
+    currentPeriodEnd: user.currentPeriodEnd || user.current_period_end || null,
+    credits: resolveUserCredits(user),
+    stripeCustomerId: user.stripeCustomerId || user.stripe_customer_id || "",
+    authProvider: user.authProvider || user.auth_provider || "",
     createdAt: user.createdAt || user.created_at || null,
-    updatedAt: user.updatedAt || user.updated_at || null
+    updatedAt: user.updatedAt || user.updated_at || null,
+    bootstrap: Boolean(user.bootstrap)
   };
 }
 

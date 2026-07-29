@@ -67,6 +67,20 @@ function normalizePlan(plan) {
   return checkoutPlans[cleanPlan]?.plan || "free";
 }
 
+function creditsForPlan(plan) {
+  const normalized = normalizePlan(plan);
+  return checkoutPlans[normalized]?.credits ?? 500;
+}
+
+function resolveUserCredits(user = {}) {
+  const raw = user.credits ?? user.metadata?.credits;
+  const parsed = Number(raw);
+  if (Number.isFinite(parsed) && parsed >= 0) {
+    return Math.floor(parsed);
+  }
+  return creditsForPlan(user.plan || user.billingPlan || "free");
+}
+
 function normalizeSubscriptionStatus(status) {
   const cleanStatus = cleanString(status, 80).toLowerCase();
   return cleanStatus || "inactive";
@@ -112,10 +126,12 @@ export {
   billingPlanList,
   checkoutPlan,
   checkoutPlanByPrice,
+  creditsForPlan,
   hasActivePro,
   isActiveProStatus,
   normalizePlan,
   normalizeSubscriptionStatus,
+  resolveUserCredits,
   subscriptionAccessPlan,
   userEntitlements
 };

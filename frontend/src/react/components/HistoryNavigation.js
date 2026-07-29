@@ -151,7 +151,7 @@ export function HistoryNavigation() {
               role: "menuitem",
             },
             icon("bi-people"),
-            h("span", null, "Site access")
+            h("span", null, "Users")
           ),
           h(
             "button",

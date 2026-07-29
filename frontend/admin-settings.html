@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Controller Settings | Synapse</title>
+  <meta name="robots" content="noindex,nofollow" />
+  <meta name="theme-color" content="#4a7cff" />
+  <script src="theme-bootstrap.js?v=theme-system-v2"></script>
+  <link rel="icon" type="image/png" href="/logos/synapse.png">
+  <link rel="stylesheet" href="billing-pages.css?v=stripe-billing-v1">
+  <link rel="stylesheet" href="admin-pages.css?v=admin-controller-v1">
+  <link rel="stylesheet" href="styles/00-theme.css?v=ui-english-v1">
+  <link rel="stylesheet" href="styles/99-dark-mode.css?v=dark-mode-v6">
+  <script src="config.js"></script>
+  <script src="auth-client.js?v=admin-controller-v1"></script>
+</head>
+<body>
+  <div class="billing-shell admin-shell">
+    <nav class="billing-nav" aria-label="Controller navigation">
+      <div class="billing-nav-inner">
+        <a class="billing-logo" href="index.html">
+          <img src="/logos/synapse.png" alt="" />
+          <span>Synapse</span>
+        </a>
+        <div class="billing-nav-links">
+          <a href="admin-settings.html" aria-current="page">Controller settings</a>
+          <a href="admin-access.html">Site access</a>
+          <a href="index.html">Workspace</a>
+        </div>
+      </div>
+    </nav>
+
+    <main class="admin-main">
+      <section class="billing-container admin-hero">
+        <p class="billing-kicker">Controller only</p>
+        <h1>Platform settings</h1>
+        <p>Control how Synapse admits users and who can open the workspace. Stored in Supabase.</p>
+      </section>
+
+      <section class="billing-container">
+        <div id="adminGate" class="admin-card admin-status info show" role="status">Checking controller access…</div>
+
+        <div id="adminContent" class="admin-stack" hidden>
+          <article class="admin-card">
+            <h2>Site admission</h2>
+            <p class="admin-copy">When set to invite-only, only emails on the site access list (and controllers) can use authenticated Synapse APIs.</p>
+            <label class="admin-field">
+              <span>Access mode</span>
+              <select id="siteAccessMode">
+                <option value="open">Open — any signed-in user</option>
+                <option value="allowlist">Invite-only — allowlist required</option>
+              </select>
+            </label>
+            <label class="admin-field admin-checkbox">
+              <input type="checkbox" id="signupOpen" />
+              <span>Allow new signups</span>
+            </label>
+            <div class="admin-actions">
+              <button class="billing-button primary" type="button" id="saveSettingsBtn">Save settings</button>
+              <a class="billing-button" href="admin-access.html">Manage access list</a>
+            </div>
+            <p class="billing-status" id="settingsStatus" role="status" aria-live="polite"></p>
+          </article>
+
+          <article class="admin-card">
+            <h2>Your controller session</h2>
+            <div class="admin-meta" id="controllerMeta"></div>
+          </article>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="admin-settings.js?v=admin-controller-v1"></script>
+</body>
+</html>

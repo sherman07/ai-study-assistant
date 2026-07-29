@@ -840,6 +840,10 @@ function renderAccountMenu() {
   document.querySelectorAll(".account-signed-out-only").forEach(node => {
     node.style.display = signedIn ? "none" : "";
   });
+  const isController = Boolean(session?.isController || session?.platformRole === "controller");
+  document.querySelectorAll(".account-controller-only").forEach(node => {
+    node.style.display = signedIn && isController ? "" : "none";
+  });
 }
 
 async function refreshAccountSessionFromProvider() {

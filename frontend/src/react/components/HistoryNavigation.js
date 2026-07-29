@@ -115,6 +115,28 @@ export function HistoryNavigation() {
             h("span", null, "Settings")
           ),
           h(
+            "a",
+            {
+              className: "account-menu-item account-controller-only",
+              href: "admin-settings.html",
+              style: { display: "none" },
+              role: "menuitem",
+            },
+            icon("bi-shield-lock"),
+            h("span", null, "Controller settings")
+          ),
+          h(
+            "a",
+            {
+              className: "account-menu-item account-controller-only",
+              href: "admin-access.html",
+              style: { display: "none" },
+              role: "menuitem",
+            },
+            icon("bi-people"),
+            h("span", null, "Site access")
+          ),
+          h(
             "button",
             { className: "account-menu-item", type: "button", onClick: legacyAction("openAccountPanel", "help") },
             icon("bi-question-circle"),

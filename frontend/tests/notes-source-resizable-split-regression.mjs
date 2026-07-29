@@ -47,9 +47,9 @@ assert.match(
   "mobile should disable the horizontal splitter"
 );
 
-assert.ok(index.includes("style.css?v=mindmap-original-v1"), "styles should cache-bust for the resizable split");
+assert.ok(index.includes("style.css?v=mindmap-revert-v1"), "styles should cache-bust for the resizable split");
 assert.ok(
-  index.includes("synapse-legacy-controller-combined.js?v=mindmap-original-v1"),
+  index.includes("synapse-legacy-controller-combined.js?v=mindmap-revert-v1"),
   "controller should cache-bust for the resizable split"
 );
 

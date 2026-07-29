@@ -834,8 +834,7 @@ function makeReadableMindLabel(label, detail = "", fallback = "Key point") {
   const cleaned = cleanMindText(label || detail || fallback);
   const formulaScore = (cleaned.match(/[=<>√×^]|\d/g) || []).length;
   const alphaScore = (cleaned.match(/[A-Za-z\u4e00-\u9fff]/g) || []).length;
-  // Only rewrite dense formula strings. Keep full prose labels intact.
-  if (formulaScore > 8 && formulaScore >= alphaScore / 2) {
+  if (cleaned.length > 70 || (formulaScore > 8 && formulaScore >= alphaScore / 2)) {
     const detailText = cleanMindText(detail || cleaned);
     const beforeColon = detailText.split(":")[0].trim();
     if (beforeColon && beforeColon.length >= 4 && beforeColon.length <= 42 && !/[=<>√×^]/.test(beforeColon)) {
@@ -854,22 +853,22 @@ function makeReadableMindLabel(label, detail = "", fallback = "Key point") {
 
 function shortMindText(text, limit = 60) {
   const cleaned = cleanMindText(text)
+    .replace(/\s*(?:\.{3}|…)\s*/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (!cleaned) return "Untitled";
   if (!limit || cleaned.length <= limit) return cleaned;
 
-  const sliced = cleaned.slice(0, Math.max(8, limit - 1)).trim();
-  const separators = [" ", "，", "、", ",", ";", "；", ":", "：", "-", "—", "/", ")", "）"];
+  const sliced = cleaned.slice(0, limit).trim();
+  const separators = [" ", "，", "、", ",", ";", "；", ":", "：", ")", "）"];
   const cut = Math.max(...separators.map(separator => sliced.lastIndexOf(separator)));
-  const minUsefulCut = Math.min(24, Math.floor(limit * 0.4));
-  const clipped = (cut >= minUsefulCut ? sliced.slice(0, cut) : sliced).trim().replace(/[,:;，；/-]+$/g, "");
-  return `${clipped || sliced}…`;
+  const minUsefulCut = Math.min(28, Math.floor(limit * 0.45));
+  return (cut >= minUsefulCut ? sliced.slice(0, cut) : sliced).trim();
 }
 
 function fullMindText(text, fallback = "Untitled") {
-  // Keep ellipsis markers from the generator — they signal intentional soft-trim.
   const cleaned = cleanMindText(text)
+    .replace(/\s*(?:\.{3}|…)\s*/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   return cleaned || fallback;
@@ -1095,9 +1094,8 @@ function isMindBranchCollapsed(branch, index) {
 }
 
 function mindMapDetailHTML(value, fallback = "Open this branch for more detail.") {
-  const raw = typeof value === "string" ? value.trim() : String(value || "").trim();
-  // Prefer the original paragraph so detail cards stay complete.
-  const source = fullMindText(raw || fallback, "Open this branch for more detail.");
+  const raw = String(value || "").trim();
+  const source = cleanMindText(raw || fallback) || "Open this branch for more detail.";
   return markdownToHTML(source);
 }
 
@@ -1145,7 +1143,7 @@ function renderMindMap(mindMap) {
                       type="button"
                       title="${escapeAttr(fullMindText(child.detail || child.label, child.label || "Subpoint"))}"
                       onclick="selectMindChild(${index}, ${pointIndex}, ${childIndex}, event)">
-                ${escapeHTML(shortMindText(child.label || child.detail, 140))}
+                ${escapeHTML(shortMindText(child.label || child.detail, 78))}
               </button>
             `).join("")}
           </div>`
@@ -1156,7 +1154,7 @@ function renderMindMap(mindMap) {
                   type="button"
                   title="${escapeAttr(fullMindText(point.detail || point.label, point.label || "Point"))}"
                   onclick="selectMindPoint(${index}, ${pointIndex}, event)">
-            <span>${escapeHTML(shortMindText(point.label || point.detail, 180))}</span>
+            <span>${escapeHTML(shortMindText(point.label || point.detail, 92))}</span>
             ${children.length ? `<span class="mm-child-count">${children.length}</span>` : ""}
           </button>
           ${childHTML}
@@ -1170,7 +1168,7 @@ function renderMindMap(mindMap) {
                 title="${escapeAttr(fullMindText(branch.summary || branch.label, branch.label || "Branch"))}"
                 onclick="selectMindBranch(${index})">
           <span class="mm-node-dot"></span>
-          <span class="mm-node-label">${escapeHTML(shortMindText(branch.label || branch.summary, 160))}</span>
+          <span class="mm-node-label">${escapeHTML(shortMindText(branch.label || branch.summary, 82))}</span>
           <span class="mm-branch-count">${points.length}</span>
         </button>
         <div class="mm-leaf-list">
@@ -1180,19 +1178,12 @@ function renderMindMap(mindMap) {
     `;
   }).join("");
 
-  const detailTitle = fullMindText(
-    activeChild
-      ? (activeChild.label || activeChild.detail)
-      : activePoint
-        ? (activePoint.label || activePoint.detail)
-        : (activeBranch.label || activeBranch.summary),
-    "Selected point"
-  );
+  const detailTitle = fullMindText(activeChild ? activeChild.label : activePoint ? activePoint.label : activeBranch.label, "Selected point");
   const detailBodySource = activeChild
-    ? (typeof activeChild.rawDetail === "string" ? activeChild.rawDetail : null) || activeChild.detail || activeChild.label
+    ? (activeChild.rawDetail || activeChild.detail || activeChild.label)
     : activePoint
-      ? (typeof activePoint.rawDetail === "string" ? activePoint.rawDetail : null) || activePoint.detail || activePoint.label
-      : (typeof activeBranch.rawSummary === "string" ? activeBranch.rawSummary : null) || activeBranch.summary || activeBranch.label;
+      ? (activePoint.rawDetail || activePoint.detail || activePoint.label)
+      : (activeBranch.rawSummary || activeBranch.summary || activeBranch.label);
   const detailBodyHTML = mindMapDetailHTML(detailBodySource, "Open this branch for more detail.");
   const detailPath = activeChild && activePoint
     ? `${fullMindText(activeBranch.label, "Main branch")} / ${fullMindText(activePoint.label, "Point")}`
@@ -1210,7 +1201,7 @@ function renderMindMap(mindMap) {
           <div class="mm-root-zone">
             <button class="mm-root-node" type="button" onclick="showFullSummary()">
               <span class="mm-root-dot"></span>
-              <span class="mm-root-label">${escapeHTML(shortMindText(data.center || "Study Notes", 160))}</span>
+              <span class="mm-root-label">${escapeHTML(shortMindText(data.center || "Study Notes", 112))}</span>
             </button>
           </div>
 

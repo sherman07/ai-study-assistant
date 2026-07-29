@@ -434,11 +434,16 @@
       dispatchAuthChange(null);
       return null;
     }
-    const storage = preferredSessionStorage();
-    const otherStorage = alternateSessionStorage();
+    const preferred = preferredSessionStorage();
+    const durable = browserStorage("localStorage");
+    const temporary = browserStorage("sessionStorage");
+    const payload = JSON.stringify(session);
     try {
-      storage?.setItem(SESSION_KEY, JSON.stringify(session));
-      otherStorage?.removeItem(SESSION_KEY);
+      // Always keep a durable copy for the workspace account menu. Remember-me
+      // still controls where Supabase auth tokens live.
+      durable?.setItem(SESSION_KEY, payload);
+      if (preferred === temporary) temporary?.setItem(SESSION_KEY, payload);
+      else temporary?.removeItem(SESSION_KEY);
     } catch {}
     if (session.email) setLastEmail(session.email);
     dispatchAuthChange(session);
@@ -505,8 +510,24 @@
     const client = await getSupabaseClient();
     const { data, error } = await client.auth.getSession();
     if (error) throw error;
-    if (data?.session?.user) session = saveSession(publicSessionFromSupabase(data.session));
-    else if (session?.authMode === "supabase") session = saveSession(null);
+    if (data?.session?.user) {
+      session = saveSession(publicSessionFromSupabase(data.session));
+      return syncBillingSessionFromServer(session);
+    }
+
+    // Do not wipe a just-established Synapse session when getSession() is briefly
+    // empty (storage race after redirect). Only clear on explicit sign-out.
+    if (session?.authMode === "supabase" && (session.email || session.accountId)) {
+      try {
+        const { data: userData } = await client.auth.getUser();
+        if (userData?.user) {
+          session = saveSession(publicSessionFromSupabase({ user: userData.user, expires_at: session.expiresAt || null }));
+          return syncBillingSessionFromServer(session);
+        }
+      } catch {}
+      return syncBillingSessionFromServer(session);
+    }
+
     return syncBillingSessionFromServer(session);
   }
 

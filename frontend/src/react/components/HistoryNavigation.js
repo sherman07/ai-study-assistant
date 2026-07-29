@@ -1,7 +1,24 @@
 import { h, icon, legacyAction } from "../runtime.js";
 import { SummaryNavigation } from "./SummaryNavigation.js?v=ai-broadcast-v19";
+import {
+  accountInitials,
+  isControllerSession,
+  useAccountSession
+} from "../accountSession.js?v=auth-session-fix-v2";
 
 export function HistoryNavigation() {
+  const session = useAccountSession();
+  const signedIn = Boolean(session?.email || session?.accountId);
+  const displayName = signedIn ? (session.displayName || session.email) : "Guest Student";
+  const email = signedIn ? session.email : "Not signed in";
+  const plan = signedIn ? (session.plan || "Free") : "Free";
+  const credits = signedIn ? Number(session.credits || 0) : 0;
+  const initials = accountInitials(signedIn ? session : null);
+  const controller = signedIn && isControllerSession(session);
+  const signedInStyle = signedIn ? undefined : { display: "none" };
+  const signedOutStyle = signedIn ? { display: "none" } : undefined;
+  const controllerStyle = controller ? undefined : { display: "none" };
+
   return h(
     "aside",
     {
@@ -52,8 +69,8 @@ export function HistoryNavigation() {
             "aria-haspopup": "menu",
             "aria-label": "Open account menu",
           },
-          h("span", { className: "account-avatar account-menu-avatar" }, "GS"),
-          h("span", { className: "history-account-plan account-menu-plan" }, "Free")
+          h("span", { className: "account-avatar account-menu-avatar" }, initials),
+          h("span", { className: "history-account-plan account-menu-plan" }, plan)
         ),
         h(
           "div",
@@ -61,19 +78,19 @@ export function HistoryNavigation() {
           h(
             "div",
             { className: "account-popover-profile" },
-            h("span", { className: "account-avatar account-menu-avatar" }, "S"),
+            h("span", { className: "account-avatar account-menu-avatar" }, initials),
             h(
               "div",
               null,
-              h("strong", { className: "account-menu-name" }, "Guest Student"),
-              h("p", { className: "account-menu-email" }, "Not signed in")
+              h("strong", { className: "account-menu-name" }, displayName),
+              h("p", { className: "account-menu-email" }, email)
             )
           ),
           h(
             "div",
             { className: "account-plan-row" },
-            h("span", null, icon("bi-lightning-charge"), " ", h("span", { className: "account-menu-plan" }, "Free")),
-            h("strong", null, h("span", { className: "account-menu-credits" }, "0"), " credits")
+            h("span", null, icon("bi-lightning-charge"), " ", h("span", { className: "account-menu-plan" }, plan)),
+            h("strong", null, h("span", { className: "account-menu-credits" }, String(credits)), " credits")
           ),
           h(
             "button",
@@ -86,7 +103,7 @@ export function HistoryNavigation() {
             {
               className: "account-menu-item account-signed-in-only",
               type: "button",
-              style: { display: "none" },
+              style: signedInStyle,
               onClick: legacyAction("openAccountPanel", "profile"),
             },
             icon("bi-person-circle"),
@@ -97,7 +114,7 @@ export function HistoryNavigation() {
             {
               className: "account-menu-item account-signed-in-only",
               type: "button",
-              style: { display: "none" },
+              style: signedInStyle,
               onClick: legacyAction("openAccountPanel", "billing"),
             },
             icon("bi-credit-card"),
@@ -108,7 +125,7 @@ export function HistoryNavigation() {
             {
               className: "account-menu-item account-signed-in-only",
               type: "button",
-              style: { display: "none" },
+              style: signedInStyle,
               onClick: legacyAction("openAccountPanel", "settings"),
             },
             icon("bi-gear"),
@@ -119,7 +136,7 @@ export function HistoryNavigation() {
             {
               className: "account-menu-item account-controller-only",
               href: "admin-settings.html",
-              style: { display: "none" },
+              style: controllerStyle,
               role: "menuitem",
             },
             icon("bi-shield-lock"),
@@ -130,7 +147,7 @@ export function HistoryNavigation() {
             {
               className: "account-menu-item account-controller-only",
               href: "admin-access.html",
-              style: { display: "none" },
+              style: controllerStyle,
               role: "menuitem",
             },
             icon("bi-people"),
@@ -148,7 +165,7 @@ export function HistoryNavigation() {
             {
               className: "account-menu-item account-signed-in-only",
               type: "button",
-              style: { display: "none" },
+              style: signedInStyle,
               onClick: legacyAction("signOutAccount"),
             },
             icon("bi-box-arrow-right"),
@@ -159,6 +176,7 @@ export function HistoryNavigation() {
             {
               className: "account-menu-item account-signed-out-only",
               type: "button",
+              style: signedOutStyle,
               onClick: legacyAction("goToAuthPage", "login"),
             },
             icon("bi-box-arrow-in-right"),

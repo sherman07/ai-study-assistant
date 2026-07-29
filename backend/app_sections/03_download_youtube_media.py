@@ -449,10 +449,27 @@ def clean_mindmap_text(text: str) -> str:
 
 
 def short_mindmap_text(text: str, limit: int = 70) -> str:
+    """Soft-trim mind map copy on sentence/word boundaries — never mid-word."""
     value = clean_mindmap_text(text)
-    if len(value) <= limit:
+    if not value:
+        return ""
+    if limit <= 0 or len(value) <= limit:
         return value
-    return value[: limit - 1].rstrip(" ,;:") + "…"
+
+    window = value[:limit].rstrip()
+    # Prefer a complete sentence when one fits comfortably in the budget.
+    sentence_ends = [window.rfind(mark) for mark in (".", "!", "?", "。", "！", "？")]
+    sentence_end = max(sentence_ends) if sentence_ends else -1
+    min_sentence = min(36, max(16, int(limit * 0.4)))
+    if sentence_end >= min_sentence:
+        return window[: sentence_end + 1].strip()
+
+    sliced = value[: max(8, limit - 1)].rstrip()
+    separators = (" ", "，", "、", ",", ";", "；", ":", "：", "-", "—", "/", ")", "）")
+    cut = max(sliced.rfind(sep) for sep in separators)
+    min_useful = min(24, max(8, int(limit * 0.4)))
+    clipped = (sliced[:cut] if cut >= min_useful else sliced).rstrip(" ,:;，；/-")
+    return f"{clipped or sliced}…"
 
 
 def first_good_sentence(text: str, limit: int = 190) -> str:
@@ -461,6 +478,9 @@ def first_good_sentence(text: str, limit: int = 190) -> str:
     for sentence in sentences:
         sentence = sentence.strip()
         if len(sentence) >= 12:
+            # Keep the whole sentence when it fits; otherwise soft-trim cleanly.
+            if len(sentence) <= limit:
+                return sentence
             return short_mindmap_text(sentence, limit)
     return short_mindmap_text(value, limit)
 
@@ -489,8 +509,8 @@ def split_mindmap_subpoints(text: str, max_children: int = 4) -> List[dict]:
         label_source = re.split(r"[:：,，]", clean, maxsplit=1)[0].strip()
         if len(label_source) < 5 or len(label_source) > 64:
             label_source = clean
-        label = short_mindmap_text(label_source, 46)
-        detail = short_mindmap_text(clean, 240)
+        label = short_mindmap_text(label_source, 72)
+        detail = short_mindmap_text(clean, 900)
         if label:
             children.append({
                 "id": sha256_text(label + detail)[:10],
@@ -514,8 +534,8 @@ def normalise_mindmap_children(raw_children: Any, parent_text: str, max_children
                 detail_text = child.get("detail") or child.get("explanation") or child.get("text") or label_text
             else:
                 continue
-            label = short_mindmap_text(label_text, 46)
-            detail = short_mindmap_text(detail_text, 260)
+            label = short_mindmap_text(label_text, 72)
+            detail = short_mindmap_text(detail_text, 900)
             if label:
                 children.append({
                     "id": sha256_text(label + detail)[:10],
@@ -544,8 +564,8 @@ def extract_branch_items(section_text: str, max_points: int = 5, max_children: i
         nonlocal current
         if not current:
             return
-        label = short_mindmap_text(current.get("label") or current.get("detail") or "", 58)
-        detail = short_mindmap_text(current.get("detail") or current.get("label") or "", 260)
+        label = short_mindmap_text(current.get("label") or current.get("detail") or "", 96)
+        detail = short_mindmap_text(current.get("detail") or current.get("label") or "", 900)
         if label:
             explicit_children = current.get("children") if isinstance(current.get("children"), list) else []
             children = normalise_mindmap_children(explicit_children, detail, max_children=max_children)
@@ -614,8 +634,8 @@ def extract_branch_items(section_text: str, max_points: int = 5, max_children: i
                 continue
             items.append({
                 "id": sha256_text(sentence)[:10],
-                "label": short_mindmap_text(sentence, 58),
-                "detail": short_mindmap_text(sentence, 260),
+                "label": short_mindmap_text(sentence, 96),
+                "detail": short_mindmap_text(sentence, 900),
                 "children": split_mindmap_subpoints(sentence, max_children=max_children),
             })
             if len(items) >= max_points:
@@ -681,19 +701,19 @@ def generate_mind_map(title: str, sections: Dict[str, str], depth: str = "detail
         label = "Summary" if section_name == "Overview" else section_name
         branches.append({
             "id": sha256_text(section_name)[:10],
-            "label": short_mindmap_text(label, 48),
+            "label": short_mindmap_text(label, 96),
             "section": section_name,
-            "summary": first_good_sentence(section_text, 190),
+            "summary": first_good_sentence(section_text, 480),
             "points": extract_branch_items(section_text, max_points=max_points, max_children=max_children),
         })
 
-    center_title = short_mindmap_text(title or "Study Notes", 80) or "Study Notes"
+    center_title = short_mindmap_text(title or "Study Notes", 120) or "Study Notes"
     return {"center": center_title, "branches": branches}
 def normalise_ai_mind_map(raw_map: dict, fallback_map: dict, depth: str = "detailed") -> dict:
     if not isinstance(raw_map, dict):
         return fallback_map
 
-    center = short_mindmap_text(raw_map.get("center") or fallback_map.get("center") or "Study Notes", 80)
+    center = short_mindmap_text(raw_map.get("center") or fallback_map.get("center") or "Study Notes", 120)
     raw_branches = raw_map.get("branches") if isinstance(raw_map.get("branches"), list) else []
     fallback_branches = fallback_map.get("branches", []) or []
     fallback_by_section = {b.get("section"): b for b in fallback_branches}
@@ -709,8 +729,8 @@ def normalise_ai_mind_map(raw_map: dict, fallback_map: dict, depth: str = "detai
             continue
         section = clean_mindmap_text(branch.get("section") or branch.get("label") or "")
         fallback_branch = fallback_by_section.get(section) or (fallback_branches[min(index, len(fallback_branches) - 1)] if fallback_branches else {})
-        label = short_mindmap_text(branch.get("label") or fallback_branch.get("label") or section or f"Branch {index + 1}", 48)
-        summary = short_mindmap_text(branch.get("summary") or fallback_branch.get("summary") or "", 280)
+        label = short_mindmap_text(branch.get("label") or fallback_branch.get("label") or section or f"Branch {index + 1}", 96)
+        summary = short_mindmap_text(branch.get("summary") or fallback_branch.get("summary") or "", 700)
 
         raw_points = branch.get("points") if isinstance(branch.get("points"), list) else []
         points: List[dict] = []
@@ -732,8 +752,8 @@ def normalise_ai_mind_map(raw_map: dict, fallback_map: dict, depth: str = "detai
                 continue
             if isinstance(point, str):
                 raw_children = []
-            label_clean = short_mindmap_text(label_text, 58)
-            detail_clean = short_mindmap_text(detail_text, 420)
+            label_clean = short_mindmap_text(label_text, 96)
+            detail_clean = short_mindmap_text(detail_text, 1200)
             if label_clean:
                 children = normalise_mindmap_children(raw_children, detail_clean, max_children=max_children)
                 normalized_point = {

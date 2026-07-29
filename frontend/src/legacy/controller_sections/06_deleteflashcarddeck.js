@@ -834,8 +834,7 @@ function makeReadableMindLabel(label, detail = "", fallback = "Key point") {
   const cleaned = cleanMindText(label || detail || fallback);
   const formulaScore = (cleaned.match(/[=<>√×^]|\d/g) || []).length;
   const alphaScore = (cleaned.match(/[A-Za-z\u4e00-\u9fff]/g) || []).length;
-  // Only rewrite dense formula strings. Keep full prose labels intact so
-  // titles and paragraphs are not silently replaced with "Key point".
+  // Only rewrite dense formula strings. Keep full prose labels intact.
   if (formulaScore > 8 && formulaScore >= alphaScore / 2) {
     const detailText = cleanMindText(detail || cleaned);
     const beforeColon = detailText.split(":")[0].trim();
@@ -855,7 +854,6 @@ function makeReadableMindLabel(label, detail = "", fallback = "Key point") {
 
 function shortMindText(text, limit = 60) {
   const cleaned = cleanMindText(text)
-    .replace(/\s*(?:\.{3}|…)\s*/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (!cleaned) return "Untitled";
@@ -869,32 +867,13 @@ function shortMindText(text, limit = 60) {
   return `${clipped || sliced}…`;
 }
 
-function mindMapLabelText(text, settings = {}, kind = "branch") {
-  const mode = String(settings.labels || "full").toLowerCase();
-  const cleaned = fullMindText(text, "Untitled");
-  if (mode === "compact") {
-    const limits = { root: 48, branch: 56, point: 64, child: 52 };
-    return shortMindText(cleaned, limits[kind] || 56);
-  }
-  // Full titles: keep complete wording on the map. Soft-cap only extreme outliers
-  // and always end with an ellipsis on a word boundary (never mid-word garbage).
-  const limits = { root: 220, branch: 240, point: 260, child: 220 };
-  return shortMindText(cleaned, limits[kind] || 240);
-}
-
 function fullMindText(text, fallback = "Untitled") {
+  // Keep ellipsis markers from the generator — they signal intentional soft-trim.
+  // Do not strip them, or truncated copy looks like a broken mid-word sentence.
   const cleaned = cleanMindText(text)
-    .replace(/\s*(?:\.{3}|…)\s*/g, " ")
     .replace(/\s+/g, " ")
     .trim();
   return cleaned || fallback;
-}
-
-function mindMapDetailHTML(value, fallback = "Open this branch for more detail.") {
-  const raw = String(value || "").trim();
-  // Prefer the original text so detail cards are not aggressively shortened.
-  const source = (raw || fallback).replace(/\s+/g, " ").trim() || "Open this branch for more detail.";
-  return markdownToHTML(source);
 }
 
 function deriveMindChildrenFromDetail(detail = "", parentLabel = "", maxChildren = 3) {
@@ -1116,6 +1095,13 @@ function isMindBranchCollapsed(branch, index) {
   return collapsedMindBranches.has(getMindBranchKey(branch, index));
 }
 
+function mindMapDetailHTML(value, fallback = "Open this branch for more detail.") {
+  const raw = typeof value === "string" ? value.trim() : String(value || "").trim();
+  // Prefer the original paragraph so detail cards stay complete.
+  const source = fullMindText(raw || fallback, "Open this branch for more detail.");
+  return markdownToHTML(source);
+}
+
 function renderMindMap(mindMap) {
   const data = getMindMapData(mindMap);
   currentMindMap = data;
@@ -1124,8 +1110,7 @@ function renderMindMap(mindMap) {
   const mindMapSettings = getStudyToolSettings("mindmap");
   mindMapCanvas.dataset.mindmapLayout = mindMapSettings.layout || "tree";
   mindMapCanvas.dataset.mindmapDetail = mindMapSettings.detail || "expanded";
-  mindMapCanvas.dataset.mindmapLabels = mindMapSettings.labels || "full";
-  mindMapCanvas.dataset.mindmapEngine = "theta-v2";
+  mindMapCanvas.dataset.mindmapEngine = "theta-v1";
   if (!data.branches.length) {
     mindMapCanvas.innerHTML = `<div class="mindmap-empty">Mind map will appear after analysis.</div>`;
     return;
@@ -1141,8 +1126,6 @@ function renderMindMap(mindMap) {
   const activeChildren = activePoint?.children || [];
   if (activeMindChildIndex >= activeChildren.length || activeBranchCollapsed) activeMindChildIndex = -1;
   const activeChild = activeMindChildIndex >= 0 ? activeChildren[activeMindChildIndex] : null;
-  const compactLayout = String(mindMapSettings.layout || "tree") === "compact";
-  const focusedDetail = String(mindMapSettings.detail || "expanded") === "focused";
 
   const colors = ["#ff7a45", "#19a65a", "#64748b", "#3b82f6", "#f6c343", "#ef4444", "#0ea5e9", "#14b8a6", "#a855f7", "#f97316", "#8f5fe8"];
   const activeColor = colors[activeMindBranchIndex % colors.length];
@@ -1153,13 +1136,11 @@ function renderMindMap(mindMap) {
     const isActive = index === activeMindBranchIndex;
     const isCollapsed = isMindBranchCollapsed(branch, index);
     const points = branch.points || [];
-    // Compact layout only expands the active branch; tree can still expand the active one.
-    const showLeaves = isActive && !isCollapsed && (!compactLayout || isActive);
-    const visiblePoints = showLeaves ? points : [];
+    const visiblePoints = isActive && !isCollapsed ? points : [];
     const leavesHTML = visiblePoints.map((point, pointIndex) => {
-      const children = focusedDetail ? [] : (point.children || []);
+      const children = point.children || [];
       const isPointActive = isActive && pointIndex === activeMindPointIndex;
-      const shouldShowChildren = isPointActive && !isCollapsed && children.length && !focusedDetail;
+      const shouldShowChildren = isPointActive && !isCollapsed && children.length;
       const childHTML = shouldShowChildren
         ? `<div class="mm-subleaf-list" data-mm-node="subleaves">
             ${children.slice(0, 6).map((child, childIndex) => `
@@ -1171,7 +1152,7 @@ function renderMindMap(mindMap) {
                       data-child-index="${childIndex}"
                       title="${escapeAttr(fullMindText(child.detail || child.label, child.label || "Subpoint"))}"
                       onclick="selectMindChild(${index}, ${pointIndex}, ${childIndex}, event)">
-                ${escapeHTML(mindMapLabelText(child.label || child.detail, mindMapSettings, "child"))}
+                ${escapeHTML(shortMindText(child.label || child.detail, 140))}
               </button>
             `).join("")}
           </div>`
@@ -1188,7 +1169,7 @@ function renderMindMap(mindMap) {
                   data-point-index="${pointIndex}"
                   title="${escapeAttr(fullMindText(point.detail || point.label, point.label || "Point"))}"
                   onclick="selectMindPoint(${index}, ${pointIndex}, event)">
-            <span>${escapeHTML(mindMapLabelText(point.label || point.detail, mindMapSettings, "point"))}</span>
+            <span>${escapeHTML(shortMindText(point.label || point.detail, 180))}</span>
             ${children.length ? `<span class="mm-child-count">${children.length}</span>` : ""}
           </button>
           ${childHTML}
@@ -1196,7 +1177,7 @@ function renderMindMap(mindMap) {
       `;
     }).join("");
     return `
-      <div class="mm-tree-branch ${isActive ? "active" : ""} ${isCollapsed ? "collapsed" : ""} ${compactLayout && !isActive ? "is-dimmed" : ""}"
+      <div class="mm-tree-branch ${isActive ? "active" : ""} ${isCollapsed ? "collapsed" : ""}"
            style="--branch-color:${color};"
            data-mm-node="branch"
            data-branch-index="${index}">
@@ -1207,18 +1188,22 @@ function renderMindMap(mindMap) {
                 title="${escapeAttr(fullMindText(branch.summary || branch.label, branch.label || "Branch"))}"
                 onclick="selectMindBranch(${index})">
           <span class="mm-node-dot" aria-hidden="true"></span>
-          <span class="mm-node-label">${escapeHTML(mindMapLabelText(branch.label || branch.summary, mindMapSettings, "branch"))}</span>
+          <span class="mm-node-label">${escapeHTML(shortMindText(branch.label || branch.summary, 160))}</span>
           <span class="mm-branch-count">${points.length}</span>
         </button>
         <div class="mm-leaf-list" data-mm-node="leaves">
-          ${showLeaves ? leavesHTML || `<div class="mindmap-empty-small">No points yet.</div>` : ""}
+          ${isActive && !isCollapsed ? leavesHTML || `<div class="mindmap-empty-small">No points yet.</div>` : ""}
         </div>
       </div>
     `;
   }).join("");
 
   const detailTitle = fullMindText(
-    activeChild ? (activeChild.label || activeChild.detail) : activePoint ? (activePoint.label || activePoint.detail) : (activeBranch.label || activeBranch.summary),
+    activeChild
+      ? (activeChild.label || activeChild.detail)
+      : activePoint
+        ? (activePoint.label || activePoint.detail)
+        : (activeBranch.label || activeBranch.summary),
     "Selected point"
   );
   const detailBodySource = activeChild
@@ -1226,11 +1211,7 @@ function renderMindMap(mindMap) {
     : activePoint
       ? (typeof activePoint.rawDetail === "string" ? activePoint.rawDetail : null) || activePoint.detail || activePoint.label
       : (typeof activeBranch.rawSummary === "string" ? activeBranch.rawSummary : null) || activeBranch.summary || activeBranch.label;
-  // Expanded mode shows the complete paragraph. Focused mode softens length with an ellipsis.
-  const detailBodyForCard = focusedDetail
-    ? shortMindText(fullMindText(detailBodySource, "Open this branch for more detail."), 320)
-    : fullMindText(detailBodySource, "Open this branch for more detail.");
-  const detailBodyHTML = mindMapDetailHTML(detailBodyForCard, "Open this branch for more detail.");
+  const detailBodyHTML = mindMapDetailHTML(detailBodySource, "Open this branch for more detail.");
   const detailPath = activeChild && activePoint
     ? `${fullMindText(activeBranch.label, "Main branch")} / ${fullMindText(activePoint.label, "Point")}`
     : activePoint
@@ -1261,7 +1242,7 @@ function renderMindMap(mindMap) {
             <div class="mm-root-zone">
               <button class="mm-root-node" type="button" data-mm-node="root" onclick="showFullSummary()">
                 <span class="mm-root-dot" aria-hidden="true"></span>
-                <span class="mm-root-label">${escapeHTML(mindMapLabelText(data.center || "Study Notes", mindMapSettings, "root"))}</span>
+                <span class="mm-root-label">${escapeHTML(shortMindText(data.center || "Study Notes", 160))}</span>
               </button>
             </div>
             <div class="mm-tree-zone">
@@ -1315,16 +1296,10 @@ function mindMapAnchorPoint(el, edge = "right") {
   return { x: xBase + width, y };
 }
 
-function mindMapCurvePath(from, to, tension = 0.45) {
+function mindMapCurvePath(from, to) {
   if (!from || !to) return "";
-  const dx = Math.max(28, Math.abs(to.x - from.x) * tension);
+  const dx = Math.max(48, Math.abs(to.x - from.x) * 0.45);
   return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} C ${(from.x + dx).toFixed(1)} ${from.y.toFixed(1)}, ${(to.x - dx).toFixed(1)} ${to.y.toFixed(1)}, ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
-}
-
-function mindMapElbowPath(from, to, hubX) {
-  if (!from || !to) return "";
-  const midX = Number.isFinite(hubX) ? hubX : from.x + Math.max(36, (to.x - from.x) * 0.35);
-  return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} L ${midX.toFixed(1)} ${from.y.toFixed(1)} L ${midX.toFixed(1)} ${to.y.toFixed(1)} L ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
 }
 
 function drawMindMapLinks() {
@@ -1343,63 +1318,26 @@ function drawMindMapLinks() {
   svg.style.height = `${height}px`;
 
   const rootPoint = mindMapAnchorPoint(root, "right");
-  const branchEls = [...mindMapCanvas.querySelectorAll('.mm-tree-branch[data-mm-node="branch"]')];
-  const branchTargets = branchEls.map(branchEl => {
-    const branchBtn = branchEl.querySelector('[data-mm-node="branch-btn"]');
-    return {
-      el: branchEl,
-      btn: branchBtn,
-      color: getComputedStyle(branchEl).getPropertyValue("--branch-color").trim() || "#94a3b8",
-      point: mindMapAnchorPoint(branchBtn, "left"),
-      active: branchEl.classList.contains("active") && !branchEl.classList.contains("collapsed")
-    };
-  }).filter(item => item.point);
-
-  if (!rootPoint || !branchTargets.length) {
-    svg.innerHTML = "";
-    return;
-  }
-
-  const ys = branchTargets.map(item => item.point.y);
-  const spineX = rootPoint.x + 42;
-  const spineTop = Math.min(...ys);
-  const spineBottom = Math.max(...ys);
   const paths = [];
-
-  // One shared trunk + vertical spine, then short colored elbows into each branch.
-  // This avoids the rainbow fan of overlapping curves from the root.
-  paths.push(
-    `<path class="mm-link mm-link--trunk" d="M ${rootPoint.x.toFixed(1)} ${rootPoint.y.toFixed(1)} L ${spineX.toFixed(1)} ${rootPoint.y.toFixed(1)}" stroke="#94a3b8" stroke-width="2.2" fill="none" stroke-linecap="round" opacity="0.72"></path>`
-  );
-  if (Math.abs(spineBottom - spineTop) > 1) {
-    paths.push(
-      `<path class="mm-link mm-link--spine" d="M ${spineX.toFixed(1)} ${spineTop.toFixed(1)} L ${spineX.toFixed(1)} ${spineBottom.toFixed(1)}" stroke="#cbd5e1" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.9"></path>`
-    );
-  }
-
-  branchTargets.forEach(item => {
-    const from = { x: spineX, y: item.point.y };
-    const elbow = mindMapElbowPath(from, item.point, spineX + Math.max(18, (item.point.x - spineX) * 0.35));
-    if (elbow) {
-      paths.push(
-        `<path class="mm-link mm-link--elbow" d="${elbow}" stroke="${item.color}" stroke-width="${item.active ? 2.4 : 1.7}" fill="none" stroke-linecap="round" stroke-linejoin="round" opacity="${item.active ? 0.95 : 0.5}"></path>`
-      );
+  mindMapCanvas.querySelectorAll('.mm-tree-branch[data-mm-node="branch"]').forEach(branchEl => {
+    const color = getComputedStyle(branchEl).getPropertyValue("--branch-color").trim() || "#94a3b8";
+    const branchBtn = branchEl.querySelector('[data-mm-node="branch-btn"]');
+    const branchPoint = mindMapAnchorPoint(branchBtn, "left");
+    const rootToBranch = mindMapCurvePath(rootPoint, branchPoint);
+    if (rootToBranch) {
+      paths.push(`<path d="${rootToBranch}" stroke="${color}" stroke-width="2.4" fill="none" stroke-linecap="round" opacity="0.88"></path>`);
     }
-
-    if (!item.active) return;
-    const leaves = item.el.querySelectorAll('[data-mm-node="leaf"]');
-    const branchRight = mindMapAnchorPoint(item.btn, "right");
+    if (!branchEl.classList.contains("active") || branchEl.classList.contains("collapsed")) return;
+    const leaves = branchEl.querySelectorAll('[data-mm-node="leaf"]');
     leaves.forEach(leaf => {
       const leafPoint = mindMapAnchorPoint(leaf, "left");
-      const leafPath = mindMapCurvePath(branchRight, leafPoint, 0.28);
-      if (leafPath) {
-        paths.push(
-          `<path class="mm-link mm-link--leaf" d="${leafPath}" stroke="${item.color}" stroke-width="1.45" fill="none" stroke-linecap="round" opacity="0.4"></path>`
-        );
+      const branchRight = mindMapAnchorPoint(branchBtn, "right");
+      const branchToLeaf = mindMapCurvePath(branchRight, leafPoint);
+      if (branchToLeaf) {
+        paths.push(`<path d="${branchToLeaf}" stroke="${color}" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.55"></path>`);
       }
     });
   });
-
   svg.innerHTML = paths.join("");
 }
 

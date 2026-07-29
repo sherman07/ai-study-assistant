@@ -596,9 +596,27 @@ function resetWorkspace() {
 
 const AUTH_SESSION_STORAGE_KEY = "synapse.auth.session.v1";
 
+function readAuthSessionFromBrowserStorage() {
+  for (const storage of [window.sessionStorage, window.localStorage]) {
+    try {
+      const raw = storage?.getItem?.(AUTH_SESSION_STORAGE_KEY);
+      const session = raw ? JSON.parse(raw) : null;
+      if (session && typeof session === "object" && (session.email || session.accountId)) {
+        return session;
+      }
+    } catch {}
+  }
+  return null;
+}
+
 function getCurrentAccountSession() {
-  const session = safeReadJSONStorage(AUTH_SESSION_STORAGE_KEY, null);
-  return session && typeof session === "object" ? session : null;
+  // SynapseAuth may keep the session in sessionStorage when Remember me is off.
+  // Prefer the auth client (checks both storages), then fall back to a direct dual read.
+  const fromAuth = window.SynapseAuth?.getStoredSession?.();
+  if (fromAuth && typeof fromAuth === "object" && (fromAuth.email || fromAuth.accountId)) {
+    return fromAuth;
+  }
+  return readAuthSessionFromBrowserStorage();
 }
 
 function accountInitials(session) {
@@ -869,17 +887,21 @@ function goToAuthPage(page = "login") {
 }
 
 function signOutAccount() {
+  const clearLocalAuthSession = () => {
+    try { window.localStorage.removeItem(AUTH_SESSION_STORAGE_KEY); } catch {}
+    try { window.sessionStorage.removeItem(AUTH_SESSION_STORAGE_KEY); } catch {}
+  };
   if (window.SynapseAuth?.signOut) {
     window.SynapseAuth.signOut()
       .catch(error => console.warn("Synapse sign out failed:", error))
       .finally(() => {
-        safeRemoveLocalStorage(AUTH_SESSION_STORAGE_KEY);
+        clearLocalAuthSession();
         renderAccountMenu();
         goToAuthPage("login");
       });
     return;
   }
-  safeRemoveLocalStorage(AUTH_SESSION_STORAGE_KEY);
+  clearLocalAuthSession();
   renderAccountMenu();
   goToAuthPage("login");
 }

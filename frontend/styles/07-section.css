@@ -687,14 +687,11 @@
    Mind Map v4 - simple, expandable, readable
    ========================= */
 .mindmap-canvas {
-  min-height: 560px;
+  min-height: 520px;
   border-radius: 24px;
-  background:
-    radial-gradient(circle at 12% 18%, rgba(59, 130, 246, 0.05), transparent 28%),
-    radial-gradient(circle at 88% 12%, rgba(249, 115, 22, 0.05), transparent 24%),
-    linear-gradient(180deg, #fbfcfe 0%, #f7f9fc 100%);
-  border: 1px solid #e5ebf7;
-  padding: 12px;
+  background: #ffffff;
+  border: 1px solid #dce5fb;
+  padding: 20px;
   overflow: hidden;
   position: relative;
 }
@@ -717,108 +714,39 @@
 .mm-shell {
   position: relative;
   display: block;
-  min-height: 520px;
-}
-
-.mm-shell--theta {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  min-height: 540px;
-}
-
-.mm-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  padding: 4px 6px;
-}
-
-.mm-toolbar-group {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 4px;
-  border: 1px solid #dbe4f7;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 8px 20px rgba(49, 65, 100, 0.06);
-}
-
-.mm-tool-btn {
-  width: 34px;
-  height: 34px;
-  border: 0;
-  border-radius: 999px;
-  background: transparent;
-  color: #314164;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.mm-tool-btn:hover,
-.mm-tool-btn:focus-visible {
-  background: #eef3ff;
-}
-
-.mm-zoom-label {
-  min-width: 46px;
-  text-align: center;
-  font-size: 0.82rem;
-  font-weight: 800;
-  color: #4b5d82;
-}
-
-.mm-toolbar-hint {
-  margin-left: auto;
-  color: #8a97b5;
-  font-size: 0.78rem;
-  font-weight: 650;
-}
-
-.mm-viewport {
-  position: relative;
-  flex: 1;
   min-height: 480px;
-  overflow: hidden;
-  border-radius: 18px;
-  cursor: grab;
-  touch-action: none;
 }
 
-.mm-viewport.is-panning {
-  cursor: grabbing;
+.mm-map-scroll {
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 2px 6px 16px 0;
+  scrollbar-width: thin;
+  scrollbar-color: #b9c9f7 #edf3ff;
+  -webkit-overflow-scrolling: touch;
 }
 
-.mm-world {
-  position: relative;
-  transform-origin: 0 0;
-  min-width: 100%;
-  min-height: 100%;
-  padding: 18px 12px 28px;
-  will-change: transform;
+.mm-map-scroll::-webkit-scrollbar {
+  height: 10px;
 }
 
-.mm-links {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-  overflow: visible;
-  z-index: 0;
+.mm-map-scroll::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: #edf3ff;
+}
+
+.mm-map-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: #b9c9f7;
 }
 
 .mm-layout {
-  position: relative;
-  z-index: 1;
   min-width: 980px;
   min-height: 430px;
   display: grid;
   grid-template-columns: 180px minmax(760px, 1fr);
-  gap: 34px;
+  gap: 26px;
   align-items: start;
 }
 
@@ -867,11 +795,18 @@
   font-weight: 900;
   line-height: 1.42;
   cursor: pointer;
-  animation: mmNodeIn 0.28s ease both;
 }
 
 .mm-root-node::after {
-  display: none;
+  content: "";
+  position: absolute;
+  right: -48px;
+  top: 50%;
+  width: 48px;
+  height: 3px;
+  background: #b8caf7;
+  border-radius: 999px;
+  transform: translateY(-50%);
 }
 
 .mm-root-dot {
@@ -900,11 +835,18 @@
 
 .mm-tree-list {
   position: relative;
-  padding-left: 8px;
+  padding-left: 28px;
 }
 
 .mm-tree-list::before {
-  display: none;
+  content: "";
+  position: absolute;
+  left: 7px;
+  top: 18px;
+  bottom: 18px;
+  width: 3px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(79, 104, 255, 0.12), rgba(143, 95, 232, 0.28), rgba(34, 184, 207, 0.14));
 }
 
 .mm-tree-branch {
@@ -917,18 +859,18 @@
   border: 1px solid transparent;
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.55);
-  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
-  animation: mmNodeIn 0.34s ease both;
+  transition: border-color 0.16s ease, background 0.16s ease, box-shadow 0.16s ease;
 }
 
-.mm-tree-branch:nth-child(1) { animation-delay: 0.02s; }
-.mm-tree-branch:nth-child(2) { animation-delay: 0.05s; }
-.mm-tree-branch:nth-child(3) { animation-delay: 0.08s; }
-.mm-tree-branch:nth-child(4) { animation-delay: 0.11s; }
-.mm-tree-branch:nth-child(5) { animation-delay: 0.14s; }
-
 .mm-tree-branch::before {
-  display: none;
+  content: "";
+  position: absolute;
+  left: -25px;
+  top: 30px;
+  width: 25px;
+  height: 3px;
+  border-radius: 999px;
+  background: var(--branch-color);
 }
 
 .mm-tree-branch.active {
@@ -936,11 +878,6 @@
   background: linear-gradient(135deg, color-mix(in srgb, var(--branch-color) 8%, #ffffff), #ffffff);
   box-shadow: 0 16px 34px rgba(54, 75, 135, 0.08);
   padding: 14px;
-}
-
-@keyframes mmNodeIn {
-  from { opacity: 0; transform: translateX(-8px); }
-  to { opacity: 1; transform: translateX(0); }
 }
 
 .mm-tree-branch.collapsed {

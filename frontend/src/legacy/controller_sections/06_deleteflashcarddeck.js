@@ -869,7 +869,6 @@ function shortMindText(text, limit = 60) {
 
 function fullMindText(text, fallback = "Untitled") {
   // Keep ellipsis markers from the generator — they signal intentional soft-trim.
-  // Do not strip them, or truncated copy looks like a broken mid-word sentence.
   const cleaned = cleanMindText(text)
     .replace(/\s+/g, " ")
     .trim();
@@ -1110,7 +1109,6 @@ function renderMindMap(mindMap) {
   const mindMapSettings = getStudyToolSettings("mindmap");
   mindMapCanvas.dataset.mindmapLayout = mindMapSettings.layout || "tree";
   mindMapCanvas.dataset.mindmapDetail = mindMapSettings.detail || "expanded";
-  mindMapCanvas.dataset.mindmapEngine = "theta-v1";
   if (!data.branches.length) {
     mindMapCanvas.innerHTML = `<div class="mindmap-empty">Mind map will appear after analysis.</div>`;
     return;
@@ -1127,9 +1125,8 @@ function renderMindMap(mindMap) {
   if (activeMindChildIndex >= activeChildren.length || activeBranchCollapsed) activeMindChildIndex = -1;
   const activeChild = activeMindChildIndex >= 0 ? activeChildren[activeMindChildIndex] : null;
 
-  const colors = ["#ff7a45", "#19a65a", "#64748b", "#3b82f6", "#f6c343", "#ef4444", "#0ea5e9", "#14b8a6", "#a855f7", "#f97316", "#8f5fe8"];
+  const colors = ["#ff7a45", "#19a65a", "#22b8cf", "#8f5fe8", "#f6c343", "#ef4444", "#0ea5e9", "#14b8a6", "#a855f7", "#f97316", "#64748b"];
   const activeColor = colors[activeMindBranchIndex % colors.length];
-  const zoomLabel = `${Math.round(mindMapZoom * 100)}%`;
 
   const branchHTML = data.branches.map((branch, index) => {
     const color = colors[index % colors.length];
@@ -1142,14 +1139,10 @@ function renderMindMap(mindMap) {
       const isPointActive = isActive && pointIndex === activeMindPointIndex;
       const shouldShowChildren = isPointActive && !isCollapsed && children.length;
       const childHTML = shouldShowChildren
-        ? `<div class="mm-subleaf-list" data-mm-node="subleaves">
+        ? `<div class="mm-subleaf-list">
             ${children.slice(0, 6).map((child, childIndex) => `
               <button class="mm-subleaf-node ${isPointActive && childIndex === activeMindChildIndex ? "active" : ""}"
                       type="button"
-                      data-mm-node="child"
-                      data-branch-index="${index}"
-                      data-point-index="${pointIndex}"
-                      data-child-index="${childIndex}"
                       title="${escapeAttr(fullMindText(child.detail || child.label, child.label || "Subpoint"))}"
                       onclick="selectMindChild(${index}, ${pointIndex}, ${childIndex}, event)">
                 ${escapeHTML(shortMindText(child.label || child.detail, 140))}
@@ -1158,15 +1151,9 @@ function renderMindMap(mindMap) {
           </div>`
         : "";
       return `
-        <div class="mm-leaf-group ${isPointActive ? "active" : ""} ${children.length ? "has-children" : ""} ${shouldShowChildren ? "expanded" : ""}"
-             data-mm-node="leaf-group"
-             data-branch-index="${index}"
-             data-point-index="${pointIndex}">
+        <div class="mm-leaf-group ${isPointActive ? "active" : ""} ${children.length ? "has-children" : ""} ${shouldShowChildren ? "expanded" : ""}">
           <button class="mm-leaf-node ${isPointActive ? "active" : ""} ${children.length ? "has-children" : ""}"
                   type="button"
-                  data-mm-node="leaf"
-                  data-branch-index="${index}"
-                  data-point-index="${pointIndex}"
                   title="${escapeAttr(fullMindText(point.detail || point.label, point.label || "Point"))}"
                   onclick="selectMindPoint(${index}, ${pointIndex}, event)">
             <span>${escapeHTML(shortMindText(point.label || point.detail, 180))}</span>
@@ -1177,21 +1164,16 @@ function renderMindMap(mindMap) {
       `;
     }).join("");
     return `
-      <div class="mm-tree-branch ${isActive ? "active" : ""} ${isCollapsed ? "collapsed" : ""}"
-           style="--branch-color:${color};"
-           data-mm-node="branch"
-           data-branch-index="${index}">
+      <div class="mm-tree-branch ${isActive ? "active" : ""} ${isCollapsed ? "collapsed" : ""}" style="--branch-color:${color};">
         <button class="mm-branch-node ${isActive ? "active" : ""}"
                 type="button"
-                data-mm-node="branch-btn"
-                data-branch-index="${index}"
                 title="${escapeAttr(fullMindText(branch.summary || branch.label, branch.label || "Branch"))}"
                 onclick="selectMindBranch(${index})">
-          <span class="mm-node-dot" aria-hidden="true"></span>
+          <span class="mm-node-dot"></span>
           <span class="mm-node-label">${escapeHTML(shortMindText(branch.label || branch.summary, 160))}</span>
           <span class="mm-branch-count">${points.length}</span>
         </button>
-        <div class="mm-leaf-list" data-mm-node="leaves">
+        <div class="mm-leaf-list">
           ${isActive && !isCollapsed ? leavesHTML || `<div class="mindmap-empty-small">No points yet.</div>` : ""}
         </div>
       </div>
@@ -1222,33 +1204,19 @@ function renderMindMap(mindMap) {
   const showDetailPopup = mindDetailPopupOpen && !activeBranchCollapsed && Boolean(activePoint || activeChild);
 
   mindMapCanvas.innerHTML = `
-    <div class="mm-shell mm-shell--theta">
-      <div class="mm-toolbar" role="toolbar" aria-label="Mind map controls">
-        <div class="mm-toolbar-group">
-          <button type="button" class="mm-tool-btn" onclick="adjustMindMapZoom(-0.1)" title="Zoom out" aria-label="Zoom out"><i class="bi bi-dash-lg"></i></button>
-          <span class="mm-zoom-label" aria-live="polite">${escapeHTML(zoomLabel)}</span>
-          <button type="button" class="mm-tool-btn" onclick="adjustMindMapZoom(0.1)" title="Zoom in" aria-label="Zoom in"><i class="bi bi-plus-lg"></i></button>
-        </div>
-        <div class="mm-toolbar-group">
-          <button type="button" class="mm-tool-btn" onclick="fitMindMapView()" title="Fit to view" aria-label="Fit to view"><i class="bi bi-aspect-ratio"></i></button>
-          <button type="button" class="mm-tool-btn" onclick="resetMindMapView()" title="Reset view" aria-label="Reset view"><i class="bi bi-arrow-counterclockwise"></i></button>
-        </div>
-        <div class="mm-toolbar-hint">Drag to pan · scroll sideways · click a branch to expand</div>
-      </div>
-      <div class="mm-viewport" id="mmViewport" aria-label="Interactive mind map">
-        <div class="mm-world" id="mmWorld" style="transform: translate(${Math.round(mindMapPanX)}px, ${Math.round(mindMapPanY)}px) scale(${mindMapZoom});">
-          <svg class="mm-links" id="mmLinks" aria-hidden="true"></svg>
-          <div class="mm-layout mm-tree-layout" id="mmLayout">
-            <div class="mm-root-zone">
-              <button class="mm-root-node" type="button" data-mm-node="root" onclick="showFullSummary()">
-                <span class="mm-root-dot" aria-hidden="true"></span>
-                <span class="mm-root-label">${escapeHTML(shortMindText(data.center || "Study Notes", 160))}</span>
-              </button>
-            </div>
-            <div class="mm-tree-zone">
-              <div class="mm-zone-title">Knowledge tree</div>
-              <div class="mm-tree-list">${branchHTML}</div>
-            </div>
+    <div class="mm-shell">
+      <div class="mm-map-scroll" aria-label="Scrollable mind map">
+        <div class="mm-layout mm-tree-layout">
+          <div class="mm-root-zone">
+            <button class="mm-root-node" type="button" onclick="showFullSummary()">
+              <span class="mm-root-dot"></span>
+              <span class="mm-root-label">${escapeHTML(shortMindText(data.center || "Study Notes", 160))}</span>
+            </button>
+          </div>
+
+          <div class="mm-tree-zone">
+            <div class="mm-zone-title">Knowledge tree</div>
+            <div class="mm-tree-list">${branchHTML}</div>
           </div>
         </div>
       </div>
@@ -1272,161 +1240,6 @@ function renderMindMap(mindMap) {
     </div>
   `;
   renderMath();
-  bindMindMapViewportInteractions();
-  requestAnimationFrame(() => {
-    drawMindMapLinks();
-    requestAnimationFrame(drawMindMapLinks);
-  });
-}
-
-function mindMapAnchorPoint(el, edge = "right") {
-  if (!el) return null;
-  const world = document.getElementById("mmWorld");
-  if (!world) return null;
-  const worldRect = world.getBoundingClientRect();
-  const rect = el.getBoundingClientRect();
-  const zoom = Math.max(0.01, mindMapZoom || 1);
-  const xBase = (rect.left - worldRect.left) / zoom;
-  const yBase = (rect.top - worldRect.top) / zoom;
-  const width = rect.width / zoom;
-  const height = rect.height / zoom;
-  const y = yBase + height / 2;
-  if (edge === "left") return { x: xBase, y };
-  if (edge === "center") return { x: xBase + width / 2, y };
-  return { x: xBase + width, y };
-}
-
-function mindMapCurvePath(from, to) {
-  if (!from || !to) return "";
-  const dx = Math.max(48, Math.abs(to.x - from.x) * 0.45);
-  return `M ${from.x.toFixed(1)} ${from.y.toFixed(1)} C ${(from.x + dx).toFixed(1)} ${from.y.toFixed(1)}, ${(to.x - dx).toFixed(1)} ${to.y.toFixed(1)}, ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
-}
-
-function drawMindMapLinks() {
-  const svg = document.getElementById("mmLinks");
-  const world = document.getElementById("mmWorld");
-  const layout = document.getElementById("mmLayout");
-  const root = mindMapCanvas?.querySelector('[data-mm-node="root"]');
-  if (!svg || !world || !layout || !root) return;
-
-  const width = Math.max(layout.scrollWidth || 0, world.clientWidth || 0, 980);
-  const height = Math.max(layout.scrollHeight || 0, world.clientHeight || 0, 480);
-  svg.setAttribute("width", String(width));
-  svg.setAttribute("height", String(height));
-  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svg.style.width = `${width}px`;
-  svg.style.height = `${height}px`;
-
-  const rootPoint = mindMapAnchorPoint(root, "right");
-  const paths = [];
-  mindMapCanvas.querySelectorAll('.mm-tree-branch[data-mm-node="branch"]').forEach(branchEl => {
-    const color = getComputedStyle(branchEl).getPropertyValue("--branch-color").trim() || "#94a3b8";
-    const branchBtn = branchEl.querySelector('[data-mm-node="branch-btn"]');
-    const branchPoint = mindMapAnchorPoint(branchBtn, "left");
-    const rootToBranch = mindMapCurvePath(rootPoint, branchPoint);
-    if (rootToBranch) {
-      paths.push(`<path d="${rootToBranch}" stroke="${color}" stroke-width="2.4" fill="none" stroke-linecap="round" opacity="0.88"></path>`);
-    }
-    if (!branchEl.classList.contains("active") || branchEl.classList.contains("collapsed")) return;
-    const leaves = branchEl.querySelectorAll('[data-mm-node="leaf"]');
-    leaves.forEach(leaf => {
-      const leafPoint = mindMapAnchorPoint(leaf, "left");
-      const branchRight = mindMapAnchorPoint(branchBtn, "right");
-      const branchToLeaf = mindMapCurvePath(branchRight, leafPoint);
-      if (branchToLeaf) {
-        paths.push(`<path d="${branchToLeaf}" stroke="${color}" stroke-width="1.8" fill="none" stroke-linecap="round" opacity="0.55"></path>`);
-      }
-    });
-  });
-  svg.innerHTML = paths.join("");
-}
-
-function applyMindMapTransform() {
-  const world = document.getElementById("mmWorld");
-  if (!world) return;
-  world.style.transform = `translate(${Math.round(mindMapPanX)}px, ${Math.round(mindMapPanY)}px) scale(${mindMapZoom})`;
-  const label = mindMapCanvas?.querySelector(".mm-zoom-label");
-  if (label) label.textContent = `${Math.round(mindMapZoom * 100)}%`;
-  requestAnimationFrame(drawMindMapLinks);
-}
-
-function adjustMindMapZoom(delta) {
-  mindMapZoom = Math.min(1.8, Math.max(0.55, Number((mindMapZoom + Number(delta || 0)).toFixed(2))));
-  applyMindMapTransform();
-}
-
-function resetMindMapView() {
-  mindMapZoom = 1;
-  mindMapPanX = 0;
-  mindMapPanY = 0;
-  applyMindMapTransform();
-  const viewport = document.getElementById("mmViewport");
-  if (viewport) viewport.scrollLeft = 0;
-}
-
-function fitMindMapView() {
-  const viewport = document.getElementById("mmViewport");
-  const layout = document.getElementById("mmLayout");
-  if (!viewport || !layout) {
-    resetMindMapView();
-    return;
-  }
-  const pad = 48;
-  const scaleX = (viewport.clientWidth - pad) / Math.max(layout.scrollWidth, 1);
-  const scaleY = (viewport.clientHeight - pad) / Math.max(layout.scrollHeight, 1);
-  mindMapZoom = Math.min(1.15, Math.max(0.55, Number(Math.min(scaleX, scaleY, 1).toFixed(2))));
-  mindMapPanX = 0;
-  mindMapPanY = 0;
-  applyMindMapTransform();
-  viewport.scrollLeft = 0;
-}
-
-function bindMindMapViewportInteractions() {
-  const viewport = document.getElementById("mmViewport");
-  if (!viewport || viewport.dataset.mmBound === "1") return;
-  viewport.dataset.mmBound = "1";
-
-  viewport.addEventListener("pointerdown", event => {
-    if (event.button !== 0) return;
-    if (event.target.closest("button, a, .mm-detail-popover, .mm-toolbar")) return;
-    mindMapDragState = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      originX: mindMapPanX,
-      originY: mindMapPanY
-    };
-    viewport.classList.add("is-panning");
-    try { viewport.setPointerCapture(event.pointerId); } catch {}
-  });
-
-  viewport.addEventListener("pointermove", event => {
-    if (!mindMapDragState || mindMapDragState.pointerId !== event.pointerId) return;
-    mindMapPanX = mindMapDragState.originX + (event.clientX - mindMapDragState.startX);
-    mindMapPanY = mindMapDragState.originY + (event.clientY - mindMapDragState.startY);
-    applyMindMapTransform();
-  });
-
-  const endPan = event => {
-    if (!mindMapDragState || (event && mindMapDragState.pointerId !== event.pointerId)) return;
-    mindMapDragState = null;
-    viewport.classList.remove("is-panning");
-  };
-  viewport.addEventListener("pointerup", endPan);
-  viewport.addEventListener("pointercancel", endPan);
-
-  viewport.addEventListener("wheel", event => {
-    if (!(event.ctrlKey || event.metaKey)) return;
-    event.preventDefault();
-    adjustMindMapZoom(event.deltaY > 0 ? -0.08 : 0.08);
-  }, { passive: false });
-
-  if (!window.__synapseMindMapResizeBound) {
-    window.__synapseMindMapResizeBound = true;
-    window.addEventListener("resize", () => {
-      if (mindMapCanvas?.querySelector(".mm-shell--theta")) requestAnimationFrame(drawMindMapLinks);
-    });
-  }
 }
 
 function selectMindBranch(index) {

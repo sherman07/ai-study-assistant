@@ -26,7 +26,7 @@ assert.ok(
   "loading notes should not double-offset when the learning rail already reserves padding"
 );
 
-assert.ok(index.includes("style.css?v=mindmap-text-v1"));
+assert.ok(index.includes("style.css?v=mindmap-original-v1"));
 assert.ok(style.includes('@import url("./styles/04-section.css");'));
 assert.ok(style.includes('@import url("./styles/07-section.css");'));
 assert.ok(historyController.includes('onclick="loadHistoryEntry'));

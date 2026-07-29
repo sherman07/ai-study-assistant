@@ -600,7 +600,7 @@ function switchTool(toolName, clickedBtn = null) {
 
 const STUDY_TOOL_SETTINGS_STORAGE_KEY = "synapse.study-tool.settings.v1";
 const STUDY_TOOL_SETTINGS_DEFAULTS = {
-  mindmap: { layout: "tree", detail: "expanded" },
+  mindmap: { layout: "tree", detail: "expanded", labels: "full" },
   visualguide: { language: "auto", style: "concept_board" },
   timeline: { language: "auto", pace: "balanced" },
   masterygraph: { reviewFilter: "due", priority: "weakest" }
@@ -608,10 +608,26 @@ const STUDY_TOOL_SETTINGS_DEFAULTS = {
 const STUDY_TOOL_SETTINGS_META = {
   mindmap: {
     title: "Mind Map settings",
-    description: "Choose how the knowledge tree is presented while you explore the current notes.",
+    description: "Choose how the knowledge tree is laid out and how much detail each branch shows.",
     fields: [
-      { key: "layout", label: "Map layout", help: "Tree keeps the full branch structure visible; compact focuses attention on the selected branch.", options: [["tree", "Knowledge tree"], ["compact", "Compact focus"]] },
-      { key: "detail", label: "Detail density", help: "Choose whether points open with the full supporting detail or a lighter overview.", options: [["expanded", "Expanded detail"], ["focused", "Focused overview"]] }
+      {
+        key: "layout",
+        label: "Map layout",
+        help: "Tree shows every branch. Compact keeps only the active branch expanded and dims the rest.",
+        options: [["tree", "Knowledge tree"], ["compact", "Compact focus"]]
+      },
+      {
+        key: "detail",
+        label: "Detail density",
+        help: "Expanded shows sub-points under an open card. Focused keeps only the main points visible.",
+        options: [["expanded", "Expanded detail"], ["focused", "Focused overview"]]
+      },
+      {
+        key: "labels",
+        label: "Node labels",
+        help: "Full keeps complete titles on the map. Compact shortens long labels with an ellipsis.",
+        options: [["full", "Full titles"], ["compact", "Shorter labels"]]
+      }
     ]
   },
   visualguide: {
@@ -645,13 +661,18 @@ let studyToolSettingsMemory = {};
 function readStudyToolSettings() {
   const saved = safeReadJSONStorage(STUDY_TOOL_SETTINGS_STORAGE_KEY, {});
   const source = saved && typeof saved === "object" && !Array.isArray(saved) ? saved : {};
-  return Object.fromEntries(Object.entries(STUDY_TOOL_SETTINGS_DEFAULTS).map(([tool, defaults]) => ({
-    [tool]: {
-      ...defaults,
-      ...(source[tool] && typeof source[tool] === "object" ? source[tool] : {}),
-      ...(studyToolSettingsMemory[tool] && typeof studyToolSettingsMemory[tool] === "object" ? studyToolSettingsMemory[tool] : {})
-    }
-  })));
+  return Object.fromEntries(
+    Object.entries(STUDY_TOOL_SETTINGS_DEFAULTS).map(([tool, defaults]) => [
+      tool,
+      {
+        ...defaults,
+        ...(source[tool] && typeof source[tool] === "object" ? source[tool] : {}),
+        ...(studyToolSettingsMemory[tool] && typeof studyToolSettingsMemory[tool] === "object"
+          ? studyToolSettingsMemory[tool]
+          : {})
+      }
+    ])
+  );
 }
 
 function getStudyToolSettings(toolName = "") {
@@ -738,6 +759,9 @@ function saveStudyToolSettingsModal() {
   closeStudyToolSettingsModal();
   if (tool === "mindmap") {
     requestAnimationFrame(() => renderMindMap(currentMindMap));
+    if (typeof showStudyToolNotice === "function") {
+      showStudyToolNotice("Mind map settings applied.", "success");
+    }
   } else if (tool === "timeline") {
     renderTimelinePanel();
   } else if (tool === "masterygraph") {

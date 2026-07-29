@@ -12,21 +12,24 @@ const css = read("frontend/styles/07-section.css");
 const studyTools = read("frontend/src/react/components/StudyTools.js");
 const index = read("frontend/index.html");
 
-assert.ok(mind.includes('dataset.mindmapEngine = "theta-v1"'), "mind map should mark theta engine");
-assert.ok(mind.includes("function drawMindMapLinks"), "SVG curved links required");
+assert.ok(mind.includes('dataset.mindmapEngine = "theta-v2"'), "mind map should mark theta-v2 engine");
+assert.ok(mind.includes("function drawMindMapLinks"), "SVG links required");
+assert.ok(mind.includes("function mindMapElbowPath"), "spine/elbow connectors required");
 assert.ok(mind.includes("function adjustMindMapZoom"), "zoom controls required");
 assert.ok(mind.includes("function fitMindMapView"), "fit-to-view required");
 assert.ok(mind.includes("function bindMindMapViewportInteractions"), "pan/drag interactions required");
 assert.ok(mind.includes("mm-shell--theta"), "theta shell class required");
-assert.ok(mind.includes("mindMapCurvePath"), "cubic curve helper required");
+assert.ok(mind.includes("mindMapCurvePath"), "curve helper required for leaf links");
 assert.ok(mind.includes("openActiveMindMapSection"), "go to notes action must remain");
 assert.ok(mind.includes("askSelectedMindPoint"), "ask tutor action must remain");
 assert.ok(boot.includes("adjustMindMapZoom"), "zoom helpers must be window-exported");
 assert.ok(boot.includes("fitMindMapView"), "fit helper must be window-exported");
+assert.ok(boot.includes("drawMindMapLinks"), "link drawer must be window-exported");
 assert.ok(css.includes(".mm-viewport"), "viewport styles required");
 assert.ok(css.includes(".mm-links"), "SVG link layer styles required");
+assert.ok(css.includes(".mm-link--trunk"), "shared trunk link styles required");
 assert.ok(css.includes("@keyframes mmNodeIn"), "node entrance animation required");
 assert.ok(studyTools.includes("zoom and pan"), "Mind Map copy should mention zoom/pan");
-assert.ok(index.includes("mindmap-theta-v1"), "cache-bust after mind map upgrade");
+assert.ok(index.includes("mindmap-clean-v1"), "cache-bust after mind map polish");
 
 console.log("mindmap-theta-quality-regression: passed");

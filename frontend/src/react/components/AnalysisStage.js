@@ -1,7 +1,7 @@
 import { h, icon, legacyAction } from "../runtime.js";
-import { NotesToolbar } from "./NotesToolbar.js?v=mindmap-theta-v1";
-import { SourceViewerPanel } from "./SourceViewerPanel.js?v=mindmap-theta-v1";
-import { StudyTools } from "./StudyTools.js?v=mindmap-theta-v1";
+import { NotesToolbar } from "./NotesToolbar.js?v=mindmap-clean-v1";
+import { SourceViewerPanel } from "./SourceViewerPanel.js?v=mindmap-clean-v1";
+import { StudyTools } from "./StudyTools.js?v=mindmap-clean-v1";
 
 export function AnalysisStage() {
   return h(

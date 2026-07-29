@@ -811,6 +811,20 @@
   z-index: 0;
 }
 
+.mm-link {
+  vector-effect: non-scaling-stroke;
+}
+
+.mm-link--trunk,
+.mm-link--spine {
+  stroke-linecap: round;
+}
+
+.mm-link--elbow,
+.mm-link--leaf {
+  stroke-linejoin: round;
+}
+
 .mm-layout {
   position: relative;
   z-index: 1;
@@ -1224,9 +1238,64 @@
   font-size: 0.98rem;
   min-width: 0;
   white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+.mm-tree-branch.is-dimmed {
+  opacity: 0.55;
+  filter: grayscale(0.15);
+}
+
+.mm-tree-branch.is-dimmed:hover {
+  opacity: 0.9;
+  filter: none;
+}
+
+#mindMapCanvas[data-mindmap-layout="compact"] .mm-tree-branch:not(.active) {
+  grid-template-columns: minmax(220px, 360px);
+  width: max-content;
+  max-width: 380px;
+}
+
+#mindMapCanvas[data-mindmap-layout="compact"] .mm-tree-branch:not(.active) .mm-leaf-list {
+  display: none;
+}
+
+#mindMapCanvas[data-mindmap-labels="full"] .mm-branch-node,
+#mindMapCanvas[data-mindmap-labels="full"] .mm-leaf-node,
+#mindMapCanvas[data-mindmap-labels="full"] .mm-subleaf-node,
+#mindMapCanvas[data-mindmap-labels="full"] .mm-root-label {
+  white-space: normal;
+}
+
+#mindMapCanvas[data-mindmap-labels="full"] .mm-root-node {
+  max-width: 280px;
+}
+
+#mindMapCanvas[data-mindmap-labels="full"] .mm-tree-branch {
+  grid-template-columns: minmax(280px, 420px) minmax(460px, 1fr);
+}
+
+#mindMapCanvas[data-mindmap-labels="full"] .mm-tree-branch:not(.active) {
+  grid-template-columns: minmax(260px, 420px);
+  max-width: 440px;
+}
+
+#mindMapCanvas[data-mindmap-labels="full"] .mm-tree-branch.active .mm-leaf-group.expanded {
+  grid-template-columns: minmax(280px, 380px) minmax(300px, 1fr);
+}
+
+#mindMapCanvas[data-mindmap-labels="full"] .mm-leaf-node span:not(.mm-child-count) {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: unset;
+}
+
+#mindMapCanvas[data-mindmap-labels="full"] .mm-node-label {
   overflow-wrap: break-word;
   word-break: normal;
-  hyphens: auto;
 }
 
 .mm-branch-count {
@@ -1289,8 +1358,8 @@
   position: absolute;
   left: var(--detail-x, 24px);
   top: var(--detail-y, 72px);
-  width: min(390px, calc(100% - 32px));
-  max-height: min(68dvh, 560px);
+  width: min(460px, calc(100% - 32px));
+  max-height: min(72dvh, 620px);
   z-index: 20;
   animation: mindDetailPop 0.16s ease-out;
 }

@@ -41,6 +41,6 @@ assert.ok(uploadFrontend.includes("refreshBackendAiStatus"), "frontend should pr
 assert.ok(uploadFrontend.includes("geminiConfigured"), "frontend should track whether Gemini is configured");
 assert.ok(app.includes("chat_model_for_active_provider"), "app must export chat model helper into runtime globals");
 assert.ok(app.includes("gemini_request_is_configured"), "app must export Gemini readiness helper");
-assert.ok(index.includes("mindmap-theta-v1"), "workspace assets should cache-bust after Gemini/web research fix");
+assert.ok(index.includes("mindmap-clean-v1"), "workspace assets should cache-bust after Gemini/web research fix");
 
 console.log("gemini-tutor-provider-regression: passed");

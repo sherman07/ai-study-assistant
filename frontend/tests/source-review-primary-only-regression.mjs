@@ -19,7 +19,7 @@ assert.ok(sourceBuilder.includes("youtubeSourceLinks"), "source review builder s
 assert.ok(sourceBuilder.includes("isPrimarySourceReviewItem"), "source review builder should drop secondary web sources");
 assert.ok(sourceBuilder.includes('kind: "youtube"'), "link tabs in review should be YouTube-only");
 assert.ok(!sourceBuilder.includes("`Web source ${index + 1}`"), "generic Web source review tabs should be removed");
-assert.ok(index.includes("synapse-legacy-controller-combined.js?v=mindmap-theta-v1"), "controller should cache-bust");
+assert.ok(index.includes("synapse-legacy-controller-combined.js?v=study-tools-guards-v1"), "controller should cache-bust");
 
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}`);

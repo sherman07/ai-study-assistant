@@ -27,6 +27,6 @@ assert.ok(css.includes(".mm-viewport"), "viewport styles required");
 assert.ok(css.includes(".mm-links"), "SVG link layer styles required");
 assert.ok(css.includes("@keyframes mmNodeIn"), "node entrance animation required");
 assert.ok(studyTools.includes("zoom and pan"), "Mind Map copy should mention zoom/pan");
-assert.ok(index.includes("mindmap-theta-v1"), "cache-bust after mind map upgrade");
+assert.ok(index.includes("study-tools-guards-v1"), "cache-bust after mind map upgrade");
 
 console.log("mindmap-theta-quality-regression: passed");

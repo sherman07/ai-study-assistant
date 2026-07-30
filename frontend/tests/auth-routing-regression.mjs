@@ -32,6 +32,11 @@ assert.ok(authScript.includes("Forgot Password"), "Repeated signup should offer 
 assert.ok(authScript.includes("prefillEmail"), "Password recovery should prefill the email from repeated-signup actions");
 assert.ok(authClientScript.includes('publicApiFetch("/api/auth/signup"'), "Supabase signup should go through the backend auth endpoint");
 assert.ok(authClientScript.includes('publicApiFetch("/api/auth/resend-confirmation"'), "Confirmation resend should go through the backend auth endpoint");
+assert.ok(
+  authClientScript.includes("data.ok === false")
+    && authClientScript.includes("supabase_deleted === false"),
+  "account deletion client must reject false-success identity deletion responses"
+);
 assert.ok(authClientScript.includes("absoluteVerificationUrl"), "Signup confirmation should redirect to a dedicated verification page");
 assert.ok(authClientScript.includes("readAuthApiResponse"), "Auth client should parse structured backend auth responses");
 assert.ok(authClientScript.includes("timeoutMs = 75000"), "Auth requests should tolerate a Render free-tier cold start instead of failing after 20 seconds");

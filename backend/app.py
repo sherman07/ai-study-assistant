@@ -30,8 +30,47 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 BACKEND_PACKAGE_DIR = Path(__file__).resolve().parent
+REPO_ROOT = BACKEND_PACKAGE_DIR.parent
+# Prefer the repo root so `backend.*` imports match tests and production entrypoints.
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 if str(BACKEND_PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_PACKAGE_DIR))
+
+# Alias top-level `core` to `backend.core` before any submodule import. Without this,
+# `from core.config import ...` (app) and `from backend.core.config import ...` (tests)
+# load two module objects with separate ContextVars and provider settings.
+import importlib  # noqa: E402
+import backend.core as _synapse_core  # noqa: E402
+
+sys.modules["core"] = _synapse_core
+
+
+def _bind_core_submodule(name: str):
+    """Load backend.core.<name> once and expose it as both import paths."""
+    full_name = f"backend.core.{name}"
+    short_name = f"core.{name}"
+    module = importlib.import_module(full_name)
+    sys.modules[full_name] = module
+    sys.modules[short_name] = module
+    return module
+
+
+for _core_submodule in (
+    "analysis_cache",
+    "config",
+    "database",
+    "health",
+    "learning_companion",
+    "request_limits",
+    "section_loader",
+    "visual_assets",
+    "note_prompt_modes",
+    "source_extractors",
+    "url_security",
+    "text_utils",
+):
+    _bind_core_submodule(_core_submodule)
 
 from core.analysis_cache import cache_get, cache_set
 from core.config import (
@@ -1530,15 +1569,23 @@ async def submit_contact(request: Request) -> Dict[str, Any]:
     webhook_url = (os.getenv("SYNAPSE_CONTACT_WEBHOOK_URL") or "").strip()
     if webhook_url:
         try:
-            requests.post(webhook_url, json=record, timeout=8)
+            webhook_response = requests.post(webhook_url, json=record, timeout=8)
+            if webhook_response.status_code >= 400:
+                return {
+                    "ok": True,
+                    "delivered": False,
+                    "message": "Thanks, your enquiry has been saved. Email delivery is configured but the webhook did not accept it.",
+                }
         except Exception:
             return {
                 "ok": True,
+                "delivered": False,
                 "message": "Thanks, your enquiry has been saved. Email delivery is configured but the webhook did not respond.",
             }
 
     return {
         "ok": True,
+        "delivered": True,
         "message": "Thanks, your enquiry has been received.",
     }
 
@@ -1754,6 +1801,12 @@ async def delete_account(request: Request) -> Any:
     if payload.get("confirm") is not True:
         return json_error("Account deletion requires confirm=true.", 422)
 
+    if not (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY):
+        return json_error(
+            "Account deletion is unavailable because Supabase admin credentials are not configured.",
+            503,
+        )
+
     profile = get_billing_profile(user)
     deletion_record = {
         "deleted_at": utc_timestamp(),
@@ -1784,23 +1837,32 @@ async def delete_account(request: Request) -> Any:
         except Exception:
             deletion_record["stripe_marked_deleted"] = False
 
-    if SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY:
-        try:
-            response = requests.delete(
-                f"{SUPABASE_URL}/auth/v1/admin/users/{user['id']}",
-                headers={
-                    "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
-                    "apikey": SUPABASE_SERVICE_ROLE_KEY,
-                },
-                timeout=15,
-            )
-            deletion_record["supabase_deleted"] = response.status_code < 400
-            if response.status_code >= 400:
-                deletion_record["supabase_delete_status"] = response.status_code
-        except Exception:
-            deletion_record["supabase_deleted"] = False
+    try:
+        response = requests.delete(
+            f"{SUPABASE_URL}/auth/v1/admin/users/{user['id']}",
+            headers={
+                "Authorization": f"Bearer {SUPABASE_SERVICE_ROLE_KEY}",
+                "apikey": SUPABASE_SERVICE_ROLE_KEY,
+            },
+            timeout=15,
+        )
+        deletion_record["supabase_deleted"] = response.status_code < 400
+        if response.status_code >= 400:
+            deletion_record["supabase_delete_status"] = response.status_code
+    except Exception:
+        deletion_record["supabase_deleted"] = False
 
     append_runtime_jsonl("account_deletions.jsonl", deletion_record)
+    if not deletion_record["supabase_deleted"]:
+        return Response(
+            json.dumps({
+                "ok": False,
+                "error": "Account identity could not be deleted. Local study data was left untouched. Please try again or contact support.",
+                "deletion": deletion_record,
+            }),
+            status_code=502,
+            media_type="application/json",
+        )
     return {
         "ok": True,
         "message": "Account deletion was processed. Local browser data should now be cleared by the client.",

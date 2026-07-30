@@ -1,6 +1,7 @@
 (function () {
   "use strict";
 
+  const admin = window.SynapseAdmin;
   let plansById = {
     free: { id: "free", label: "Free", credits: 500 },
     pro_monthly: { id: "pro_monthly", label: "Pro Monthly", credits: 4000 },
@@ -8,36 +9,6 @@
   };
   let usersCache = [];
   let selectedUserId = "";
-
-  function setGate(message, type = "info") {
-    const gate = document.getElementById("adminGate");
-    if (!gate) return;
-    gate.hidden = false;
-    gate.className = `admin-card admin-status ${type} show`;
-    gate.textContent = message;
-  }
-
-  function showContent() {
-    const gate = document.getElementById("adminGate");
-    const content = document.getElementById("adminContent");
-    if (gate) gate.hidden = true;
-    if (content) content.hidden = false;
-  }
-
-  function setStatus(id, message, type = "") {
-    const node = document.getElementById(id);
-    if (!node) return;
-    node.textContent = message || "";
-    node.className = message ? `billing-status show ${type}` : "billing-status";
-  }
-
-  function escapeHtml(value) {
-    return String(value || "")
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;");
-  }
 
   function planLabel(plan) {
     return plansById[plan]?.label || plan || "Free";
@@ -58,79 +29,6 @@
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 
-  async function adminFetch(path, options = {}) {
-    const auth = window.SynapseAuth;
-    if (!auth?.dataApiBase || !auth?.authHeaders) {
-      throw new Error("Auth client is not loaded.");
-    }
-    const headers = await auth.authHeaders({
-      "Content-Type": "application/json",
-      ...(options.headers || {})
-    });
-    const controller = new AbortController();
-    const timeoutMs = Number(options.timeoutMs || 75000);
-    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
-    try {
-      const response = await fetch(`${auth.dataApiBase()}/${String(path || "").replace(/^\/+/, "")}`, {
-        ...options,
-        headers,
-        signal: controller.signal
-      });
-      const data = await response.json().catch(() => ({}));
-      if (!response.ok || data.ok === false) {
-        const error = new Error(data.error || `Request failed (${response.status})`);
-        error.status = response.status;
-        throw error;
-      }
-      return data;
-    } catch (error) {
-      if (error?.name === "AbortError") {
-        const timeoutError = new Error("Timed out reaching the Synapse data API. Try Refresh in a moment.");
-        timeoutError.status = 408;
-        throw timeoutError;
-      }
-      throw error;
-    } finally {
-      window.clearTimeout(timer);
-    }
-  }
-
-  async function ensureController() {
-    const auth = window.SynapseAuth;
-    if (!auth) {
-      setGate("Auth client failed to load.", "error");
-      return null;
-    }
-    let session = auth.getStoredSession?.() || null;
-    try {
-      session = await auth.syncSessionFromProvider?.() || session;
-    } catch {}
-    if (!session?.email) {
-      setGate("Sign in as a controller to open this page.", "error");
-      window.setTimeout(() => {
-        window.location.href = "login.html";
-      }, 900);
-      return null;
-    }
-    try {
-      await adminFetch("/api/admin/me");
-      showContent();
-      return true;
-    } catch (error) {
-      if (error.status === 403) {
-        setGate("This page is only available to Synapse controllers.", "error");
-      } else if (error.status === 401) {
-        setGate("Sign in as a controller to open this page.", "error");
-        window.setTimeout(() => {
-          window.location.href = "login.html";
-        }, 900);
-      } else {
-        setGate(error.message || "Could not verify controller access.", "error");
-      }
-      return null;
-    }
-  }
-
   function renderUsers(users) {
     const body = document.getElementById("usersTableBody");
     const hint = document.getElementById("usersCountHint");
@@ -145,19 +43,19 @@
       return;
     }
     body.innerHTML = users.map((user) => `
-      <tr class="${user.id === selectedUserId ? "is-selected" : ""}" data-user-row="${escapeHtml(user.id)}">
+      <tr class="${user.id === selectedUserId ? "is-selected" : ""}" data-user-row="${admin.escapeHtml(user.id)}">
         <td>
-          ${escapeHtml(user.email || "—")}
+          ${admin.escapeHtml(user.email || "—")}
           ${user.bootstrap ? ' <span class="admin-badge">primary</span>' : ""}
           ${user.platformRole === "controller" && !user.bootstrap ? ' <span class="admin-badge">controller</span>' : ""}
         </td>
-        <td>${escapeHtml(user.displayName || "—")}</td>
-        <td>${escapeHtml(planLabel(user.plan))}</td>
-        <td>${escapeHtml(String(user.credits ?? 0))}</td>
-        <td>${escapeHtml(user.subscriptionStatus || "inactive")}</td>
-        <td>${escapeHtml(user.platformRole || "user")}</td>
+        <td>${admin.escapeHtml(user.displayName || "—")}</td>
+        <td>${admin.escapeHtml(planLabel(user.plan))}</td>
+        <td>${admin.escapeHtml(String(user.credits ?? 0))}</td>
+        <td>${admin.escapeHtml(user.subscriptionStatus || "inactive")}</td>
+        <td>${admin.escapeHtml(user.platformRole || "user")}</td>
         <td>
-          <button type="button" class="admin-edit-btn" data-edit-user="${escapeHtml(user.id)}">Edit</button>
+          <button type="button" class="admin-edit-btn" data-edit-user="${admin.escapeHtml(user.id)}">Edit</button>
         </td>
       </tr>
     `).join("");
@@ -167,7 +65,7 @@
     const select = document.getElementById("editPlan");
     if (!select || !plans?.length) return;
     select.innerHTML = plans.map((plan) => (
-      `<option value="${escapeHtml(plan.id)}">${escapeHtml(plan.label || plan.id)}</option>`
+      `<option value="${admin.escapeHtml(plan.id)}">${admin.escapeHtml(plan.label || plan.id)}</option>`
     )).join("");
   }
 
@@ -190,13 +88,13 @@
       ? `Editing ${user.email}`
       : "Update billing, credits, and rights for the selected account.";
     document.getElementById("editorMeta").innerHTML = `
-      <div><span>User id</span><strong>${escapeHtml(user.id || "—")}</strong></div>
-      <div><span>Auth provider</span><strong>${escapeHtml(user.authProvider || "—")}</strong></div>
-      <div><span>Stripe customer</span><strong>${escapeHtml(user.stripeCustomerId || "—")}</strong></div>
-      <div><span>Created</span><strong>${escapeHtml(formatDate(user.createdAt))}</strong></div>
-      <div><span>Updated</span><strong>${escapeHtml(formatDate(user.updatedAt))}</strong></div>
+      <div><span>User id</span><strong>${admin.escapeHtml(user.id || "—")}</strong></div>
+      <div><span>Auth provider</span><strong>${admin.escapeHtml(user.authProvider || "—")}</strong></div>
+      <div><span>Stripe customer</span><strong>${admin.escapeHtml(user.stripeCustomerId || "—")}</strong></div>
+      <div><span>Created</span><strong>${admin.escapeHtml(formatDate(user.createdAt))}</strong></div>
+      <div><span>Updated</span><strong>${admin.escapeHtml(formatDate(user.updatedAt))}</strong></div>
     `;
-    setStatus("editorStatus", "");
+    admin.setStatus("editorStatus", "");
     renderUsers(usersCache);
     editor?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -205,13 +103,13 @@
     selectedUserId = "";
     const editor = document.getElementById("userEditor");
     if (editor) editor.hidden = true;
-    setStatus("editorStatus", "");
+    admin.setStatus("editorStatus", "");
     renderUsers(usersCache);
   }
 
   async function refreshUsers(query = "") {
-    setStatus("usersStatus", "Loading users…", "info");
-    const data = await adminFetch(`/api/admin/users?limit=200&q=${encodeURIComponent(query)}`);
+    admin.setStatus("usersStatus", "Loading users from Supabase Auth + public.users…", "info");
+    const data = await admin.adminFetch(`/api/admin/users?limit=200&q=${encodeURIComponent(query)}`);
     if (Array.isArray(data.plans)) {
       plansById = Object.fromEntries(data.plans.map((plan) => [plan.id, plan]));
       fillPlanSelect(data.plans);
@@ -224,12 +122,12 @@
       else closeEditor();
     }
     const syncNote = data.sync && !data.sync.skipped && Number(data.sync.authTotal || 0) > 0
-      ? ` Synced ${data.sync.authTotal} auth account${data.sync.authTotal === 1 ? "" : "s"} from Supabase.`
+      ? ` Synced ${data.sync.authTotal} auth account${data.sync.authTotal === 1 ? "" : "s"}.`
       : "";
     if (usersCache.length) {
-      setStatus("usersStatus", syncNote.trim(), syncNote ? "success" : "");
+      admin.setStatus("usersStatus", syncNote.trim(), syncNote ? "success" : "");
     } else {
-      setStatus(
+      admin.setStatus(
         "usersStatus",
         `No users found yet.${syncNote || " People appear here after they sign up in Supabase Auth."}`,
         "info"
@@ -258,18 +156,18 @@
     if (resetCredits) {
       body.credits = plansById[plan]?.credits ?? body.credits;
     }
-    setStatus("editorStatus", "Saving to Supabase…", "info");
+    admin.setStatus("editorStatus", "Saving to Supabase…", "info");
     try {
-      const data = await adminFetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
+      const data = await admin.adminFetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
         method: "PATCH",
         body: JSON.stringify(body)
       });
-      setStatus("editorStatus", "User updated.", "success");
+      admin.setStatus("editorStatus", "User updated.", "success");
       const query = document.getElementById("usersSearch")?.value || "";
       await refreshUsers(query);
       if (data.user) openEditor(data.user);
     } catch (error) {
-      setStatus("editorStatus", error.message || "Could not save user.", "error");
+      admin.setStatus("editorStatus", error.message || "Could not save user.", "error");
     }
   }
 
@@ -282,12 +180,16 @@
   });
 
   document.addEventListener("DOMContentLoaded", async () => {
-    const ok = await ensureController();
-    if (!ok) return;
+    if (!admin?.ensureController) {
+      document.getElementById("adminGate").textContent = "Admin gate failed to load. Hard-refresh and try again.";
+      return;
+    }
+    const me = await admin.ensureController();
+    if (!me) return;
     try {
       await refreshUsers();
     } catch (error) {
-      setGate(error.message || "Could not load users from Supabase.", "error");
+      admin.setGate(error.message || "Could not load users from Supabase.", "error");
       return;
     }
 
@@ -296,7 +198,7 @@
       try {
         await refreshUsers(document.getElementById("usersSearch")?.value || "");
       } catch (error) {
-        setStatus("usersStatus", error.message || "Search failed.", "error");
+        admin.setStatus("usersStatus", error.message || "Search failed.", "error");
       }
     });
 
@@ -304,7 +206,7 @@
       try {
         await refreshUsers(document.getElementById("usersSearch")?.value || "");
       } catch (error) {
-        setStatus("usersStatus", error.message || "Refresh failed.", "error");
+        admin.setStatus("usersStatus", error.message || "Refresh failed.", "error");
       }
     });
 

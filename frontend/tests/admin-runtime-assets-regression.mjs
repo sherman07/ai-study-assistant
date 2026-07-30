@@ -9,7 +9,7 @@ const copySource = fs.readFileSync(
   "utf8"
 );
 
-for (const asset of ["admin-access.js", "admin-settings.js", "admin-pages.css"]) {
+for (const asset of ["admin-common.js", "admin-access.js", "admin-settings.js", "admin-pages.css"]) {
   assert.match(
     copySource,
     new RegExp(`"${asset}"`),

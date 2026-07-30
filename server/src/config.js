@@ -51,7 +51,11 @@ const config = {
     secretKey: envString("STRIPE_SECRET_KEY"),
     webhookSecret: envString("STRIPE_WEBHOOK_SECRET"),
     priceProMonthly: envString("STRIPE_PRICE_PRO_MONTHLY"),
-    priceProYearly: envString("STRIPE_PRICE_PRO_YEARLY")
+    priceProYearly: envString("STRIPE_PRICE_PRO_YEARLY"),
+    priceBoostSmall: envString("STRIPE_PRICE_BOOST_SMALL"),
+    priceBoostStandard: envString("STRIPE_PRICE_BOOST_STANDARD"),
+    priceBoostPlus: envString("STRIPE_PRICE_BOOST_PLUS"),
+    priceBoostMax: envString("STRIPE_PRICE_BOOST_MAX")
   }
 };
 

@@ -748,10 +748,17 @@ function billingPlansForAccount() {
     return window.SynapseAuth.getBillingPlans();
   }
   return [
-    { id: "free", label: "Free", price: "$0", cadence: "forever", description: "Core study generation for getting started" },
-    { id: "pro_monthly", label: "Pro Monthly", price: "$9", cadence: "per month", description: "Upgrade to Pro with monthly billing" },
-    { id: "pro_yearly", label: "Pro Yearly", price: "$90", cadence: "per year", description: "Upgrade to Pro with annual billing" }
+    { id: "free", label: "Free", price: "$0", cadence: "forever", description: "500 welcome credits, then 50 fresh AI credits every day" },
+    { id: "pro_monthly", label: "Pro Monthly", price: "$9.99", cadence: "per month", description: "1,000 fresh AI credits every day" },
+    { id: "pro_yearly", label: "Pro Annual", price: "$99.99", cadence: "per year", description: "1,000 fresh AI credits every day with annual savings" }
   ];
+}
+
+function boostPacksForAccount() {
+  if (window.SynapseAuth?.getBoostPacks) {
+    return window.SynapseAuth.getBoostPacks();
+  }
+  return Array.isArray(window.SYNAPSE_BOOST_PACKS) ? window.SYNAPSE_BOOST_PACKS : [];
 }
 
 function normaliseBillingPlanId(value) {
@@ -759,7 +766,7 @@ function normaliseBillingPlanId(value) {
   if (text === "starter") return "free";
   if (text === "pro") return "pro_monthly";
   if (text === "pro_month") return "pro_monthly";
-  if (text === "pro_year") return "pro_yearly";
+  if (text === "pro_year" || text === "pro_annual") return "pro_yearly";
   return text || "free";
 }
 
@@ -770,11 +777,21 @@ function formatBillingDate(value) {
   return date.toLocaleDateString();
 }
 
+function formatCreditCount(value) {
+  const amount = Math.max(0, Math.floor(Number(value) || 0));
+  return amount.toLocaleString();
+}
+
 function billingActionsHTML() {
   const session = getCurrentAccountSession();
   const signedIn = Boolean(session?.email);
   const currentPlanId = normaliseBillingPlanId(session?.billingPlan || session?.plan || "free");
   const plans = billingPlansForAccount();
+  const boostPacks = boostPacksForAccount();
+  const dailyCredits = signedIn ? Number(session.dailyCredits ?? 0) : 0;
+  const boostCredits = signedIn ? Number(session.boostCredits ?? 0) : 0;
+  const totalCredits = signedIn ? Number(session.credits || (dailyCredits + boostCredits) || 0) : 0;
+  const dailyAllowance = signedIn ? Number(session.dailyAllowance || 0) : 0;
   const planCards = plans.map(plan => {
     const planId = normaliseBillingPlanId(plan.id);
     const isFree = planId === "free";
@@ -797,15 +814,35 @@ function billingActionsHTML() {
       </button>
     `;
   }).join("");
+  const boostCards = boostPacks.map(pack => {
+    const packId = escapeAttr(pack.id || "");
+    return `
+      <button class="account-plan-action" type="button" ${signedIn ? "" : "disabled"}
+              onclick="startBoostCheckout('${packId}')">
+        <span>
+          <strong>${escapeHTML(pack.label || pack.id || "Boost")}</strong>
+          <small>${escapeHTML(pack.price || "")} · ${escapeHTML(formatCreditCount(pack.credits))} credits</small>
+          <em>Boost Credits stay until you use them. Daily credits are used first.</em>
+        </span>
+        <b>Add Boost</b>
+      </button>
+    `;
+  }).join("");
   return `
     <div class="account-panel-actions">
+      <div class="account-credit-summary" aria-label="Credit balances">
+        <p><strong>${escapeHTML(formatCreditCount(totalCredits))}</strong> total credits</p>
+        <p>Daily: ${escapeHTML(formatCreditCount(dailyCredits))}${dailyAllowance ? ` / ${escapeHTML(formatCreditCount(dailyAllowance))}` : ""} · Boost: ${escapeHTML(formatCreditCount(boostCredits))}</p>
+      </div>
       <div class="account-plan-grid">${planCards || `<p class="account-panel-help">Set window.SYNAPSE_BILLING_PLANS to enable checkout buttons.</p>`}</div>
+      <p class="account-section-copy">Need more credits today?</p>
+      <div class="account-plan-grid">${boostCards || `<p class="account-panel-help">Boost packs will appear here once configured.</p>`}</div>
       <button class="account-secondary-action" type="button" ${signedIn ? "" : "disabled"}
               onclick="openBillingPortal()">
         <i class="bi bi-credit-card"></i>
         Manage billing portal
       </button>
-      <p class="account-panel-help">Payment status is updated only from verified Stripe webhooks. Server env required: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_PRO_MONTHLY, STRIPE_PRICE_PRO_YEARLY.</p>
+      <p class="account-panel-help">Fresh daily credits reset each day and are spent first. Boost Credits persist until used. Estimates appear before AI generation. Stripe env: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, STRIPE_PRICE_PRO_MONTHLY, STRIPE_PRICE_PRO_YEARLY, and STRIPE_PRICE_BOOST_*.</p>
     </div>
   `;
 }
@@ -1128,7 +1165,7 @@ async function startBillingCheckout(planId, checkoutMode) {
   }
   const plan = billingPlansForAccount().find(item => normaliseBillingPlanId(item.id) === normaliseBillingPlanId(planId));
   if (!plan || normaliseBillingPlanId(plan.id) === "free") {
-    setAccountPanelStatus("error", "Choose Pro Monthly or Pro Yearly to open Checkout.");
+    setAccountPanelStatus("error", "Choose Pro Monthly or Pro Annual to open Checkout.");
     return;
   }
   setAccountPanelStatus("info", "Opening secure Stripe Checkout...");
@@ -1141,6 +1178,31 @@ async function startBillingCheckout(planId, checkoutMode) {
     window.location.href = checkout.url;
   } catch (error) {
     setAccountPanelStatus("error", error.message || "Could not start checkout.");
+  }
+}
+
+async function startBoostCheckout(packId) {
+  const session = getCurrentAccountSession();
+  if (!session?.email) {
+    goToAuthPage("login");
+    return;
+  }
+  if (!window.SynapseAuth?.createBoostCheckoutSession) {
+    setAccountPanelStatus("error", "Boost checkout requires production auth configuration.");
+    return;
+  }
+  const pack = boostPacksForAccount().find(item => String(item.id) === String(packId));
+  if (!pack) {
+    setAccountPanelStatus("error", "Choose a valid Boost Credit pack.");
+    return;
+  }
+  setAccountPanelStatus("info", "Opening secure Stripe Checkout for Boost Credits...");
+  try {
+    const checkout = await window.SynapseAuth.createBoostCheckoutSession({ packId: pack.id });
+    if (!checkout?.url) throw new Error("Stripe did not return a checkout URL.");
+    window.location.href = checkout.url;
+  } catch (error) {
+    setAccountPanelStatus("error", error.message || "Could not start Boost checkout.");
   }
 }
 

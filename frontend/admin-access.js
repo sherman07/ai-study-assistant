@@ -3,9 +3,9 @@
 
   const admin = window.SynapseAdmin;
   let plansById = {
-    free: { id: "free", label: "Free", credits: 500 },
-    pro_monthly: { id: "pro_monthly", label: "Pro Monthly", credits: 4000 },
-    pro_yearly: { id: "pro_yearly", label: "Pro Yearly", credits: 4000 }
+    free: { id: "free", label: "Free", credits: 550 },
+    pro_monthly: { id: "pro_monthly", label: "Pro Monthly", credits: 1000 },
+    pro_yearly: { id: "pro_yearly", label: "Pro Annual", credits: 1000 }
   };
   let usersCache = [];
   let selectedUserId = "";

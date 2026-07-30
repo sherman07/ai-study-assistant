@@ -28,23 +28,29 @@
           mode: null,
           price: "$0",
           cadence: "forever",
-          description: "Core study generation for getting started"
+          dailyCredits: 50,
+          welcomeCredits: 500,
+          description: "500 welcome credits, then 50 fresh AI credits every day"
         },
         {
           id: "pro_monthly",
           label: "Pro Monthly",
           mode: "subscription",
-          price: "$9",
+          price: "$9.99",
           cadence: "per month",
-          description: "Upgrade to Pro with monthly billing"
+          dailyCredits: 1000,
+          welcomeCredits: 0,
+          description: "1,000 fresh AI credits every day with the complete study experience"
         },
         {
           id: "pro_yearly",
-          label: "Pro Yearly",
+          label: "Pro Annual",
           mode: "payment",
-          price: "$90",
+          price: "$99.99",
           cadence: "per year",
-          description: "Upgrade to Pro with one-time annual access"
+          dailyCredits: 1000,
+          welcomeCredits: 0,
+          description: "1,000 fresh AI credits every day with about 16.6% annual savings"
         }
       ]
     };
@@ -365,15 +371,15 @@
       free: "Free",
       starter: "Free",
       pro_monthly: "Pro Monthly",
-      pro_yearly: "Pro Yearly"
+      pro_yearly: "Pro Annual"
     };
     return labels[String(plan || "").toLowerCase()] || "Free";
   }
 
   function creditsForPlan(plan) {
     const key = String(plan || "").toLowerCase();
-    if (key === "pro_monthly" || key === "pro_yearly") return 4000;
-    return 500;
+    if (key === "pro_monthly" || key === "pro_yearly") return 1000;
+    return 550;
   }
 
   function mergeServerUserIntoSession(session, user = {}) {
@@ -381,6 +387,9 @@
     const plan = user.plan || session.plan || "free";
     const platformRole = user.platformRole || user.platform_role || session.platformRole || "user";
     const isController = Boolean(user.isController) || platformRole === "controller";
+    const totalCredits = Number.isFinite(Number(user.credits))
+      ? Math.max(0, Math.floor(Number(user.credits)))
+      : creditsForPlan(plan);
     return {
       ...session,
       accountId: user.id || session.accountId,
@@ -393,9 +402,16 @@
       billingPlan: plan,
       subscriptionStatus: user.subscriptionStatus || session.subscriptionStatus || "inactive",
       currentPeriodEnd: user.currentPeriodEnd || session.currentPeriodEnd || null,
-      credits: Number.isFinite(Number(user.credits))
-        ? Math.max(0, Math.floor(Number(user.credits)))
-        : creditsForPlan(plan)
+      credits: totalCredits,
+      dailyCredits: Number.isFinite(Number(user.dailyCredits))
+        ? Math.max(0, Math.floor(Number(user.dailyCredits)))
+        : session.dailyCredits,
+      boostCredits: Number.isFinite(Number(user.boostCredits))
+        ? Math.max(0, Math.floor(Number(user.boostCredits)))
+        : session.boostCredits,
+      dailyAllowance: Number.isFinite(Number(user.dailyAllowance))
+        ? Math.max(0, Math.floor(Number(user.dailyAllowance)))
+        : session.dailyAllowance
     };
   }
 
@@ -1011,6 +1027,41 @@
     return data;
   }
 
+  async function createBoostCheckoutSession({ packId, successUrl, cancelUrl }) {
+    const response = await dataApiFetch("/api/billing/create-boost-checkout-session", {
+      method: "POST",
+      body: JSON.stringify({
+        pack_id: packId,
+        success_url: successUrl || new URL("billing-success.html?session_id={CHECKOUT_SESSION_ID}&boost=1", window.location.href).toString(),
+        cancel_url: cancelUrl || new URL("pricing.html#boost", window.location.href).toString()
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.error) throw new Error(data.error || "Could not start Boost checkout.");
+    return data;
+  }
+
+  async function fetchCreditBalance() {
+    const response = await dataApiFetch("/api/billing/credits", { method: "GET" });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.error) throw new Error(data.error || "Could not load credit balance.");
+    if (data.user) {
+      const session = getStoredSession();
+      if (session) saveSession(mergeServerUserIntoSession(session, data.user));
+    }
+    return data;
+  }
+
+  async function estimateCredits(actionId) {
+    const response = await dataApiFetch("/api/billing/credits/estimate", {
+      method: "POST",
+      body: JSON.stringify({ action_id: actionId })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.error) throw new Error(data.error || "Could not estimate credits.");
+    return data;
+  }
+
   async function createPortalSession({ returnUrl } = {}) {
     const response = await dataApiFetch("/api/billing/create-portal-session", {
       method: "POST",
@@ -1108,12 +1159,16 @@
     collectLocalData,
     completeAuthRedirect,
     createCheckoutSession,
+    createBoostCheckoutSession,
     createPortalSession,
     dataApiBase,
     downloadJSON,
+    estimateCredits,
     fetchBillingEntitlements,
     fetchBillingPlans,
+    fetchCreditBalance,
     getBillingPlans: () => readConfig().billingPlans,
+    getBoostPacks: () => (Array.isArray(window.SYNAPSE_BOOST_PACKS) ? window.SYNAPSE_BOOST_PACKS : []),
     getLastEmail,
     getRememberMePreference,
     getStoredSession,

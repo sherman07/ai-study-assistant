@@ -117,7 +117,26 @@ For production, set this to your deployed data API URL in `frontend/config.js` o
 
 ## Stripe Billing
 
-Synapse uses Stripe-hosted Checkout and the Stripe Customer Portal. The frontend only sends a server-owned plan id (`pro_monthly` or `pro_yearly`); the Express API looks up the Stripe Price IDs from environment variables and only updates access from verified webhooks. Pro Monthly uses subscription Checkout. Pro Yearly uses one-time Checkout and grants one year of Pro access after Stripe reports the payment as paid.
+Synapse uses Stripe-hosted Checkout and the Stripe Customer Portal. The frontend only sends server-owned plan or boost pack ids; the Express API looks up Stripe Price IDs from environment variables and only updates access or Boost Credits from verified webhooks.
+
+### Plans
+
+| Plan | Price | Credits |
+|---|---|---|
+| Free | $0 | 500 welcome + 50 fresh AI credits daily |
+| Pro Monthly | $9.99 USD / month | 1,000 fresh AI credits daily (subscription Checkout) |
+| Pro Annual | $99.99 USD / year | 1,000 fresh AI credits daily (one-time Checkout, one year of Pro) |
+
+### Boost Credit packs
+
+| Pack | Credits | Price |
+|---|---:|---:|
+| Small Boost | 10,000 | $4.99 |
+| Standard Boost | 25,000 | $9.99 |
+| Plus Boost | 70,000 | $24.99 |
+| Max Boost | 150,000 | $49.99 |
+
+Daily credits reset each UTC day and are spent first. Boost Credits persist until used. Before generation, clients can call `POST /api/billing/credits/estimate` to show the expected range, maximum charge, which balance will be used, and a lower-cost option when available. `POST /api/billing/credits/spend` deducts credits after a confirmed action.
 
 Required server environment variables:
 
@@ -126,6 +145,10 @@ STRIPE_SECRET_KEY=sk_live_or_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
 STRIPE_PRICE_PRO_MONTHLY=price_...
 STRIPE_PRICE_PRO_YEARLY=price_...
+STRIPE_PRICE_BOOST_SMALL=price_...
+STRIPE_PRICE_BOOST_STANDARD=price_...
+STRIPE_PRICE_BOOST_PLUS=price_...
+STRIPE_PRICE_BOOST_MAX=price_...
 ```
 
 Local webhook testing:

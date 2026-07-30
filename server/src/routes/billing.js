@@ -1,9 +1,28 @@
 import { Router } from "express";
 import { config } from "../config.js";
-import { checkoutPlan, checkoutPlanByPrice, billingPlanList, subscriptionAccessPlan, userEntitlements } from "../billing/plans.js";
+import {
+  addBoostCredits,
+  creditActionList,
+  creditMetadataFromState,
+  ensureCreditState,
+  estimateCredits,
+  spendCredits
+} from "../billing/credits.js";
+import {
+  billingPlanList,
+  boostPack,
+  boostPackByPrice,
+  boostPackList,
+  checkoutPlan,
+  checkoutPlanByPrice,
+  hasActivePro,
+  subscriptionAccessPlan,
+  userEntitlements
+} from "../billing/plans.js";
 import { missingStripeConfig, stripe, stripeConfigured, stripeWebhookConfigured } from "../billing/stripe.js";
 import { requireUser } from "../middleware/auth.js";
 import {
+  applyCreditState,
   getUserById,
   getUserByStripeCustomerId,
   getUserByStripeSubscriptionId,
@@ -69,6 +88,16 @@ function planFromSubscription(subscription = {}) {
   return checkoutPlanByPrice(subscriptionPriceId(subscription))?.plan || "free";
 }
 
+function boostEnvKey(packId) {
+  const map = {
+    boost_small: "STRIPE_PRICE_BOOST_SMALL",
+    boost_standard: "STRIPE_PRICE_BOOST_STANDARD",
+    boost_plus: "STRIPE_PRICE_BOOST_PLUS",
+    boost_max: "STRIPE_PRICE_BOOST_MAX"
+  };
+  return map[packId] || "STRIPE_PRICE_BOOST_STANDARD";
+}
+
 async function ensureStripeCustomer(user) {
   if (user.stripeCustomerId) return user.stripeCustomerId;
   const client = stripe();
@@ -94,6 +123,31 @@ function subscriptionIdFromBillingObject(eventObject = {}) {
   return stripeId(eventObject.subscription);
 }
 
+function publicCreditBalance(user) {
+  const state = user.creditState || ensureCreditState(user);
+  return {
+    totalCredits: state.totalCredits,
+    dailyCredits: state.dailyCredits,
+    boostCredits: state.boostCredits,
+    dailyAllowance: state.dailyAllowance,
+    dailyRefreshedOn: state.dailyRefreshedOn,
+    spendOrder: state.spendOrder,
+    plan: state.plan
+  };
+}
+
+async function grantBoostCredits(user, credits, source = {}) {
+  const current = ensureCreditState(user);
+  const next = addBoostCredits(current, credits);
+  const updated = await applyCreditState(user.id, next);
+  return {
+    user: updated,
+    granted: Math.max(0, Math.floor(Number(credits) || 0)),
+    balance: publicCreditBalance(updated || { ...user, creditState: next, metadata: creditMetadataFromState(next) }),
+    source
+  };
+}
+
 async function updateFromSubscription(subscription) {
   const subscriptionId = stripeId(subscription.id);
   const customerId = stripeId(subscription.customer);
@@ -116,6 +170,23 @@ async function updateFromSubscription(subscription) {
   });
 }
 
+async function updateBoostCheckoutCompleted(session, targetUser) {
+  const packId = cleanString(session.metadata?.boost_pack_id || session.metadata?.pack_id, 80);
+  const pack = boostPack(packId) || boostPackByPrice(cleanString(session.metadata?.price_id, 255));
+  const credits = Number(session.metadata?.boost_credits || pack?.credits || 0);
+  if (!Number.isFinite(credits) || credits <= 0) {
+    return updateUserStripeCustomer(targetUser.id, stripeId(session.customer) || targetUser.stripeCustomerId);
+  }
+  if (targetUser.stripeCustomerId !== stripeId(session.customer) && stripeId(session.customer)) {
+    await updateUserStripeCustomer(targetUser.id, stripeId(session.customer));
+  }
+  return grantBoostCredits(targetUser, credits, {
+    type: "boost_pack",
+    packId: pack?.id || packId,
+    sessionId: session.id
+  });
+}
+
 async function updateCheckoutCompleted(session) {
   const userId = cleanString(session.metadata?.user_id, 80);
   const targetUser = userId ? await getUserById(userId) : null;
@@ -123,6 +194,15 @@ async function updateCheckoutCompleted(session) {
 
   const customerId = stripeId(session.customer);
   const subscriptionId = stripeId(session.subscription);
+  const checkoutKind = cleanString(session.metadata?.checkout_kind || session.metadata?.type, 40);
+
+  if (checkoutKind === "boost" || session.metadata?.boost_pack_id) {
+    if (session.payment_status && session.payment_status !== "paid") {
+      return updateUserStripeCustomer(targetUser.id, customerId);
+    }
+    return updateBoostCheckoutCompleted(session, targetUser);
+  }
+
   if (session.mode === "subscription" && subscriptionId) {
     const subscription = await stripe().subscriptions.retrieve(subscriptionId);
     return updateFromSubscription(subscription);
@@ -133,6 +213,9 @@ async function updateCheckoutCompleted(session) {
       return updateUserStripeCustomer(targetUser.id, customerId);
     }
     const plan = cleanString(session.metadata?.plan, 80) || "pro_yearly";
+    if (plan.startsWith("boost") || checkoutKind === "boost") {
+      return updateBoostCheckoutCompleted(session, targetUser);
+    }
     const periodEnd = new Date();
     periodEnd.setFullYear(periodEnd.getFullYear() + 1);
     return updateUserSubscription(targetUser.id, {
@@ -169,14 +252,85 @@ router.get("/plans", (_req, res) => {
   res.json({
     ok: true,
     plans: billingPlanList(),
+    boostPacks: boostPackList(),
+    creditActions: creditActionList(),
     stripeConfigured: stripeConfigured(),
     missing: missingStripeConfig()
   });
 });
 
 router.get("/entitlements", requireUser, (req, res) => {
-  res.json({ ok: true, entitlements: userEntitlements(req.user), user: req.user });
+  res.json({
+    ok: true,
+    entitlements: userEntitlements(req.user),
+    credits: publicCreditBalance(req.user),
+    user: req.user
+  });
 });
+
+router.get("/credits", requireUser, (req, res) => {
+  res.json({
+    ok: true,
+    credits: publicCreditBalance(req.user),
+    actions: creditActionList(),
+    user: req.user
+  });
+});
+
+router.post("/credits/estimate", requireUser, asyncRoute(async (req, res) => {
+  const actionId = req.body?.action_id || req.body?.actionId || req.body?.action;
+  const estimate = estimateCredits(req.user, actionId, {
+    isPro: hasActivePro(req.user)
+  });
+  if (!estimate.ok) {
+    return res.status(400).json(estimate);
+  }
+  res.json({
+    ok: true,
+    ...estimate,
+    credits: publicCreditBalance(req.user)
+  });
+}));
+
+router.post("/credits/spend", requireUser, asyncRoute(async (req, res) => {
+  const actionId = req.body?.action_id || req.body?.actionId || req.body?.action;
+  const requestedAmount = req.body?.amount ?? req.body?.credits;
+  let charge = Number(requestedAmount);
+
+  if (actionId) {
+    const estimate = estimateCredits(req.user, actionId, { isPro: hasActivePro(req.user) });
+    if (!estimate.ok) {
+      return res.status(400).json(estimate);
+    }
+    if (estimate.blockedReason && estimate.action?.requiresPro) {
+      return res.status(402).json({
+        ok: false,
+        error: estimate.blockedReason,
+        estimate
+      });
+    }
+    if (!Number.isFinite(charge) || charge <= 0) {
+      charge = estimate.estimate.maximumCharge;
+    }
+    charge = Math.min(Math.floor(charge), estimate.estimate.maximumCharge);
+  }
+
+  const result = spendCredits(req.user, charge);
+  if (!result.ok) {
+    return res.status(402).json(result);
+  }
+
+  const updated = await applyCreditState(req.user.id, result.balance);
+  res.json({
+    ok: true,
+    charged: result.charged,
+    dailyUsed: result.dailyUsed,
+    boostUsed: result.boostUsed,
+    actionId: actionId || null,
+    credits: publicCreditBalance(updated || { ...req.user, creditState: result.balance }),
+    user: updated
+  });
+}));
 
 router.post("/create-checkout-session", requireUser, asyncRoute(async (req, res) => {
   const plan = checkoutPlan(req.body?.plan_id || req.body?.planId);
@@ -211,7 +365,9 @@ router.post("/create-checkout-session", requireUser, asyncRoute(async (req, res)
     metadata: {
       user_id: req.user.id,
       plan: plan.plan,
-      checkout_mode: mode
+      checkout_mode: mode,
+      checkout_kind: "subscription_plan",
+      daily_credits: String(plan.dailyCredits)
     },
     subscription_data: mode === "subscription"
       ? {
@@ -229,6 +385,53 @@ router.post("/create-checkout-session", requireUser, asyncRoute(async (req, res)
     url: session.url,
     plan: plan.plan,
     mode
+  });
+}));
+
+router.post("/create-boost-checkout-session", requireUser, asyncRoute(async (req, res) => {
+  const pack = boostPack(req.body?.pack_id || req.body?.packId || req.body?.boost_pack_id);
+  if (!pack) {
+    return res.status(400).json({ ok: false, error: "Choose a valid Boost Credit pack." });
+  }
+  if (!config.stripe.secretKey) return configError(res, ["STRIPE_SECRET_KEY"]);
+  if (!pack.priceId) return configError(res, [boostEnvKey(pack.id)]);
+
+  const origin = requestOrigin(req);
+  const successUrl = allowedReturnUrl(
+    req.body?.success_url || req.body?.successUrl,
+    origin,
+    "/frontend/billing-success.html?session_id={CHECKOUT_SESSION_ID}&boost=1"
+  );
+  const cancelUrl = allowedReturnUrl(
+    req.body?.cancel_url || req.body?.cancelUrl,
+    origin,
+    "/frontend/pricing.html#boost"
+  );
+  const customerId = await ensureStripeCustomer(req.user);
+  const session = await stripe().checkout.sessions.create({
+    mode: "payment",
+    customer: customerId,
+    client_reference_id: req.user.id,
+    line_items: [{ price: pack.priceId, quantity: 1 }],
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    allow_promotion_codes: true,
+    metadata: {
+      user_id: req.user.id,
+      checkout_kind: "boost",
+      boost_pack_id: pack.id,
+      boost_credits: String(pack.credits),
+      price_id: pack.priceId
+    }
+  });
+
+  res.status(201).json({
+    ok: true,
+    id: session.id,
+    url: session.url,
+    pack: pack.id,
+    credits: pack.credits,
+    mode: "payment"
   });
 }));
 

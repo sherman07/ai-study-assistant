@@ -209,7 +209,9 @@ router.get("/users", asyncRoute(async (req, res) => {
     plans: billingPlanList().map((plan) => ({
       id: plan.id,
       label: plan.label,
-      credits: plan.credits
+      credits: plan.credits,
+      dailyCredits: plan.dailyCredits,
+      welcomeCredits: plan.welcomeCredits
     })),
     users: marked
   });

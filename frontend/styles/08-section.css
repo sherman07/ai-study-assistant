@@ -85,18 +85,6 @@
     min-height: 0;
   }
 
-  .mm-shell--theta {
-    min-height: 0;
-  }
-
-  .mm-toolbar-hint {
-    display: none;
-  }
-
-  .mm-viewport {
-    min-height: 420px;
-  }
-
   .mm-layout {
     min-width: 860px;
     grid-template-columns: 170px minmax(650px, 1fr);

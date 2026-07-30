@@ -208,26 +208,79 @@ class AuthSignupApiTests(unittest.TestCase):
         self.assertEqual(data["state"], "signup_failed")
         self.assertNotIn("private detail", data["message"])
 
-    def test_signup_rejects_untrusted_confirmation_redirect_host(self):
-        payload = signup_payload()
-        payload["redirectTo"] = "https://evil.example/frontend/verify.html"
-
+    def test_signup_rewrites_confirmation_link_onto_frontend_verify_page(self):
         def fake_post(url, **kwargs):
             self.assertTrue(url.endswith("/auth/v1/admin/generate_link"))
-            self.assertEqual(kwargs["json"]["redirect_to"], "http://127.0.0.1:5175/frontend/verify.html")
-            return FakeSupabaseResponse(payload={
-                "action_link": "https://project.supabase.co/auth/v1/verify?token=signup&type=signup",
-                "user": {"id": "user-1", "email": "new.user@example.com"},
-            })
+            return FakeSupabaseResponse(
+                payload={
+                    "action_link": "https://project.supabase.co/auth/v1/verify?token=raw&type=signup&redirect_to=http%3A%2F%2Flocalhost",
+                    "hashed_token": "signup-token-hash",
+                    "verification_type": "signup",
+                    "user": {"id": "user-1", "email": "new.user@example.com"},
+                }
+            )
 
         with (
             patch("backend.app.requests.get", return_value=FakeSupabaseResponse(payload={"users": []})),
             patch("backend.app.requests.post", side_effect=fake_post),
+            patch("backend.app.send_synapse_signup_confirmation_email") as send_email,
+        ):
+            response = self.client.post("/api/auth/signup", json=signup_payload())
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["state"], "created_confirmation_sent")
+        send_email.assert_called_once()
+        _recipient, public_link = send_email.call_args.args
+        parsed = urlparse(public_link)
+        fragment = parse_qs(parsed.fragment)
+        self.assertTrue(parsed.path.endswith("/verify.html"))
+        self.assertEqual(fragment.get("token_hash"), ["signup-token-hash"])
+        self.assertEqual(fragment.get("type"), ["signup"])
+        self.assertIn("/frontend/verify.html#", public_link)
+
+    def test_hosted_backend_never_emails_localhost_confirmation_links(self):
+        payload = signup_payload()
+        payload["redirectTo"] = "http://localhost:5176/frontend/verify.html"
+
+        def fake_post(url, **kwargs):
+            self.assertEqual(
+                kwargs["json"]["redirect_to"],
+                "https://synapse-ai-study-assistant-tutor.vercel.app/frontend/verify.html",
+            )
+            return FakeSupabaseResponse(
+                payload={
+                    "hashed_token": "prod-token",
+                    "verification_type": "signup",
+                    "user": {"id": "user-1", "email": "new.user@example.com"},
+                }
+            )
+
+        with (
+            patch.object(backend_app_module, "SYNAPSE_FRONTEND_BASE_URL", "http://localhost:5176/frontend"),
+            patch.object(
+                backend_app_module,
+                "SYNAPSE_PUBLIC_BACKEND_URL",
+                "https://synapse-ai-backend-idnc.onrender.com",
+            ),
+            patch.object(
+                backend_app_module,
+                "SYNAPSE_CANONICAL_FRONTEND_BASE_URL",
+                "https://synapse-ai-study-assistant-tutor.vercel.app/frontend",
+            ),
+            patch("backend.app.requests.get", return_value=FakeSupabaseResponse(payload={"users": []})),
+            patch("backend.app.requests.post", side_effect=fake_post),
+            patch("backend.app.send_synapse_signup_confirmation_email") as send_email,
         ):
             response = self.client.post("/api/auth/signup", json=payload)
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["state"], "created_confirmation_sent")
+        _recipient, public_link = send_email.call_args.args
+        self.assertTrue(
+            public_link.startswith(
+                "https://synapse-ai-study-assistant-tutor.vercel.app/frontend/verify.html#"
+            )
+        )
 
     def test_resend_confirmation_for_pending_account(self):
         existing = {

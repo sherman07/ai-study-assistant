@@ -44,6 +44,30 @@ http://localhost:5176/frontend/reset-password.html
 
 Add this URL to Supabase Dashboard -> Authentication -> URL Configuration -> Redirect URLs. Add your deployed production reset-password URL before launch.
 
+## Production Site URL (required for live confirmation links)
+
+In Supabase Dashboard -> Authentication -> URL Configuration:
+
+1. Set **Site URL** to:
+
+```text
+https://synapse-ai-study-assistant-tutor.vercel.app
+```
+
+2. Allow these **Redirect URLs**:
+
+```text
+https://synapse-ai-study-assistant-tutor.vercel.app/**
+https://synapse-ai-study-assistant-tutor.vercel.app/frontend/**
+https://synapse-ai-study-assistant-tutor.vercel.app/frontend/verify.html
+https://synapse-ai-study-assistant-tutor.vercel.app/frontend/reset-password.html
+https://synapse-ai-study-assistant-tutor.vercel.app/frontend/index.html
+http://127.0.0.1:5175/**
+http://localhost:5175/**
+```
+
+Do **not** leave Site URL as `http://localhost...` on the hosted project. Synapse confirmation emails now open the Vercel verify page directly with a one-time token hash.
+
 ## Make The Sender Say Synapse
 
 The visible sender name is not controlled by the HTML template. It is controlled by Supabase Auth mail settings.

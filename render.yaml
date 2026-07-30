@@ -39,6 +39,8 @@ services:
         value: ^https://synapse-ai-study-assistant-tutor(?:-[a-z0-9]+)?\.vercel\.app$
       - key: SYNAPSE_FRONTEND_BASE_URL
         value: https://synapse-ai-study-assistant-tutor.vercel.app/frontend
+      - key: SYNAPSE_CANONICAL_FRONTEND_BASE_URL
+        value: https://synapse-ai-study-assistant-tutor.vercel.app/frontend
       - key: SUPABASE_URL
         value: https://yoopvoutgfhnldhmqmip.supabase.co
       # Public anon/publishable key only (safe in browser). Service role stays secret.

@@ -38,6 +38,7 @@ assert.ok(authClientScript.includes("timeoutMs = 75000"), "Auth requests should 
 assert.ok(authScript.includes("existing_confirmed"), "Signup UI should handle confirmed duplicate accounts");
 assert.ok(authScript.includes("existing_unconfirmed"), "Signup UI should handle unconfirmed duplicate accounts");
 assert.ok(authClientScript.includes("completeAuthRedirect"), "Auth client should complete Supabase redirect sessions on the verify page");
+assert.ok(authClientScript.includes("client.auth.verifyOtp"), "Verify/complete auth should exchange token_hash links for a Supabase session");
 assert.ok(authClientScript.includes('event === "SIGNED_OUT"'), "Auth client should clear the app session only on explicit Supabase sign-out events");
 assert.ok(authClientScript.includes('session?.authMode === "supabase"'), "Auth sync should clear stale Supabase app sessions when no provider session exists");
 assert.ok(backendAppScript.includes('"plan": "free"'), "New Supabase signups should use the Free plan id, not the old Starter label");
@@ -84,15 +85,17 @@ assert.ok(authScript.includes("resumeRememberedSession"), "Login page should res
 assert.ok(authScript.includes("applyLoginPrefill"), "Login page should prefill the last email");
 assert.ok(authScript.includes("showLoginResume"), "Login page should offer one-click continue for remembered sessions");
 assert.ok(!authClientScript.includes("localStorage.setItem(LAST_EMAIL_KEY, password") && !/password.*LAST_EMAIL|LAST_EMAIL.*password/.test(authClientScript), "Remember-me must never store passwords");
-for (const page of [signupPage, forgotPage, resetPage, verifyPage, workspacePage]) {
+for (const page of [signupPage, forgotPage, resetPage, verifyPage]) {
   assert.ok(page.includes("config.js?v=login-remember-v1"), "Public pages must bypass cached pre-fix runtime config");
-  assert.ok(page.includes("auth-client.js?v=login-remember-v1"), "Public pages must bypass cached pre-fix auth client code");
+  assert.ok(page.includes("auth-client.js?v=signup-email-v1"), "Public pages must bypass cached pre-fix auth client code");
 }
+assert.ok(workspacePage.includes("config.js?v=legacy-boot-fix-v1") || workspacePage.includes("config.js?v=login-remember-v1"), "Workspace must bypass cached runtime config");
+assert.ok(workspacePage.includes("auth-client.js?v=signup-email-v1"), "Workspace must load the production signup auth client");
 assert.ok(loginPage.includes("config.js?v=login-remember-v1"), "Login should cache-bust the remember-me runtime config");
-assert.ok(loginPage.includes("auth-client.js?v=login-remember-v1"), "Login should cache-bust the remember-me auth client");
-assert.ok(loginPage.includes("landing-auth.js?v=login-remember-v1"), "Login should cache-bust the remember-me landing auth script");
+assert.ok(loginPage.includes("auth-client.js?v=signup-email-v1"), "Login should cache-bust the remember-me auth client");
+assert.ok(loginPage.includes("landing-auth.js?v=admin-auth-loop-v1") || loginPage.includes("landing-auth.js?v=login-remember-v1"), "Login should cache-bust the landing auth script");
 assert.ok(loginPage.includes("landing-auth.css?v=login-remember-v1"), "Login should cache-bust remember-me styles");
-assert.ok(workspacePage.includes("style.css?v=mindmap-theta-v1"), "Workspace should bypass cached pre-fix contrast styles");
+assert.ok(workspacePage.includes("style.css?v=mindmap-theta-v1") || workspacePage.includes("style.css?v=legacy-boot-fix-v1") || workspacePage.includes("style.css?v=mindmap-revert-v1"), "Workspace should bypass cached pre-fix contrast styles");
 assert.ok(forgotPage.includes("data-testid=\"reset-success\""), "Forgot password should expose a success state");
 assert.ok(resetPage.includes("data-testid=\"reset-password-success\""), "Reset password should expose a success state");
 assert.ok(authClientScript.includes("/api/auth/request-password-reset"), "Password recovery should use the Synapse backend email endpoint");

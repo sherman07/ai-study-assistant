@@ -7,6 +7,7 @@ import {
   normalizePlatformRole,
   publicAdminUser
 } from "../admin/controllers.js";
+import { syncAuthUsersIntoPublicUsers } from "../admin/authUsers.js";
 import { billingPlanList, creditsForPlan, normalizePlan, normalizeSubscriptionStatus } from "../billing/plans.js";
 import { requireController } from "../middleware/auth.js";
 import { listPlatformSettings, patchPlatformSettings } from "../repositories/platformSettingsRepository.js";
@@ -177,6 +178,22 @@ router.get("/users", asyncRoute(async (req, res) => {
   const query = String(req.query.q || req.query.query || "");
   const limit = Number(req.query.limit || 100);
   const offset = Number(req.query.offset || 0);
+  const skipSync = String(req.query.sync || "1") === "0";
+
+  let sync = { synced: 0, authTotal: 0, skipped: true, reason: "not_requested" };
+  if (!skipSync && !query) {
+    try {
+      sync = await syncAuthUsersIntoPublicUsers({ maxPages: 5 });
+    } catch (error) {
+      sync = {
+        synced: 0,
+        authTotal: 0,
+        skipped: true,
+        reason: error?.message || "auth_sync_failed"
+      };
+    }
+  }
+
   const users = await listUsers({ query, limit, offset });
   const marked = users.map((user) => {
     const publicUser = publicAdminUser(user);
@@ -188,6 +205,7 @@ router.get("/users", asyncRoute(async (req, res) => {
   res.json({
     ok: true,
     count: marked.length,
+    sync,
     plans: billingPlanList().map((plan) => ({
       id: plan.id,
       label: plan.label,

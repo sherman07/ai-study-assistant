@@ -67,17 +67,32 @@
       "Content-Type": "application/json",
       ...(options.headers || {})
     });
-    const response = await fetch(`${auth.dataApiBase()}/${String(path || "").replace(/^\/+/, "")}`, {
-      ...options,
-      headers
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.ok === false) {
-      const error = new Error(data.error || `Request failed (${response.status})`);
-      error.status = response.status;
+    const controller = new AbortController();
+    const timeoutMs = Number(options.timeoutMs || 75000);
+    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetch(`${auth.dataApiBase()}/${String(path || "").replace(/^\/+/, "")}`, {
+        ...options,
+        headers,
+        signal: controller.signal
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || data.ok === false) {
+        const error = new Error(data.error || `Request failed (${response.status})`);
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    } catch (error) {
+      if (error?.name === "AbortError") {
+        const timeoutError = new Error("Timed out reaching the Synapse data API. Try Refresh in a moment.");
+        timeoutError.status = 408;
+        throw timeoutError;
+      }
       throw error;
+    } finally {
+      window.clearTimeout(timer);
     }
-    return data;
   }
 
   async function ensureController() {
@@ -208,7 +223,18 @@
       if (selected) openEditor(selected);
       else closeEditor();
     }
-    setStatus("usersStatus", usersCache.length ? "" : "No users found.", usersCache.length ? "" : "info");
+    const syncNote = data.sync && !data.sync.skipped && Number(data.sync.authTotal || 0) > 0
+      ? ` Synced ${data.sync.authTotal} auth account${data.sync.authTotal === 1 ? "" : "s"} from Supabase.`
+      : "";
+    if (usersCache.length) {
+      setStatus("usersStatus", syncNote.trim(), syncNote ? "success" : "");
+    } else {
+      setStatus(
+        "usersStatus",
+        `No users found yet.${syncNote || " People appear here after they sign up in Supabase Auth."}`,
+        "info"
+      );
+    }
   }
 
   async function saveUser(event) {

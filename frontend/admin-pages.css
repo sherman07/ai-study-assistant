@@ -15,6 +15,14 @@
   padding-bottom: 40px;
 }
 
+.admin-stack[hidden],
+.admin-card[hidden],
+#adminContent[hidden],
+#userEditor[hidden],
+#adminGate[hidden] {
+  display: none !important;
+}
+
 .admin-card {
   background: var(--surface);
   border: 1px solid var(--border);

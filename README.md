@@ -69,6 +69,7 @@ STRIPE_PRICE_STARTER=price_...
 STRIPE_PRICE_STUDENT=price_...
 STRIPE_PRICE_PRO=price_...
 SYNAPSE_FRONTEND_BASE_URL=https://your-frontend-domain.com
+SYNAPSE_CANONICAL_FRONTEND_BASE_URL=https://your-frontend-domain.com
 # Local webhook testing only:
 SYNAPSE_ALLOW_UNSIGNED_STRIPE_WEBHOOK=false
 ```
@@ -77,6 +78,12 @@ Signup confirmation, confirmation resend, and password reset emails are generate
 from Supabase Auth action links but delivered by Synapse through the backend SMTP
 provider. Keep these values only in `backend/.env` and in the Render
 `synapse-ai-backend` environment:
+
+On Render, `SYNAPSE_FRONTEND_BASE_URL` and `SYNAPSE_CANONICAL_FRONTEND_BASE_URL`
+must be your live Vercel origin (including `/frontend` when that is where
+`verify.html` lives). If the public backend URL is hosted and the frontend base
+is still localhost, Synapse forces the canonical Vercel verify URL into emails
+so confirmation links never open `localhost` on phones.
 
 ```env
 SYNAPSE_SMTP_HOST=smtp.gmail.com

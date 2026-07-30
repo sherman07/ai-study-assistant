@@ -25,7 +25,7 @@ from urllib.parse import parse_qs, quote, urlencode, urlparse, urlunparse
 
 import requests
 from dotenv import dotenv_values
-from fastapi import FastAPI, File, Form, Request, Response, UploadFile
+from fastapi import BackgroundTasks, FastAPI, File, Form, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -424,6 +424,15 @@ SYNAPSE_FRONTEND_BASE_URL = (
     or os.getenv("SYNAPSE_PUBLIC_FRONTEND_URL")
     or "http://127.0.0.1:5175/frontend"
 ).rstrip("/")
+SYNAPSE_CANONICAL_FRONTEND_BASE_URL = (
+    os.getenv("SYNAPSE_CANONICAL_FRONTEND_BASE_URL")
+    or "https://synapse-ai-study-assistant-tutor.vercel.app/frontend"
+).rstrip("/")
+SYNAPSE_PUBLIC_BACKEND_URL = (
+    os.getenv("SYNAPSE_PUBLIC_BACKEND_URL")
+    or os.getenv("SYNAPSE_PUBLIC_API_BASE")
+    or ""
+).rstrip("/")
 SYNAPSE_SMTP_HOST = auth_env_value("SYNAPSE_SMTP_HOST")
 try:
     SYNAPSE_SMTP_PORT = int(auth_env_value("SYNAPSE_SMTP_PORT") or "587")
@@ -685,6 +694,53 @@ def auth_local_dev_host(hostname: str) -> bool:
     return value in {"localhost", "127.0.0.1", "::1"} or auth_private_ipv4_host(value)
 
 
+def auth_public_backend_is_production() -> bool:
+    host = urlparse(SYNAPSE_PUBLIC_BACKEND_URL).hostname or ""
+    return bool(host) and not auth_local_dev_host(host)
+
+
+def auth_email_frontend_base_url() -> str:
+    """
+    Frontend origin embedded in confirmation / reset emails.
+    Never emit localhost links from a hosted production backend.
+    """
+    configured = (SYNAPSE_FRONTEND_BASE_URL or "").rstrip("/")
+    parsed = urlparse(configured)
+    host = parsed.hostname or ""
+    if configured and not auth_local_dev_host(host):
+        return configured
+    if auth_public_backend_is_production():
+        return SYNAPSE_CANONICAL_FRONTEND_BASE_URL
+    return configured or SYNAPSE_CANONICAL_FRONTEND_BASE_URL
+
+
+def auth_redirect_allowed_hosts() -> set[str]:
+    hosts = set()
+    for candidate in (
+        SYNAPSE_FRONTEND_BASE_URL,
+        SYNAPSE_CANONICAL_FRONTEND_BASE_URL,
+        auth_email_frontend_base_url(),
+    ):
+        host = (urlparse(candidate).hostname or "").lower()
+        if host:
+            hosts.add(host)
+    return hosts
+
+
+def is_allowed_auth_redirect(url: str, *, kind: str) -> bool:
+    parsed = urlparse(str(url or "").strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return False
+    suffix = "/verify.html" if kind == "verify" else "/reset-password.html"
+    if not parsed.path.endswith(suffix):
+        return False
+    host = (parsed.hostname or "").lower()
+    if host in auth_redirect_allowed_hosts():
+        return True
+    configured_is_local = auth_local_dev_host(urlparse(SYNAPSE_FRONTEND_BASE_URL).hostname or "")
+    return configured_is_local and not auth_public_backend_is_production() and auth_local_dev_host(host)
+
+
 def masked_auth_email(email: str) -> str:
     normalized = normalize_auth_email(email)
     if not normalized:
@@ -694,18 +750,14 @@ def masked_auth_email(email: str) -> str:
 
 def signup_redirect_to(request: Request, payload: Dict[str, Any]) -> str:
     raw = str(payload.get("redirectTo") or payload.get("redirect_to") or "").strip()
-    parsed = urlparse(raw)
-    configured_frontend = urlparse(SYNAPSE_FRONTEND_BASE_URL)
-    allowed_hosts = {configured_frontend.netloc} if configured_frontend.netloc else set()
-    configured_is_local = auth_local_dev_host(configured_frontend.hostname or "")
-    if (
-        parsed.scheme in {"http", "https"}
-        and parsed.netloc
-        and parsed.path.endswith("/verify.html")
-        and (parsed.netloc in allowed_hosts or (configured_is_local and auth_local_dev_host(parsed.hostname or "")))
-    ):
+    email_base = auth_email_frontend_base_url()
+    if is_allowed_auth_redirect(raw, kind="verify"):
+        raw_host = urlparse(raw).hostname or ""
+        # Hosted backends must never email localhost confirmation links.
+        if auth_local_dev_host(raw_host) and auth_public_backend_is_production():
+            return f"{email_base}/verify.html"
         return raw
-    return f"{SYNAPSE_FRONTEND_BASE_URL}/verify.html"
+    return f"{email_base}/verify.html"
 
 
 async def request_json_payload(request: Request) -> Dict[str, Any]:
@@ -844,28 +896,63 @@ def supabase_auth_error_message(error_text: str) -> str:
 
 def find_supabase_user_by_email(email: str) -> Optional[Dict[str, Any]]:
     target = normalize_auth_email(email)
-    per_page = 1000
-    page = 1
-    while True:
+
+    def match_users(users: Any) -> Optional[Dict[str, Any]]:
+        if not isinstance(users, list):
+            return None
+        for user in users:
+            if normalize_auth_email(user.get("email")) == target:
+                return user
+        return None
+
+    # Prefer a filtered lookup so signup does not wait on a full user scan.
+    filtered = requests.get(
+        f"{SUPABASE_URL}/auth/v1/admin/users",
+        headers=supabase_admin_headers(),
+        params={"page": 1, "per_page": 200, "filter": target},
+        timeout=8,
+    )
+    if filtered.status_code < 400:
+        payload = filtered.json()
+        users = payload.get("users") if isinstance(payload, dict) else payload
+        matched = match_users(users)
+        if matched:
+            return matched
+        # Some GoTrue builds honor filter as an exact/prefix search. If the page
+        # is empty, the email is not present and we can skip the full scan.
+        if isinstance(users, list) and not users:
+            return None
+
+    per_page = 200
+    max_pages = 5
+    for page in range(1, max_pages + 1):
         response = requests.get(
             f"{SUPABASE_URL}/auth/v1/admin/users",
             headers=supabase_admin_headers(),
             params={"page": page, "per_page": per_page},
-            timeout=15,
+            timeout=8,
         )
         if response.status_code >= 400:
             raise RuntimeError(f"admin list users failed: {response.status_code} {response.text[:240]}")
         payload = response.json()
         users = payload.get("users") if isinstance(payload, dict) else payload
-        if not isinstance(users, list):
-            users = []
-        for user in users:
-            if normalize_auth_email(user.get("email")) == target:
-                return user
-        if len(users) < per_page:
+        matched = match_users(users)
+        if matched:
+            return matched
+        if not isinstance(users, list) or len(users) < per_page:
             return None
-        page += 1
     return None
+
+
+def synapse_link_from_generate_payload(payload: Dict[str, Any], redirect_to: str, fallback_type: str) -> Optional[str]:
+    if not isinstance(payload, dict):
+        return None
+    token_hash = payload.get("hashed_token")
+    verification_type = str(payload.get("verification_type") or fallback_type or "").strip() or fallback_type
+    if token_hash:
+        return build_synapse_auth_link(redirect_to, str(token_hash), verification_type)
+    action_link = payload.get("action_link")
+    return str(action_link) if action_link else None
 
 
 def call_supabase_generate_signup_link(
@@ -888,12 +975,12 @@ def call_supabase_generate_signup_link(
             },
             "redirect_to": redirect_to,
         },
-        timeout=18,
+        timeout=12,
     )
     if response.status_code >= 400:
         return None, None, response.text[:500], response.status_code
     payload = response.json()
-    action_link = payload.get("action_link") if isinstance(payload, dict) else None
+    action_link = synapse_link_from_generate_payload(payload if isinstance(payload, dict) else {}, redirect_to, "signup")
     if not action_link:
         return None, None, "Supabase did not return a signup action link.", 502
     user = payload.get("user") if isinstance(payload, dict) else None
@@ -915,18 +1002,13 @@ def call_supabase_resend(email: str, redirect_to: str) -> Tuple[bool, Optional[s
 
 def password_reset_redirect_to(request: Request, payload: Dict[str, Any]) -> str:
     raw = str(payload.get("redirectTo") or payload.get("redirect_to") or "").strip()
-    parsed = urlparse(raw)
-    configured_frontend = urlparse(SYNAPSE_FRONTEND_BASE_URL)
-    allowed_hosts = {configured_frontend.netloc} if configured_frontend.netloc else set()
-    configured_is_local = auth_local_dev_host(configured_frontend.hostname or "")
-    if (
-        parsed.scheme in {"http", "https"}
-        and parsed.netloc
-        and parsed.path.endswith("/reset-password.html")
-        and (parsed.netloc in allowed_hosts or (configured_is_local and auth_local_dev_host(parsed.hostname or "")))
-    ):
+    email_base = auth_email_frontend_base_url()
+    if is_allowed_auth_redirect(raw, kind="reset"):
+        raw_host = urlparse(raw).hostname or ""
+        if auth_local_dev_host(raw_host) and auth_public_backend_is_production():
+            return f"{email_base}/reset-password.html"
         return raw
-    return f"{SYNAPSE_FRONTEND_BASE_URL}/reset-password.html"
+    return f"{email_base}/reset-password.html"
 
 
 def build_synapse_auth_link(redirect_to: str, token_hash: str, verification_type: str) -> str:
@@ -965,15 +1047,23 @@ def call_supabase_generate_invite_link(email: str, redirect_to: str) -> Tuple[Op
             "email": email,
             "redirect_to": redirect_to,
         },
-        timeout=18,
+        timeout=12,
     )
     if response.status_code >= 400:
         return None, response.text[:500], response.status_code
     payload = response.json()
-    action_link = payload.get("action_link") if isinstance(payload, dict) else None
+    action_link = synapse_link_from_generate_payload(payload if isinstance(payload, dict) else {}, redirect_to, "invite")
     if not action_link:
         return None, "Supabase did not return a confirmation action link.", 502
     return str(action_link), None, response.status_code
+
+
+def queue_synapse_auth_email(background_tasks: Optional[BackgroundTasks], sender, *args) -> None:
+    """Send auth mail immediately in-process, or queue it so the API can return fast."""
+    if background_tasks is not None:
+        background_tasks.add_task(sender, *args)
+        return
+    sender(*args)
 
 
 def send_synapse_auth_email(
@@ -1149,7 +1239,7 @@ def _valid_contact_email(value: str) -> bool:
 
 
 @app.post("/api/auth/signup")
-async def signup_account(request: Request) -> Response:
+async def signup_account(request: Request, background_tasks: BackgroundTasks) -> Response:
     logger.info("Signup attempt started")
     payload = await request_json_payload(request)
     clean_payload, errors = validate_signup_payload(payload)
@@ -1223,18 +1313,14 @@ async def signup_account(request: Request) -> Response:
             502,
         )
 
-    try:
-        await asyncio.to_thread(send_synapse_signup_confirmation_email, email, action_link)
-    except Exception as error:
-        logger.exception("Signup confirmation email delivery failed for %s: %s", email_ref, error)
-        return auth_api_response(
-            False,
-            "signup_delivery_failed",
-            "Synapse could not send the confirmation email. Please try again later.",
-            502,
-        )
-
-    logger.info("Supabase signup accepted for %s; confirmation email requested", email_ref)
+    # Queue SMTP delivery so the signup API returns immediately instead of
+    # blocking on provider latency (often the multi-minute wait users feel).
+    queue_synapse_auth_email(background_tasks, send_synapse_signup_confirmation_email, email, action_link)
+    logger.info(
+        "Supabase signup accepted for %s; confirmation email queued to %s",
+        email_ref,
+        urlparse(redirect_to).netloc or redirect_to,
+    )
     return auth_api_response(
         True,
         "created_confirmation_sent",
@@ -1245,7 +1331,7 @@ async def signup_account(request: Request) -> Response:
 
 
 @app.post("/api/auth/resend-confirmation")
-async def resend_signup_confirmation(request: Request) -> Response:
+async def resend_signup_confirmation(request: Request, background_tasks: BackgroundTasks) -> Response:
     payload = await request_json_payload(request)
     email, errors = validate_resend_payload(payload)
     email_ref = masked_auth_email(email)
@@ -1311,18 +1397,7 @@ async def resend_signup_confirmation(request: Request) -> Response:
             email=email,
         )
 
-    try:
-        await asyncio.to_thread(send_synapse_signup_confirmation_email, email, action_link)
-    except Exception as error:
-        logger.exception("Confirmation resend email delivery failed for %s: %s", email_ref, error)
-        return auth_api_response(
-            False,
-            "confirmation_delivery_failed",
-            "Synapse could not send the confirmation email. Please try again later.",
-            502,
-            email=email,
-        )
-
+    queue_synapse_auth_email(background_tasks, send_synapse_signup_confirmation_email, email, action_link)
     logger.info("Supabase confirmation resend accepted for %s", email_ref)
     return auth_api_response(
         True,

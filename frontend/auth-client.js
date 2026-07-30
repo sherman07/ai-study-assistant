@@ -563,6 +563,32 @@
       };
     }
 
+    const tokenHash = params.get("token_hash");
+    const otpType = String(params.get("type") || "").trim().toLowerCase();
+    if (tokenHash && otpType) {
+      const client = await getSupabaseClient();
+      if (!client) throw new Error("Production auth is not configured.");
+      const verifyType = ["signup", "invite", "magiclink", "email", "recovery", "email_change"].includes(otpType)
+        ? otpType
+        : "signup";
+      const { data, error } = await client.auth.verifyOtp({
+        token_hash: tokenHash,
+        type: verifyType
+      });
+      if (error) {
+        return {
+          ok: false,
+          status: "invalid_token",
+          error: error.message || "This confirmation link is invalid or expired."
+        };
+      }
+      if (data?.session?.user) {
+        const session = saveSession(publicSessionFromSupabase(data.session));
+        window.history?.replaceState?.({}, document.title, window.location.pathname);
+        return { ok: true, status: "signed_in", session };
+      }
+    }
+
     const session = await syncSessionFromProvider();
     if (session?.accountId || session?.email) {
       return { ok: true, status: "signed_in", session };

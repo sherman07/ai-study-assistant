@@ -84,7 +84,30 @@ auth.saveSession(null);
 assert.equal(durable.getItem("synapse.auth.session.v1"), null);
 assert.equal(temporary.getItem("synapse.auth.session.v1"), null);
 
+auth.setRememberMePreference(false);
+const tokenSession = {
+  accountId: "student-2",
+  email: "student2@example.com",
+  accessToken: "must-not-persist-durably"
+};
+auth.saveSession(tokenSession);
+assert.equal(
+  durable.getItem("synapse.auth.session.v1"),
+  null,
+  "fresh login with remember-me off must not write the app session (including accessToken) to localStorage"
+);
+assert.equal(
+  temporary.getItem("synapse.auth.session.v1"),
+  JSON.stringify(tokenSession),
+  "fresh login with remember-me off should keep the app session in sessionStorage only"
+);
+
 assert.match(loginPage, /data-testid="remember-me-checkbox"/);
 assert.match(authClient, /storage: createSupabaseStorageAdapter\(\)/);
 assert.match(authClient, /signInEmail\(\{ email, password, rememberMe = false \}\)/);
+assert.match(
+  authClient,
+  /Remember-me controls where the app session \(including accessToken\) lives/,
+  "saveSession must document that remember-me gates durable accessToken storage"
+);
 console.log("remember-me regression passed");

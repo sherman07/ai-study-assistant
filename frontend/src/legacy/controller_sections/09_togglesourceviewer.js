@@ -1694,6 +1694,9 @@ async function destroyHistoryEntry(id) {
   deleteQuizHistory(id, target?.sourceFingerprint || target?.clientFingerprint || "");
   deleteFlashcardDeck(id, target?.sourceFingerprint || target?.clientFingerprint || "");
   deleteVoiceTutorHistory(id, target?.sourceFingerprint || target?.clientFingerprint || "");
+  if (typeof deleteBroadcastJobsForNote === "function") {
+    deleteBroadcastJobsForNote(id, target?.sourceFingerprint || target?.clientFingerprint || "");
+  }
   if (typeof deleteStudyToolMemory === "function") {
     deleteStudyToolMemory(id, target?.sourceFingerprint || target?.clientFingerprint || "");
   }

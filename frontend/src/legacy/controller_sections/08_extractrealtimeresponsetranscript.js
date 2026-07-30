@@ -1245,12 +1245,13 @@ async function confirmAccountDeletion() {
     return;
   }
   setAccountPanelStatus("info", "Deleting account and clearing local Synapse data...");
-  let serverError = "";
   if (window.SynapseAuth?.requestAccountDeletion && session.authMode === "supabase") {
     try {
       await window.SynapseAuth.requestAccountDeletion();
     } catch (error) {
-      serverError = error.message || "Server account deletion failed.";
+      const serverError = error.message || "Server account deletion failed.";
+      setAccountPanelStatus("error", `${serverError} Your local study data was left untouched.`);
+      throw new Error(serverError);
     }
   }
   if (window.SynapseAuth?.clearLocalSynapseData) {
@@ -1259,11 +1260,10 @@ async function confirmAccountDeletion() {
     safeRemoveLocalStorage(AUTH_SESSION_STORAGE_KEY);
     safeRemoveLocalStorage(ACTIVE_HISTORY_KEY);
   }
-  setAccountPanelStatus(serverError ? "error" : "success", serverError || "Account deleted. Redirecting to login...");
+  setAccountPanelStatus("success", "Account deleted. Redirecting to login...");
   window.setTimeout(() => {
     goToAuthPage("login");
-  }, serverError ? 1800 : 900);
-  if (serverError) throw new Error(serverError);
+  }, 900);
 }
 
 async function buildClientFingerprint(rawSource, sourceLinks = []) {

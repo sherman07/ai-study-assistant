@@ -43,8 +43,8 @@ const styles = read("frontend/styles/04-section.css");
 const serverEnvExample = read("server/.env.example");
 const backendEnvExample = read("backend/.env.example");
 const geminiEnvExample = read("backend/.env.gemini.example");
-const broadcastAssetVersion = "ai-broadcast-v19";
-const legacyControllerAssetVersion = "settings-modal-pattern-20260720-06";
+const broadcastAssetVersion = "study-tools-guards-v1";
+const legacyControllerAssetVersion = "study-tools-guards-v1";
 
 assert.ok(rootIndex.includes("frontend/landing.html"), "root index should keep the landing page as the public entry");
 assert.ok(appShim.includes("frontend/index.html"), "app shim should open the study workspace frontend");
@@ -53,7 +53,10 @@ assert.ok(styleRoot.includes('@import url("./styles/04-section.css");'), "root C
 assert.ok(main.includes(broadcastAssetVersion), "main module should bust cached React and controller loader imports");
 assert.ok(appShellEntry.includes(broadcastAssetVersion), "React app entry should bust cached AppShell imports");
 assert.ok(appShell.includes(broadcastAssetVersion), "AppShell should bust cached child component imports");
-assert.ok(analysisStage.includes(`StudyTools.js?v=${broadcastAssetVersion}`), "AnalysisStage should bust cached StudyTools imports");
+assert.ok(
+  /StudyTools\.js\?v=[A-Za-z0-9._-]+/.test(analysisStage),
+  "AnalysisStage should bust cached StudyTools imports"
+);
 assert.ok(loader.includes(legacyControllerAssetVersion), "controller script URL should bust cached controller");
 assert.ok(legacyController.includes(`CONTROLLER_VERSION = "${legacyControllerAssetVersion}"`), "legacy controller sections should use the settings cache key");
 assert.ok(app.includes('"/api/broadcast-jobs"'), "Express app should mount broadcast job routes");

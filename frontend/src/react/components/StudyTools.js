@@ -8,7 +8,7 @@ const STUDY_TOOLS = [
     label: "Mind Map",
     icon: "bi-diagram-3",
     title: "Mind Map",
-    description: "Explore branches and jump straight into the related note section.",
+    description: "Explore curved branches, zoom and pan the map, then open any point for notes or tutor help.",
     settingsAction: ["openStudyToolSettingsModal", "mindmap"],
     settingsLabel: "Mind map settings",
     active: true,

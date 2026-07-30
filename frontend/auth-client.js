@@ -447,11 +447,15 @@
     const temporary = browserStorage("sessionStorage");
     const payload = JSON.stringify(session);
     try {
-      // Always keep a durable copy for the workspace account menu. Remember-me
-      // still controls where Supabase auth tokens live.
-      durable?.setItem(SESSION_KEY, payload);
-      if (preferred === temporary) temporary?.setItem(SESSION_KEY, payload);
-      else temporary?.removeItem(SESSION_KEY);
+      // Remember-me controls where the app session (including accessToken) lives.
+      // When unchecked, keep the bearer token out of durable localStorage.
+      if (preferred === durable) {
+        durable?.setItem(SESSION_KEY, payload);
+        temporary?.removeItem(SESSION_KEY);
+      } else {
+        temporary?.setItem(SESSION_KEY, payload);
+        durable?.removeItem(SESSION_KEY);
+      }
     } catch {}
     if (session.email) setLastEmail(session.email);
     dispatchAuthChange(session);
@@ -1059,7 +1063,12 @@
   async function requestAccountDeletion() {
     const response = await apiFetch("/account/delete", { method: "POST", body: JSON.stringify({ confirm: true }) });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.error) throw new Error(data.error || "Could not delete account.");
+    if (!response.ok || data.error || data.ok === false) {
+      throw new Error(data.error || "Could not delete account.");
+    }
+    if (data.deletion && data.deletion.supabase_deleted === false) {
+      throw new Error("Account identity could not be deleted. Local study data was left untouched.");
+    }
     return data;
   }
 

@@ -191,6 +191,14 @@ class VisualImageGuideTests(unittest.TestCase):
         self.assertNotIn("Fill the central area", visible_labels)
         self.assertNotIn("Use the corresponding source concept", visible_labels)
 
+    def test_visual_guide_endpoints_reject_empty_notes_with_400(self):
+        for path in ("/visual-image-guide/generate", "/visual-guide/generate"):
+            with patch("backend.app.require_text_ai"):
+                response = TestClient(app).post(path, json={"title": "Empty"})
+            self.assertEqual(response.status_code, 400, path)
+            self.assertIn("error", response.json())
+            self.assertIn("generated notes", response.json()["error"].lower())
+
     def test_visual_image_guide_endpoint_returns_frontend_compatible_v12_image_shape(self):
         with patch.dict(os.environ, {
             "VISUAL_IMAGE_GUIDE_BLUEPRINT": "false",

@@ -27,8 +27,9 @@ assert.ok(
   "AI provider options should let users choose GPT or Gemini"
 );
 assert.ok(
-  uploadStageSource.includes("aiProviderButtons()"),
-  "Upload stage should render the AI provider option buttons"
+  uploadStageSource.includes('id: "aiProvider"')
+    && uploadStageSource.includes('type: "hidden"'),
+  "Upload stage should expose a hidden AI provider control for backend selection"
 );
 assert.ok(
   uploadControllerSource.includes('formData.append("ai_provider"'),

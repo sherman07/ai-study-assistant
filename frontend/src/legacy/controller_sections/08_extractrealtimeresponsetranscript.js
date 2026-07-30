@@ -854,11 +854,11 @@ function renderAccountMenu() {
   document.querySelectorAll(".account-signed-out-only").forEach(node => {
     node.style.display = signedIn ? "none" : "";
   });
-  const email = String(session?.email || "").trim().toLowerCase();
+  const normalizedEmail = String(session?.email || "").trim().toLowerCase();
   const isController = Boolean(
     session?.isController
     || session?.platformRole === "controller"
-    || email === "shermanzheng8@gmail.com"
+    || normalizedEmail === "shermanzheng8@gmail.com"
   );
   document.querySelectorAll(".account-controller-only").forEach(node => {
     node.style.display = signedIn && isController ? "" : "none";

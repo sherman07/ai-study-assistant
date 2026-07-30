@@ -56,26 +56,37 @@ curl http://127.0.0.1:3001/health
 
 Configure Supabase for account storage, generated-note history, and study-tool history.
 
-1. In Supabase, open the SQL Editor and run [`server/src/db/supabase-schema.sql`](/Users/zhenghui/Desktop/Synapse-ai-study-assistant/server/src/db/supabase-schema.sql).
-2. In `server/.env`, set:
+1. In Supabase, open the SQL Editor and run [`server/src/db/supabase-schema.sql`](./src/db/supabase-schema.sql).
+2. For controller admin / site-access features on an existing project, also run [`server/src/db/migrations/001_admin_controller_access.sql`](./src/db/migrations/001_admin_controller_access.sql). This adds `users.platform_role`, `platform_settings`, and `site_access_allowlist`, and bootstraps `shermanzheng8@gmail.com` as the primary controller.
+3. In `server/.env`, set:
 
 ```env
 SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
 SUPABASE_ANON_KEY=your_public_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 SUPABASE_DB_SCHEMA=public
+SYNAPSE_BOOTSTRAP_CONTROLLER_EMAILS=shermanzheng8@gmail.com
 ```
 
-3. In `frontend/config.js` or your deployed runtime config, set:
+4. In `frontend/config.js` or your deployed runtime config, set:
 
 ```js
 window.SYNAPSE_SUPABASE_URL = "https://YOUR_PROJECT_REF.supabase.co";
 window.SYNAPSE_SUPABASE_ANON_KEY = "your_public_anon_key";
 ```
 
-4. Restart the data API and backend after updating env files.
+5. Restart the data API and backend after updating env files.
+
+Optional: after applying the migration, verify with:
+
+```bash
+cd server
+node scripts/verify-admin-controller-supabase.mjs
+```
 
 The frontend still signs in through Supabase Auth. The server verifies bearer tokens with `SUPABASE_ANON_KEY`, then stores user profiles and histories with `SUPABASE_SERVICE_ROLE_KEY`. Keep the service-role key only in `server/.env` or your server secret manager.
+
+Controller pages (`/frontend/admin-settings.html`, `/frontend/admin-access.html`) call `/api/admin/*` on this data API. Those routes require a signed-in controller and read/write Supabase through the service role.
 
 The schema enables RLS and grants access explicitly for `authenticated` and `service_role`, matching Supabase's newer Data API behavior where tables may not be exposed automatically. The Express server uses the service role and still performs owner checks in application code before reading or writing user-scoped records.
 

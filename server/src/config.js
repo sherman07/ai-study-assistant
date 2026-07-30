@@ -39,6 +39,10 @@ const config = {
   ),
   allowLocalDemoAuth: envBool("ALLOW_LOCAL_DEMO_AUTH", false),
   internalApiToken: envString("SYNAPSE_INTERNAL_API_TOKEN"),
+  bootstrapControllerEmails: envList(
+    "SYNAPSE_BOOTSTRAP_CONTROLLER_EMAILS",
+    "shermanzheng8@gmail.com"
+  ),
   supabaseUrl: envString("SUPABASE_URL"),
   supabaseAnonKey: envString("SUPABASE_ANON_KEY"),
   supabaseServiceRoleKey: envString("SUPABASE_SERVICE_ROLE_KEY"),

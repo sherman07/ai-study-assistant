@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { isControllerUser } from "../admin/controllers.js";
 import { requireUser } from "../middleware/auth.js";
 import { patchUser } from "../repositories/usersRepository.js";
 import { asyncRoute } from "./helpers.js";
@@ -6,7 +7,12 @@ import { asyncRoute } from "./helpers.js";
 const router = Router();
 
 router.get("/me", requireUser, (req, res) => {
-  res.json({ ok: true, user: req.user });
+  const user = {
+    ...req.user,
+    platformRole: isControllerUser(req.user) ? "controller" : "user",
+    isController: isControllerUser(req.user)
+  };
+  res.json({ ok: true, user });
 });
 
 router.patch("/me", requireUser, asyncRoute(async (req, res) => {

@@ -222,6 +222,13 @@
   }
 
   function redirectToApp() {
+    const params = new URLSearchParams(window.location.search || '');
+    const next = window.SynapseAuth?.safeReturnPath?.(params.get('next') || params.get('redirect') || '')
+      || '';
+    if (next) {
+      window.location.href = new URL(next, window.location.origin).toString();
+      return;
+    }
     window.location.href = window.SynapseAuth?.absoluteAppUrl?.() || appEntryUrl();
   }
 
@@ -835,22 +842,32 @@
 
     // Resume a remembered session without asking for the password again.
     const resumeRememberedSession = () => {
-      const sync = window.SynapseAuth?.syncSessionFromProvider
-        ? window.SynapseAuth.syncSessionFromProvider()
-        : Promise.resolve(window.SynapseAuth?.getStoredSession?.() || null);
+      const auth = window.SynapseAuth;
+      const sync = auth?.requireApiSession
+        ? auth.requireApiSession()
+        : (auth?.syncSessionFromProvider
+          ? auth.syncSessionFromProvider()
+          : Promise.resolve(auth?.getStoredSession?.() || null));
       sync
-        .then(session => {
-          if (session?.accountId || session?.email) {
-            if (window.SynapseAuth?.setLastEmail && session.email) {
-              window.SynapseAuth.setLastEmail(session.email);
-            }
-            if (loginEmailInput && session.email) loginEmailInput.value = session.email;
-            if (rememberMeInput) rememberMeInput.checked = true;
-            window.SynapseAuth?.setRememberMePreference?.(true);
-            showLoginResume(session);
+        .then(async session => {
+          if (!session?.accountId && !session?.email) {
+            applyLoginPrefill();
             return;
           }
-          applyLoginPrefill();
+          const token = auth?.accessToken ? await auth.accessToken() : session.accessToken;
+          if (!token) {
+            // Email-only ghosts used to auto-bounce forever between login and admin.
+            applyLoginPrefill();
+            showAuthStatus(loginForm, 'info', 'Please enter your password to continue.');
+            return;
+          }
+          if (auth?.setLastEmail && session.email) {
+            auth.setLastEmail(session.email);
+          }
+          if (loginEmailInput && session.email) loginEmailInput.value = session.email;
+          if (rememberMeInput) rememberMeInput.checked = true;
+          auth?.setRememberMePreference?.(true);
+          showLoginResume(session);
         })
         .catch(error => {
           console.warn('Could not restore remembered Synapse login:', error);

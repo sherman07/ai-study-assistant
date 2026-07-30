@@ -379,17 +379,23 @@
   function mergeServerUserIntoSession(session, user = {}) {
     if (!session) return session;
     const plan = user.plan || session.plan || "free";
+    const platformRole = user.platformRole || user.platform_role || session.platformRole || "user";
+    const isController = Boolean(user.isController) || platformRole === "controller";
     return {
       ...session,
       accountId: user.id || session.accountId,
       email: user.email || session.email,
       displayName: user.displayName || session.displayName,
       role: user.role || session.role,
+      platformRole: isController ? "controller" : "user",
+      isController,
       plan: displayPlan(plan),
       billingPlan: plan,
       subscriptionStatus: user.subscriptionStatus || session.subscriptionStatus || "inactive",
       currentPeriodEnd: user.currentPeriodEnd || session.currentPeriodEnd || null,
-      credits: creditsForPlan(plan)
+      credits: Number.isFinite(Number(user.credits))
+        ? Math.max(0, Math.floor(Number(user.credits)))
+        : creditsForPlan(plan)
     };
   }
 
@@ -403,6 +409,11 @@
       || String(metadata.full_name || metadata.name || "").trim()
       || email
       || "Synapse Student";
+    const accessToken = String(
+      sessionPayload?.access_token
+      || sessionPayload?.accessToken
+      || ""
+    ).trim();
     return {
       accountId: user?.id || email,
       email,
@@ -417,9 +428,10 @@
       credits: Number(metadata.credits || creditsForPlan(metadata.plan || "free")),
       authProvider: metadata.provider || user?.app_metadata?.provider || "supabase",
       authMode: "supabase",
+      accessToken: accessToken || undefined,
       createdAt: user?.created_at || new Date().toISOString(),
       signedInAt: new Date().toISOString(),
-      expiresAt: sessionPayload?.expires_at || null
+      expiresAt: sessionPayload?.expires_at || sessionPayload?.expiresAt || null
     };
   }
 
@@ -430,11 +442,16 @@
       dispatchAuthChange(null);
       return null;
     }
-    const storage = preferredSessionStorage();
-    const otherStorage = alternateSessionStorage();
+    const preferred = preferredSessionStorage();
+    const durable = browserStorage("localStorage");
+    const temporary = browserStorage("sessionStorage");
+    const payload = JSON.stringify(session);
     try {
-      storage?.setItem(SESSION_KEY, JSON.stringify(session));
-      otherStorage?.removeItem(SESSION_KEY);
+      // Always keep a durable copy for the workspace account menu. Remember-me
+      // still controls where Supabase auth tokens live.
+      durable?.setItem(SESSION_KEY, payload);
+      if (preferred === temporary) temporary?.setItem(SESSION_KEY, payload);
+      else temporary?.removeItem(SESSION_KEY);
     } catch {}
     if (session.email) setLastEmail(session.email);
     dispatchAuthChange(session);
@@ -501,8 +518,36 @@
     const client = await getSupabaseClient();
     const { data, error } = await client.auth.getSession();
     if (error) throw error;
-    if (data?.session?.user) session = saveSession(publicSessionFromSupabase(data.session));
-    else if (session?.authMode === "supabase") session = saveSession(null);
+    if (data?.session?.user) {
+      session = saveSession(publicSessionFromSupabase(data.session));
+      return syncBillingSessionFromServer(session);
+    }
+
+    const recovered = recoverSupabaseSessionFromStorage();
+    if (recovered?.user && recovered?.access_token) {
+      session = saveSession(publicSessionFromSupabase(recovered));
+      return syncBillingSessionFromServer(session);
+    }
+
+    // Do not wipe a just-established Synapse session when getSession() is briefly
+    // empty (storage race after redirect). Only clear on explicit sign-out.
+    if (session?.authMode === "supabase" && (session.email || session.accountId)) {
+      try {
+        const { data: userData } = await client.auth.getUser();
+        if (userData?.user) {
+          session = saveSession(publicSessionFromSupabase({
+            user: userData.user,
+            access_token: session.accessToken || "",
+            expires_at: session.expiresAt || null
+          }));
+          return syncBillingSessionFromServer(session);
+        }
+      } catch {}
+      // Without a recoverable JWT, treat as signed-out for API/admin gates.
+      if (!(await accessToken())) return null;
+      return syncBillingSessionFromServer(session);
+    }
+
     return syncBillingSessionFromServer(session);
   }
 
@@ -756,16 +801,102 @@
     saveSession(null);
   }
 
+  function parseStoredSupabaseSession(raw) {
+    if (!raw) return null;
+    try {
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (parsed?.access_token && parsed?.user) return parsed;
+      // supabase-js sometimes nests currentSession
+      if (parsed?.currentSession?.access_token && parsed?.currentSession?.user) {
+        return parsed.currentSession;
+      }
+    } catch {}
+    return null;
+  }
+
+  function recoverSupabaseSessionFromStorage() {
+    for (const storage of listSessionStorages()) {
+      if (!storage) continue;
+      try {
+        for (let index = 0; index < storage.length; index += 1) {
+          const key = storage.key(index);
+          if (!/^sb-.+-auth-token$/i.test(String(key || ""))) continue;
+          const session = parseStoredSupabaseSession(storage.getItem(key));
+          if (session?.access_token) return session;
+        }
+      } catch {}
+    }
+    return null;
+  }
+
+  function safeReturnPath(candidate, fallback = "") {
+    const value = String(candidate || "").trim();
+    if (!value) return fallback;
+    try {
+      if (value.startsWith("/") && !value.startsWith("//")) {
+        return value;
+      }
+      const url = new URL(value, window.location.origin);
+      if (url.origin !== window.location.origin) return fallback;
+      return `${url.pathname}${url.search}${url.hash}`;
+    } catch {
+      return fallback;
+    }
+  }
+
+  function loginUrl({ next } = {}) {
+    const target = new URL("login.html", window.location.href);
+    const returnPath = safeReturnPath(
+      next,
+      `${window.location.pathname}${window.location.search}${window.location.hash}`
+    );
+    if (returnPath && !/\/login\.html(?:$|\?)/i.test(returnPath)) {
+      target.searchParams.set("next", returnPath);
+    }
+    return target.toString();
+  }
+
   async function accessToken() {
     if (isConfigured()) {
-      const client = await getSupabaseClient();
-      const { data } = await client.auth.getSession();
-      if (data?.session?.access_token) {
-        saveSession(publicSessionFromSupabase(data.session));
-        return data.session.access_token;
+      try {
+        const client = await getSupabaseClient();
+        const { data } = await client.auth.getSession();
+        if (data?.session?.access_token) {
+          saveSession(publicSessionFromSupabase(data.session));
+          return data.session.access_token;
+        }
+      } catch {}
+
+      const recovered = recoverSupabaseSessionFromStorage();
+      if (recovered?.access_token) {
+        saveSession(publicSessionFromSupabase(recovered));
+        return recovered.access_token;
       }
     }
-    return getStoredSession()?.accessToken || "";
+    return String(getStoredSession()?.accessToken || "").trim();
+  }
+
+  async function requireApiSession() {
+    const token = await accessToken();
+    if (!token) {
+      const stale = getStoredSession();
+      if (stale?.email || stale?.accountId) {
+        // Drop email-only ghosts that cannot call authenticated APIs.
+        // Keep last-email prefills for the login form.
+        try {
+          browserStorage("localStorage")?.removeItem(SESSION_KEY);
+          browserStorage("sessionStorage")?.removeItem(SESSION_KEY);
+          dispatchAuthChange(null);
+        } catch {}
+      }
+      return null;
+    }
+    let session = getStoredSession();
+    if (!session?.email && !session?.accountId) {
+      session = await syncSessionFromProvider();
+    }
+    if (!session?.email && !session?.accountId) return null;
+    return { ...session, accessToken: token };
   }
 
   async function authHeaders(extra = {}) {
@@ -1014,10 +1145,14 @@
     getStoredSession,
     hasRememberedSession,
     isConfigured,
+    loginUrl,
     preparePasswordRecovery,
     requestAccountDeletion,
     requestServerExport,
+    requireApiSession,
+    accessToken,
     resendSignupConfirmation,
+    safeReturnPath,
     setLastEmail,
     setRememberMePreference,
     resetPassword,

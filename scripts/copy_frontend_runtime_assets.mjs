@@ -8,6 +8,10 @@ const distFrontendRoot = path.join(repoRoot, "dist", "frontend");
 
 const files = [
   "auth-client.js",
+  "admin-common.js",
+  "admin-access.js",
+  "admin-settings.js",
+  "admin-pages.css",
   "billing-pages.css",
   "billing-result.js",
   "config.js",

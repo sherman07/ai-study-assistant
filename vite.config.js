@@ -55,7 +55,9 @@ export default defineConfig({
         privacy: resolve(__dirname, "frontend/privacy.html"),
         terms: resolve(__dirname, "frontend/terms.html"),
         notFound: resolve(__dirname, "frontend/404.html"),
-        focusRoom: resolve(__dirname, "frontend/focus-room.html")
+        focusRoom: resolve(__dirname, "frontend/focus-room.html"),
+        adminSettings: resolve(__dirname, "frontend/admin-settings.html"),
+        adminAccess: resolve(__dirname, "frontend/admin-access.html")
       }
     }
   },

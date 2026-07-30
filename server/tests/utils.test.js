@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { billingPlanList, hasActivePro, subscriptionAccessPlan, userEntitlements } from "../src/billing/plans.js";
+import { billingPlanList, creditsForPlan, hasActivePro, resolveUserCredits, subscriptionAccessPlan, userEntitlements } from "../src/billing/plans.js";
 import { allowedReturnUrl } from "../src/routes/billing.js";
 import { stableUserId } from "../src/utils/ids.js";
 import { allowedValue, cleanString, limitValue, validateProgressPayload } from "../src/utils/validators.js";
@@ -59,6 +59,14 @@ test("billing plan metadata separates subscription and one-time Checkout modes",
   assert.equal(plans.find(plan => plan.id === "free")?.mode, null);
   assert.equal(plans.find(plan => plan.id === "pro_monthly")?.mode, "subscription");
   assert.equal(plans.find(plan => plan.id === "pro_yearly")?.mode, "payment");
+});
+
+test("creditsForPlan and resolveUserCredits respect plan defaults and overrides", () => {
+  assert.equal(creditsForPlan("free"), 500);
+  assert.equal(creditsForPlan("pro_monthly"), 4000);
+  assert.equal(resolveUserCredits({ plan: "free" }), 500);
+  assert.equal(resolveUserCredits({ plan: "free", credits: 42 }), 42);
+  assert.equal(resolveUserCredits({ plan: "pro_yearly", metadata: { credits: 9 } }), 9);
 });
 
 test("billing entitlements only grant Pro for active unexpired statuses", () => {

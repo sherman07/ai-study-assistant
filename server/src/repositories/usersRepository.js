@@ -1,3 +1,4 @@
+import { creditsForPlan } from "../billing/plans.js";
 import { firstSupabaseRow, supabaseRequest } from "../supabase/rest.js";
 import { stableUserId } from "../utils/ids.js";
 import { cleanString, jsonValue, nullableString } from "../utils/validators.js";
@@ -12,7 +13,7 @@ function normalizeIdentity(identity = {}) {
     id: cleanString(identity.id || stableUserId(provider, subject), 80),
     auth_provider: provider,
     auth_subject: subject,
-    email: nullableString(identity.email, 255),
+    email: nullableString(identity.email, 255)?.toLowerCase() || null,
     display_name: nullableString(identity.display_name || identity.displayName, 255),
     auth_mode: nullableString(identity.auth_mode || identity.authMode || provider, 80),
     role: cleanString(identity.role || "student", 80) || "student",
@@ -21,6 +22,13 @@ function normalizeIdentity(identity = {}) {
 }
 
 function mapUser(row = {}) {
+  const metadata = jsonValue(row.metadata_json, {});
+  const plan = row.plan || "free";
+  const creditsRaw = metadata.credits;
+  const creditsParsed = Number(creditsRaw);
+  const credits = Number.isFinite(creditsParsed) && creditsParsed >= 0
+    ? Math.floor(creditsParsed)
+    : creditsForPlan(plan);
   return {
     id: row.id,
     authProvider: row.auth_provider,
@@ -29,12 +37,14 @@ function mapUser(row = {}) {
     displayName: row.display_name || "",
     authMode: row.auth_mode || row.auth_provider || "",
     role: row.role || "student",
+    platformRole: row.platform_role || "user",
     stripeCustomerId: row.stripe_customer_id || "",
     stripeSubscriptionId: row.stripe_subscription_id || "",
-    plan: row.plan || "free",
+    plan,
     subscriptionStatus: row.subscription_status || "inactive",
     currentPeriodEnd: row.current_period_end || null,
-    metadata: jsonValue(row.metadata_json, {}),
+    credits,
+    metadata,
     createdAt: row.created_at,
     updatedAt: row.updated_at
   };
@@ -54,7 +64,7 @@ function supabaseUserRow(identity = {}) {
   };
 }
 
-function supabaseUserPatch(patch = {}) {
+function supabaseUserPatch(patch = {}, existingMetadata = {}) {
   const next = {};
   if (patch.email !== undefined) next.email = nullableString(patch.email, 255);
   if (patch.displayName !== undefined || patch.display_name !== undefined) {
@@ -63,8 +73,19 @@ function supabaseUserPatch(patch = {}) {
   if (patch.role !== undefined) {
     next.role = cleanString(patch.role, 80) || "student";
   }
-  if (patch.metadata !== undefined) {
-    next.metadata_json = patch.metadata || {};
+  if (patch.platformRole !== undefined || patch.platform_role !== undefined) {
+    const role = cleanString(patch.platformRole || patch.platform_role, 40).toLowerCase();
+    next.platform_role = role === "controller" ? "controller" : "user";
+  }
+  let metadata = patch.metadata !== undefined
+    ? (patch.metadata || {})
+    : null;
+  if (patch.credits !== undefined) {
+    const credits = Math.max(0, Math.floor(Number(patch.credits) || 0));
+    metadata = { ...(metadata || existingMetadata || {}), credits };
+  }
+  if (metadata !== null) {
+    next.metadata_json = metadata;
   }
   if (patch.stripeCustomerId !== undefined || patch.stripe_customer_id !== undefined) {
     next.stripe_customer_id = nullableString(patch.stripeCustomerId || patch.stripe_customer_id, 255);
@@ -79,7 +100,8 @@ function supabaseUserPatch(patch = {}) {
     next.subscription_status = cleanString(patch.subscriptionStatus || patch.subscription_status, 80) || "inactive";
   }
   if (patch.currentPeriodEnd !== undefined || patch.current_period_end !== undefined) {
-    next.current_period_end = patch.currentPeriodEnd || patch.current_period_end || null;
+    const value = patch.currentPeriodEnd ?? patch.current_period_end;
+    next.current_period_end = value ? value : null;
   }
   return next;
 }
@@ -115,8 +137,10 @@ async function supabaseUpsertUser(identity = {}) {
 }
 
 async function supabasePatchUser(userId, patch = {}) {
-  const next = supabaseUserPatch(patch);
-  if (!Object.keys(next).length) return supabaseGetUserById(userId);
+  const needsExisting = patch.credits !== undefined && patch.metadata === undefined;
+  const existing = needsExisting ? await supabaseGetUserById(userId) : null;
+  const next = supabaseUserPatch(patch, existing?.metadata || {});
+  if (!Object.keys(next).length) return existing || supabaseGetUserById(userId);
   const payload = await supabaseRequest("PATCH", "users", {
     query: { id: `eq.${cleanString(userId, 80)}` },
     body: next,
@@ -138,6 +162,57 @@ async function supabaseGetUserByStripeSubscriptionId(subscriptionId) {
   return supabaseSelectSingle({ stripe_subscription_id: `eq.${cleanString(subscriptionId, 255)}` });
 }
 
+async function supabaseGetUserByEmail(email) {
+  const normalized = nullableString(email, 255)?.toLowerCase();
+  if (!normalized) return null;
+  return supabaseSelectSingle({ email: `eq.${normalized}` });
+}
+
+async function supabaseListControllers(limit = 100) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
+  const payload = await supabaseRequest("GET", "users", {
+    query: {
+      select: "*",
+      platform_role: "eq.controller",
+      order: "updated_at.desc",
+      limit: safeLimit
+    }
+  });
+  return (Array.isArray(payload) ? payload : []).map(mapUser);
+}
+
+async function supabaseSearchUsersByEmail(query, limit = 20) {
+  const needle = cleanString(query, 255).toLowerCase().replace(/[*%,]/g, "");
+  if (!needle) return [];
+  const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 50);
+  const payload = await supabaseRequest("GET", "users", {
+    query: {
+      select: "*",
+      email: `ilike.*${needle}*`,
+      order: "updated_at.desc",
+      limit: safeLimit
+    }
+  });
+  return (Array.isArray(payload) ? payload : []).map(mapUser);
+}
+
+async function supabaseListUsers({ query = "", limit = 100, offset = 0 } = {}) {
+  const safeLimit = Math.min(Math.max(Number(limit) || 100, 1), 200);
+  const safeOffset = Math.max(Number(offset) || 0, 0);
+  const needle = cleanString(query, 255).toLowerCase().replace(/[*%,]/g, "");
+  const requestQuery = {
+    select: "*",
+    order: "created_at.desc",
+    limit: safeLimit,
+    offset: safeOffset
+  };
+  if (needle) {
+    requestQuery.or = `(email.ilike.*${needle}*,display_name.ilike.*${needle}*)`;
+  }
+  const payload = await supabaseRequest("GET", "users", { query: requestQuery });
+  return (Array.isArray(payload) ? payload : []).map(mapUser);
+}
+
 
 async function upsertUser(identity = {}) {
   return supabaseUpsertUser(identity);
@@ -145,11 +220,23 @@ async function upsertUser(identity = {}) {
 async function getUserById(userId) {
   return supabaseGetUserById(userId);
 }
+async function getUserByEmail(email) {
+  return supabaseGetUserByEmail(email);
+}
 async function getUserByStripeCustomerId(customerId) {
   return supabaseGetUserByStripeCustomerId(customerId);
 }
 async function getUserByStripeSubscriptionId(subscriptionId) {
   return supabaseGetUserByStripeSubscriptionId(subscriptionId);
+}
+async function listControllers(limit = 100) {
+  return supabaseListControllers(limit);
+}
+async function searchUsersByEmail(query, limit = 20) {
+  return supabaseSearchUsersByEmail(query, limit);
+}
+async function listUsers(options = {}) {
+  return supabaseListUsers(options);
 }
 async function patchUser(userId, patch = {}) {
   return supabasePatchUser(userId, patch);
@@ -161,12 +248,16 @@ async function updateUserSubscription(userId, patch = {}) {
   return supabasePatchUser(userId, patch);
 }
 export {
+  getUserByEmail,
   getUserById,
   getUserByStripeCustomerId,
   getUserByStripeSubscriptionId,
+  listControllers,
+  listUsers,
   mapUser,
   normalizeIdentity,
   patchUser,
+  searchUsersByEmail,
   updateUserStripeCustomer,
   updateUserSubscription,
   upsertUser

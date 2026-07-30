@@ -1343,7 +1343,10 @@ function compactVisualGalleryForStorage(items) {
       argument_supported: item.argument_supported || "",
       cross_source_connection: item.cross_source_connection || "",
       how_to_read: item.how_to_read || "",
-      exam_use: item.exam_use || ""
+      exam_use: item.exam_use || "",
+      teaching_intent: normalizeTeachingIntent(item.teaching_intent || item.intent || ""),
+      teaching_goal: item.teaching_goal || item.learning_goal || "",
+      teaching_intent_label: item.teaching_intent_label || ""
     }));
 }
 

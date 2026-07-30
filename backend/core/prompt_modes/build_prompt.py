@@ -145,6 +145,9 @@ Output requirements:
 - Start with a specific topic title.
 - Mention every usable source at least once when the source provides enough readable context.
 - When selected source figures are listed, place `[[VISUAL:n]]` markers near the paragraph, worked example, comparison, formula, table discussion, or source evidence they support. For example, use `[[VISUAL:0]]` near the paragraph explaining Source figure 0.
+- Use each figure's teaching intent from the selected source-figure context:
+  - `clarity` figures belong beside the first clear explanation of that slide/page idea.
+  - `deeper_analysis` figures belong beside interpretation, comparison, limitation, mechanism, or exam-use discussion.
 - Use only marker IDs present in the selected source-figure context. Do not invent, renumber, or cluster markers at the end.
 - Avoid generic filler. Every point must help the student understand, apply, verify, or revise the uploaded material.
 

@@ -89,6 +89,9 @@ class ProfessionalModeTests(unittest.TestCase):
 
         self.assertIn("[[VISUAL:0]]", prompt)
         self.assertIn("near the paragraph", prompt)
+        self.assertIn("teaching intent", prompt.lower())
+        self.assertIn("clarity", prompt.lower())
+        self.assertIn("deeper_analysis", prompt)
         self.assertNotIn("Do not emit `[[VISUAL:n]]` markers", prompt)
 
     def test_builder_has_no_unselected_mode_names_for_every_mode(self):

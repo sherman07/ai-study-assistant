@@ -925,7 +925,9 @@ function visualGuideFigureRequestItems() {
     exam_use: item.exam_use || "",
     visual_kind: item.visual_kind || "",
     location: item.location || "",
-    source_title: item.source_title || ""
+    source_title: item.source_title || "",
+    teaching_intent: typeof inferTeachingIntent === "function" ? inferTeachingIntent(item) : (item.teaching_intent || ""),
+    teaching_goal: item.teaching_goal || ""
   }));
 }
 

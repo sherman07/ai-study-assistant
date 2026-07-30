@@ -595,8 +595,15 @@ def visual_image_panel_visual_for_detail(panel_title: str, detail: str) -> str:
 def visual_image_build_panel(panel_title: str, context: str, index: int, used_details: Optional[set] = None) -> dict:
     detail = visual_image_panel_detail_for_title(panel_title, context, index, used_details)
     visual = visual_image_panel_visual_for_detail(panel_title, detail)
+    teaching_intent = infer_teaching_intent({
+        "title": panel_title,
+        "what_shows": detail,
+        "exam_use": detail,
+        "visual_kind": "graph/chart" if index % 2 else "diagram/model",
+    })
     return {
         "title": truncate_text(clean_visual_guide_text(panel_title), 42),
+        "teaching_intent": teaching_intent,
         "visual": truncate_text(visual, 120),
         "labels": visual_image_panel_labels_for_detail(panel_title, detail),
         "detail": truncate_text(clean_visual_guide_text(detail), 124),
@@ -701,8 +708,17 @@ def normalise_visual_image_blueprint(parsed: dict, title: str, context: str) -> 
         labels = labels[:4]
         if not panel_title:
             continue
+        teaching_intent = normalise_teaching_intent(
+            str(raw.get("teaching_intent") or raw.get("intent") or "")
+        ) or infer_teaching_intent({
+            "title": panel_title,
+            "what_shows": detail,
+            "exam_use": detail,
+            "visual_kind": "graph/chart" if "chart" in (visual or "").lower() or "graph" in (visual or "").lower() else "diagram/model",
+        })
         panels.append({
             "title": panel_title,
+            "teaching_intent": teaching_intent,
             "visual": visual or fallback_panel.get("visual") or visual_image_panel_visual_for_detail(panel_title, detail),
             "labels": labels,
             "detail": detail,
@@ -776,6 +792,7 @@ Return JSON only:
   "panels": [
     {
       "title": "1-4 word panel title",
+      "teaching_intent": "clarity or deeper_analysis",
       "visual": "specific drawing idea: diagram, icon group, chart, map, process arrow, or callout",
       "labels": ["short visible label", "short visible label"],
       "detail": "what this panel teaches"
@@ -802,6 +819,10 @@ Blueprint rules:
 - Use only facts, concepts, formulas, examples, and relationships from the notes/source.
 - Design for a professional dense grid infographic like a textbook "modern overview" poster.
 - Choose 8-10 panels. Each panel needs a concrete visual, not just text.
+- For every panel, decide teaching_intent before writing the visual:
+  - "clarity": make a dense or easy-to-misread slide/page concept visually clearer (decode labels, steps, structure).
+  - "deeper_analysis": push a deeper analysis of evidence, comparison, mechanism, limit, formula, or exam use.
+- Mix both intents across the poster when the source supports it: some panels clarify, some analyse.
 - Add a middle_focus item that explicitly fills the central area between major panels.
 - Add 6-10 detail_fillers that can be used as visual-only icons, mini charts, badges, arrows, or callouts in leftover space.
 - Visible labels must be short and spellable: usually 1-4 words, never paragraph sentences.
@@ -848,7 +869,9 @@ def visual_image_blueprint_text(blueprint: dict) -> str:
         label_text = f" Labels: {labels}." if labels else ""
         detail = panel.get("detail") or ""
         detail_text = f" Teaches: {detail}." if detail else ""
-        panel_lines.append(f"{index}. {panel.get('title')}: {panel.get('visual')}.{label_text}{detail_text}")
+        intent = normalise_teaching_intent(str(panel.get("teaching_intent") or "")) or "clarity"
+        intent_text = f" Teaching intent: {intent}."
+        panel_lines.append(f"{index}. {panel.get('title')}: {panel.get('visual')}.{label_text}{detail_text}{intent_text}")
     formulas = "; ".join(blueprint.get("formula_tiles") or [])
     charts = "; ".join(blueprint.get("mini_charts") or [])
     footer = "; ".join(blueprint.get("bottom_strip") or [])
@@ -2125,6 +2148,7 @@ Design goals:
 - Make an exam-revision wall chart, not a generic app poster. It should feel like the reference: dense, source-specific, printable, and useful for studying.
 - Generate a reference-style educational infographic, not a loose decorative illustration.
 - Match the second reference style: a crisp editorial grid infographic with a strong title band, numbered section bands, 8-10 structured panels, clean dividers, icon systems, arrows, mini charts, callouts, and a bottom takeaway strip.
+- Honour each panel's teaching intent from the blueprint: clarity panels should decode structure/labels/steps; deeper_analysis panels should emphasise evidence, comparison, mechanism, limits, or exam use.
 - Include at least one formula/table block, multiple small supply-demand-style graphs when the source is economics, source-grounded case-study or policy-analysis panels, and an explicit revision / exam-chain area when the notes contain exam value.
 - Use a modern academic palette: navy headers, pale blue/green panels, dark readable labels, precise black linework, and subtle accent colors for warnings or examples.
 - Make it visually detailed through diagrams, icons, chart marks, arrows, small scenes, legends, and comparison blocks, not through paragraphs.

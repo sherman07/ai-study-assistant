@@ -127,7 +127,7 @@ def _v23_fallback_visual_cards(candidates: List[dict], labels: dict, preferred_l
         kind_title = kind.replace("/", " / ").title() if kind and kind != "unknown" else labels.get("figure_title", "Source figure")
         caption_title = truncate_text(re.sub(r"^(?:Render-mode|visual-score)\b.*?\.\s*", "", caption).strip(), 72)
         title = caption_title if len(caption_title) >= 8 else kind_title
-        cards.append({
+        draft = {
             "index": len(cards),
             "source_index": cand.get("source_index"),
             "source_title": cand.get("source_title", ""),
@@ -141,8 +141,10 @@ def _v23_fallback_visual_cards(candidates: List[dict], labels: dict, preferred_l
             "how_to_read": _v23_default_how_to_read(kind, preferred_language),
             "exam_use": "Describe what is visible, interpret it, then state the limitation or implication.",
             "visual_kind": kind,
-        })
-        cards[-1] = _v23_enrich_visual_card_details(cards[-1], labels, preferred_language)
+        }
+        draft["teaching_intent"] = infer_teaching_intent(draft)
+        draft["teaching_goal"] = default_teaching_goal(draft, labels)
+        cards.append(_v23_enrich_visual_card_details(draft, labels, preferred_language))
         if len(cards) >= CONTROLLED_MAX_VISUALS:
             break
     return cards
@@ -1343,8 +1345,12 @@ def build_visual_gallery(source_units: List[dict]) -> List[dict]:
         item["title"] = normalise_space(item.get("title") or f"Source figure {marker_index + 1}")
         item["caption"] = clean_source_figure_caption(item.get("caption") or item.get("what_shows") or "")
         item["what_shows"] = clean_source_figure_caption(item.get("what_shows") or item.get("caption") or "")
-        for detail_key in ("why_relevant", "argument_supported", "cross_source_connection", "how_to_read", "exam_use"):
+        for detail_key in ("why_relevant", "argument_supported", "cross_source_connection", "how_to_read", "exam_use", "teaching_goal"):
             item[detail_key] = clean_source_figure_caption(item.get(detail_key) or "")
+        item["teaching_intent"] = infer_teaching_intent(item)
+        item["teaching_intent_label"] = teaching_intent_label(item["teaching_intent"], source_figure_labels(card_language))
+        if not item.get("teaching_goal"):
+            item["teaching_goal"] = default_teaching_goal(item, source_figure_labels(card_language))
         cleaned.append(item)
         if len(cleaned) >= max_items:
             break

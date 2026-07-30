@@ -20,6 +20,12 @@ assert.ok(switchTool.includes("renderCurrentBroadcastOrSetup"), "broadcast shoul
 assert.ok(history.includes("restoreStudyToolMemory"), "history loading should restore generated tool state");
 assert.ok(history.includes("getRememberedStudyTool"), "history loading should restore the last active tool");
 assert.ok(history.includes("deleteStudyToolMemory"), "deleting a note should delete its tool memory");
+assert.ok(history.includes("deleteBroadcastJobsForNote"), "deleting a note should delete scoped broadcast jobs");
+assert.ok(memory.includes('keys.add(`history:${id}`)'), "study-tool memory deletion should clear history identity keys");
+assert.ok(memory.includes('keys.add(`fingerprint:${fingerprint}`)'), "study-tool memory deletion should clear fingerprint identity keys");
+assert.ok(broadcast.includes("function deleteBroadcastJobsForNote"), "broadcast controller should expose note-scoped job deletion");
+assert.ok(broadcast.includes("BROADCAST_ACTIVE_STATUSES.has(job.status)"), "broadcast generation should refuse duplicate active jobs");
+assert.ok(boot.includes("deleteBroadcastJobsForNote"), "boot should export note-scoped broadcast deletion");
 
 for (const token of [
   "STUDY_TOOL_MEMORY_STORAGE_KEY",

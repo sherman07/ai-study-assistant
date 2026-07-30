@@ -2,8 +2,8 @@ import { Fragment, h, icon, legacyAction } from "../runtime.js";
 import { MobileNavigation } from "./MobileNavigation.js?v=ai-broadcast-v19";
 import { HistoryNavigation } from "./HistoryNavigation.js?v=ai-broadcast-v19";
 import { UploadStage } from "./UploadStage.js?v=ai-broadcast-v19";
-import { CompanionWorkspace } from "./CompanionWorkspace.js?v=ai-broadcast-v19";
-import { AnalysisStage } from "./AnalysisStage.js?v=ai-broadcast-v19";
+import { CompanionWorkspace } from "./CompanionWorkspace.js?v=study-tools-guards-v1";
+import { AnalysisStage } from "./AnalysisStage.js?v=study-tools-guards-v1";
 import { AssistantPanel, OpenAssistantButton } from "./AssistantPanel.js?v=ai-broadcast-v19";
 
 export function AppShell() {

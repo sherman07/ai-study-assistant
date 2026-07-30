@@ -182,6 +182,7 @@ Object.assign(window, {
   cancelBroadcastJob,
   retryBroadcastJob,
   deleteBroadcastJob,
+  deleteBroadcastJobsForNote,
   toggleBroadcastPlayback,
   setBroadcastPlaybackRate,
   setLearningExperienceMode,

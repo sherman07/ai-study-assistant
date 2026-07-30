@@ -528,6 +528,12 @@ function readBroadcastSetup() {
 }
 
 async function generateBroadcastFromSetup() {
+  const currentJobs = getBroadcastJobsForCurrentNote();
+  if (currentJobs.some(job => BROADCAST_ACTIVE_STATUSES.has(job.status))) {
+    const active = currentJobs.find(job => BROADCAST_ACTIVE_STATUSES.has(job.status));
+    if (active?.id) openBroadcastJob(active.id);
+    return;
+  }
   const setup = readBroadcastSetup();
   const now = new Date().toISOString();
   stopBroadcastPlayback({ render: false });
@@ -1650,6 +1656,37 @@ function deleteBroadcastJob(jobId) {
     deleteBroadcastJobFromDataApi(jobId).catch(error => console.warn("Broadcast remote delete failed:", error));
   }
   refreshBroadcastViews();
+}
+
+function deleteBroadcastJobsForNote(historyId = "", sourceFingerprint = "") {
+  const id = String(historyId || "").trim();
+  const fingerprint = String(sourceFingerprint || "").trim();
+  if (!id && !fingerprint) return false;
+  const jobs = getBroadcastJobs();
+  const removed = [];
+  const kept = jobs.filter(job => {
+    const jobHistoryId = String(job.noteId || "").trim();
+    const jobFingerprint = String(job.sourceFingerprint || "").trim();
+    const matches = (id && jobHistoryId === id) || (fingerprint && jobFingerprint === fingerprint);
+    if (matches) {
+      removed.push(job);
+      return false;
+    }
+    return true;
+  });
+  if (!removed.length) return false;
+  setBroadcastJobs(kept);
+  if (removed.some(job => job.id === activeBroadcastJobId)) {
+    activeBroadcastJobId = "";
+    safeSetLocalStorage(BROADCAST_ACTIVE_JOB_KEY, "");
+  }
+  if (typeof deleteBroadcastJobFromDataApi === "function") {
+    removed.forEach(job => {
+      deleteBroadcastJobFromDataApi(job.id).catch(error => console.warn("Broadcast remote delete failed:", error));
+    });
+  }
+  refreshBroadcastViews();
+  return true;
 }
 
 function recoverBroadcastJobsOnBoot() {

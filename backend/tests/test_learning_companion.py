@@ -89,6 +89,33 @@ class LearningCompanionEndpointTests(unittest.TestCase):
         self.assertEqual(response.json()["research_sources"], [{"title": "Camera Manual", "url": "https://example.com/manual"}])
         research.assert_called_once()
 
+    def test_companion_uses_learning_context_topic_and_goal_in_prompt(self):
+        captured = {}
+
+        def fake_generate_chat(messages, **kwargs):
+            captured["prompt"] = messages[-1]["content"]
+            return '{"reply":"Keep practising aperture control.","state":"teach","mastery":20}'
+
+        with patch("backend.app.require_text_ai"), patch("backend.app.generate_chat", side_effect=fake_generate_chat):
+            response = TestClient(app).post("/learning-companion/respond", json={
+                "message": "What should I practise next?",
+                "messages": [],
+                "learning_context": {
+                    "topic": "Aperture control",
+                    "goal": "Shoot sharp low-light portraits",
+                    "student_level": "developing",
+                    "active_subskill": "Choose f-stop for subject isolation",
+                },
+            })
+
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["subject_title"], "Aperture control")
+        self.assertEqual(payload["learning_context"]["goal"], "Shoot sharp low-light portraits")
+        self.assertIn("Aperture control", captured["prompt"])
+        self.assertIn("Shoot sharp low-light portraits", captured["prompt"])
+        self.assertIn("Persisted learning context from Synapse", captured["prompt"])
+
 
 if __name__ == "__main__":
     unittest.main()

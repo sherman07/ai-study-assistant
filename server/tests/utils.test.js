@@ -7,6 +7,7 @@ import {
   addBoostCredits,
   ensureCreditState,
   estimateCredits,
+  refundCredits,
   spendCredits,
   utcDateKey
 } from "../src/billing/credits.js";
@@ -137,6 +138,14 @@ test("credit spend uses daily balance before boost", () => {
   assert.equal(result.boostUsed, 50);
   assert.equal(result.balance.dailyCredits, 0);
   assert.equal(result.balance.boostCredits, 450);
+
+  const refunded = refundCredits(
+    { plan: "pro_monthly", metadata: result.metadata },
+    { dailyUsed: result.dailyUsed, boostUsed: result.boostUsed }
+  );
+  assert.equal(refunded.ok, true);
+  assert.equal(refunded.balance.dailyCredits, 100);
+  assert.equal(refunded.balance.boostCredits, 500);
 });
 
 test("credit estimates expose range, max charge, and lower-cost options", () => {
@@ -333,6 +342,7 @@ test("stripe billing routes verify webhooks and keep secrets server-side", () =>
   assert.ok(routeSource.includes("checkout.sessions.create"), "billing route should create Stripe Checkout Sessions");
   assert.ok(routeSource.includes("create-boost-checkout-session"), "billing route should create Boost Checkout Sessions");
   assert.ok(routeSource.includes("/credits/estimate"), "billing route should expose credit estimates");
+  assert.ok(routeSource.includes("/credits/refund"), "billing route should expose credit refunds");
   assert.ok(routeSource.includes("billingPortal.sessions.create"), "billing route should create Stripe Customer Portal sessions");
   assert.ok(routeSource.includes("webhooks.constructEvent"), "webhook route must verify Stripe signatures");
   assert.ok(routeSource.includes("checkout.session.completed"), "webhook route should handle completed Checkout");

@@ -39,6 +39,7 @@ const directories = [
 ];
 
 const legacyControllerSections = [
+  "00_creditsgate.js",
   "01_uploadedfiles.js",
   "02_openvisualmodal.js",
   "03_rendertimeline.js",

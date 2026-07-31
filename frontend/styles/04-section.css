@@ -1127,6 +1127,22 @@ html[data-theme="dark"] .mobile-menu-btn {
   color: var(--text);
 }
 
+.synapse-credit-estimate-list {
+  margin: 16px 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 8px;
+  color: var(--text-soft);
+  font-weight: 650;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.synapse-credit-estimate-card .account-panel-help {
+  margin-top: 12px;
+  text-align: left;
+}
+
 .account-plan-grid {
   display: grid;
   gap: 10px;

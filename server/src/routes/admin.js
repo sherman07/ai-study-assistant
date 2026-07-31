@@ -268,6 +268,24 @@ router.patch("/users/:id", asyncRoute(async (req, res) => {
 
   if (body.plan !== undefined) {
     patch.plan = normalizePlan(body.plan);
+    const nextPlan = patch.plan;
+    const statusProvided = body.subscriptionStatus !== undefined || body.subscription_status !== undefined;
+    const periodProvided = body.currentPeriodEnd !== undefined || body.current_period_end !== undefined;
+
+    if (nextPlan.startsWith("pro_")) {
+      if (!statusProvided) {
+        patch.subscriptionStatus = "active";
+      }
+      if (!periodProvided) {
+        const end = new Date();
+        if (nextPlan === "pro_yearly") end.setFullYear(end.getFullYear() + 1);
+        else end.setMonth(end.getMonth() + 1);
+        patch.currentPeriodEnd = end.toISOString();
+      }
+    } else if (nextPlan === "free" && !statusProvided) {
+      patch.subscriptionStatus = "inactive";
+      if (!periodProvided) patch.currentPeriodEnd = null;
+    }
   }
 
   if (body.subscriptionStatus !== undefined || body.subscription_status !== undefined) {
@@ -296,6 +314,19 @@ router.patch("/users/:id", asyncRoute(async (req, res) => {
         return res.status(400).json({ ok: false, error: "currentPeriodEnd must be a valid date." });
       }
       patch.currentPeriodEnd = date.toISOString();
+    }
+  }
+
+  const effectivePlan = patch.plan || user.plan || "free";
+  const effectiveStatus = patch.subscriptionStatus || user.subscriptionStatus || "inactive";
+  if (String(effectivePlan).startsWith("pro_") && effectiveStatus === "inactive") {
+    // Controllers assigning a Pro plan must grant usable Pro access.
+    patch.subscriptionStatus = "active";
+    if (patch.currentPeriodEnd === undefined && !user.currentPeriodEnd) {
+      const end = new Date();
+      if (effectivePlan === "pro_yearly") end.setFullYear(end.getFullYear() + 1);
+      else end.setMonth(end.getMonth() + 1);
+      patch.currentPeriodEnd = end.toISOString();
     }
   }
 

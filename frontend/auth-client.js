@@ -366,6 +366,25 @@
     window.dispatchEvent(new CustomEvent("synapse-auth-changed", { detail: { session } }));
   }
 
+  function normalizeBillingPlanId(plan) {
+    const raw = String(plan || "").trim().toLowerCase().replace(/[\s-]+/g, "_");
+    if (!raw || raw === "starter") return "free";
+    if (raw === "pro" || raw === "pro_month" || raw === "pro_monthly") return "pro_monthly";
+    if (
+      raw === "pro_year"
+      || raw === "pro_yearly"
+      || raw === "pro_annual"
+      || raw === "pro_annually"
+      || raw.includes("yearly")
+      || raw.includes("annual")
+    ) {
+      return "pro_yearly";
+    }
+    if (raw.includes("monthly")) return "pro_monthly";
+    if (raw === "free") return "free";
+    return "free";
+  }
+
   function displayPlan(plan) {
     const labels = {
       free: "Free",
@@ -373,23 +392,64 @@
       pro_monthly: "Pro Monthly",
       pro_yearly: "Pro Annual"
     };
-    return labels[String(plan || "").toLowerCase()] || "Free";
+    return labels[normalizeBillingPlanId(plan)] || "Free";
   }
 
   function creditsForPlan(plan) {
-    const key = String(plan || "").toLowerCase();
+    const key = normalizeBillingPlanId(plan);
     if (key === "pro_monthly" || key === "pro_yearly") return 1000;
     return 550;
   }
 
+  function billingFieldsFromSession(session = null) {
+    if (!session) {
+      return {
+        plan: "Free",
+        billingPlan: "free",
+        subscriptionStatus: "inactive",
+        currentPeriodEnd: null,
+        credits: null,
+        dailyCredits: null,
+        boostCredits: null,
+        dailyAllowance: null,
+        billingSyncedAt: null
+      };
+    }
+    const planId = normalizeBillingPlanId(session.billingPlan || session.plan || "free");
+    return {
+      plan: displayPlan(planId),
+      billingPlan: planId,
+      subscriptionStatus: session.subscriptionStatus || "inactive",
+      currentPeriodEnd: session.currentPeriodEnd || null,
+      credits: Number.isFinite(Number(session.credits)) ? Math.max(0, Math.floor(Number(session.credits))) : null,
+      dailyCredits: Number.isFinite(Number(session.dailyCredits))
+        ? Math.max(0, Math.floor(Number(session.dailyCredits)))
+        : null,
+      boostCredits: Number.isFinite(Number(session.boostCredits))
+        ? Math.max(0, Math.floor(Number(session.boostCredits)))
+        : null,
+      dailyAllowance: Number.isFinite(Number(session.dailyAllowance))
+        ? Math.max(0, Math.floor(Number(session.dailyAllowance)))
+        : null,
+      billingSyncedAt: session.billingSyncedAt || null
+    };
+  }
+
   function mergeServerUserIntoSession(session, user = {}) {
     if (!session) return session;
-    const plan = user.plan || session.plan || "free";
+    // Server `public.users` is the only source of truth for plan and credits.
+    // Never fall back to the display label in session.plan (e.g. "Pro Annual").
+    const planId = normalizeBillingPlanId(
+      user.plan
+      || user.billingPlan
+      || session.billingPlan
+      || "free"
+    );
     const platformRole = user.platformRole || user.platform_role || session.platformRole || "user";
     const isController = Boolean(user.isController) || platformRole === "controller";
     const totalCredits = Number.isFinite(Number(user.credits))
       ? Math.max(0, Math.floor(Number(user.credits)))
-      : creditsForPlan(plan);
+      : (Number.isFinite(Number(session.credits)) ? Math.max(0, Math.floor(Number(session.credits))) : creditsForPlan(planId));
     return {
       ...session,
       accountId: user.id || session.accountId,
@@ -398,24 +458,25 @@
       role: user.role || session.role,
       platformRole: isController ? "controller" : "user",
       isController,
-      plan: displayPlan(plan),
-      billingPlan: plan,
+      plan: displayPlan(planId),
+      billingPlan: planId,
       subscriptionStatus: user.subscriptionStatus || session.subscriptionStatus || "inactive",
       currentPeriodEnd: user.currentPeriodEnd || session.currentPeriodEnd || null,
       credits: totalCredits,
       dailyCredits: Number.isFinite(Number(user.dailyCredits))
         ? Math.max(0, Math.floor(Number(user.dailyCredits)))
-        : session.dailyCredits,
+        : (Number.isFinite(Number(session.dailyCredits)) ? Math.floor(Number(session.dailyCredits)) : null),
       boostCredits: Number.isFinite(Number(user.boostCredits))
         ? Math.max(0, Math.floor(Number(user.boostCredits)))
-        : session.boostCredits,
+        : (Number.isFinite(Number(session.boostCredits)) ? Math.floor(Number(session.boostCredits)) : null),
       dailyAllowance: Number.isFinite(Number(user.dailyAllowance))
         ? Math.max(0, Math.floor(Number(user.dailyAllowance)))
-        : session.dailyAllowance
+        : (Number.isFinite(Number(session.dailyAllowance)) ? Math.floor(Number(session.dailyAllowance)) : null),
+      billingSyncedAt: new Date().toISOString()
     };
   }
 
-  function publicSessionFromSupabase(sessionPayload) {
+  function publicSessionFromSupabase(sessionPayload, previousSession = null) {
     const user = sessionPayload?.user || null;
     const metadata = user?.user_metadata || {};
     const email = normalizeEmail(user?.email || metadata.email || "");
@@ -430,25 +491,46 @@
       || sessionPayload?.accessToken
       || ""
     ).trim();
+    // Auth metadata is NOT billing truth. Preserve prior server-synced billing
+    // so token refresh cannot flash Free/500 over Pro.
+    const billing = billingFieldsFromSession(previousSession || getStoredSession());
     return {
       accountId: user?.id || email,
       email,
       displayName,
       firstName,
       lastName,
-      role: metadata.role || "student",
-      plan: displayPlan(metadata.plan || "free"),
-      billingPlan: metadata.plan || "free",
-      subscriptionStatus: metadata.subscription_status || metadata.subscriptionStatus || "inactive",
-      currentPeriodEnd: metadata.current_period_end || metadata.currentPeriodEnd || null,
-      credits: Number(metadata.credits || creditsForPlan(metadata.plan || "free")),
+      role: metadata.role || previousSession?.role || "student",
+      ...billing,
+      // Keep placeholder credits only when we have never synced from the server.
+      credits: billing.credits == null ? 0 : billing.credits,
       authProvider: metadata.provider || user?.app_metadata?.provider || "supabase",
       authMode: "supabase",
-      accessToken: accessToken || undefined,
-      createdAt: user?.created_at || new Date().toISOString(),
-      signedInAt: new Date().toISOString(),
-      expiresAt: sessionPayload?.expires_at || sessionPayload?.expiresAt || null
+      accessToken: accessToken || previousSession?.accessToken || undefined,
+      createdAt: user?.created_at || previousSession?.createdAt || new Date().toISOString(),
+      signedInAt: previousSession?.signedInAt || new Date().toISOString(),
+      expiresAt: sessionPayload?.expires_at || sessionPayload?.expiresAt || previousSession?.expiresAt || null
     };
+  }
+
+  let billingSyncTimer = null;
+  let billingSyncInFlight = null;
+
+  function queueBillingSync(session = getStoredSession()) {
+    if (!session?.email && !session?.accountId) return Promise.resolve(session);
+    if (billingSyncTimer) window.clearTimeout(billingSyncTimer);
+    return new Promise((resolve) => {
+      billingSyncTimer = window.setTimeout(() => {
+        const pending = billingSyncInFlight || syncBillingSessionFromServer(getStoredSession() || session);
+        billingSyncInFlight = pending;
+        pending
+          .then((next) => resolve(next))
+          .catch(() => resolve(getStoredSession() || session))
+          .finally(() => {
+            if (billingSyncInFlight === pending) billingSyncInFlight = null;
+          });
+      }, 120);
+    });
   }
 
   function saveSession(session) {
@@ -522,8 +604,16 @@
       }
     });
     supabaseClient.auth.onAuthStateChange((event, sessionPayload) => {
-      if (sessionPayload?.user) saveSession(publicSessionFromSupabase(sessionPayload));
-      else if (event === "SIGNED_OUT" || event === "USER_DELETED") saveSession(null);
+      if (sessionPayload?.user) {
+        const previous = getStoredSession();
+        // Preserve server billing across token refresh; never trust Auth metadata for plan/credits.
+        const next = saveSession(publicSessionFromSupabase(sessionPayload, previous));
+        if (event !== "SIGNED_OUT" && event !== "USER_DELETED") {
+          queueBillingSync(next);
+        }
+      } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+        saveSession(null);
+      }
     });
     return supabaseClient;
   }
@@ -535,13 +625,17 @@
     const { data, error } = await client.auth.getSession();
     if (error) throw error;
     if (data?.session?.user) {
-      session = saveSession(publicSessionFromSupabase(data.session));
+      // Keep prior billing while we fetch authoritative /api/users/me — one server merge save.
+      session = publicSessionFromSupabase(data.session, session);
+      // Persist token immediately so dataApiFetch can authorize, without wiping Pro → Free.
+      saveSession(session);
       return syncBillingSessionFromServer(session);
     }
 
     const recovered = recoverSupabaseSessionFromStorage();
     if (recovered?.user && recovered?.access_token) {
-      session = saveSession(publicSessionFromSupabase(recovered));
+      session = publicSessionFromSupabase(recovered, session);
+      saveSession(session);
       return syncBillingSessionFromServer(session);
     }
 
@@ -551,11 +645,12 @@
       try {
         const { data: userData } = await client.auth.getUser();
         if (userData?.user) {
-          session = saveSession(publicSessionFromSupabase({
+          session = publicSessionFromSupabase({
             user: userData.user,
             access_token: session.accessToken || "",
             expires_at: session.expiresAt || null
-          }));
+          }, session);
+          saveSession(session);
           return syncBillingSessionFromServer(session);
         }
       } catch {}
@@ -646,7 +741,9 @@
       password
     });
     if (error) throw error;
-    return { session: saveSession(publicSessionFromSupabase(data.session)) };
+    const session = saveSession(publicSessionFromSupabase(data.session, getStoredSession()));
+    await syncBillingSessionFromServer(session);
+    return { session: getStoredSession() || session };
   }
 
   async function signInWithGoogle({ redirectTo = absoluteAppUrl(), rememberMe = false } = {}) {
@@ -679,7 +776,7 @@
     const { data, error } = await client.auth.getSession();
     if (error) throw error;
     if (data?.session?.user) {
-      return saveSession(publicSessionFromSupabase(data.session));
+      return saveSession(publicSessionFromSupabase(data.session, getStoredSession()));
     }
     return null;
   }
@@ -714,7 +811,7 @@
       const authChange = client.auth.onAuthStateChange((event, sessionPayload) => {
         if (sessionPayload?.user && (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED")) {
           window.clearTimeout(timer);
-          finish(saveSession(publicSessionFromSupabase(sessionPayload)));
+          finish(saveSession(publicSessionFromSupabase(sessionPayload, getStoredSession())));
         }
       });
       subscription = authChange?.data?.subscription || authChange?.subscription || null;
@@ -756,9 +853,10 @@
         };
       }
       if (data?.session?.user) {
-        const session = saveSession(publicSessionFromSupabase(data.session));
+        const session = saveSession(publicSessionFromSupabase(data.session, getStoredSession()));
+        await syncBillingSessionFromServer(session);
         window.history?.replaceState?.({}, document.title, window.location.pathname);
-        return { ok: true, status: "ready", session };
+        return { ok: true, status: "ready", session: getStoredSession() || session };
       }
     }
 
@@ -852,14 +950,14 @@
         const client = await getSupabaseClient();
         const { data } = await client.auth.getSession();
         if (data?.session?.access_token) {
-          saveSession(publicSessionFromSupabase(data.session));
+          saveSession(publicSessionFromSupabase(data.session, getStoredSession()));
           return data.session.access_token;
         }
       } catch {}
 
       const recovered = recoverSupabaseSessionFromStorage();
       if (recovered?.access_token) {
-        saveSession(publicSessionFromSupabase(recovered));
+        saveSession(publicSessionFromSupabase(recovered, getStoredSession()));
         return recovered.access_token;
       }
     }
@@ -1062,6 +1160,58 @@
     return data;
   }
 
+  async function spendCredits({ actionId, amount } = {}) {
+    const response = await dataApiFetch("/api/billing/credits/spend", {
+      method: "POST",
+      body: JSON.stringify({
+        action_id: actionId,
+        amount
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.error) {
+      const error = new Error(data.error || "Could not spend credits.");
+      error.status = response.status;
+      error.payload = data;
+      throw error;
+    }
+    if (data.user) {
+      const session = getStoredSession();
+      if (session) saveSession(mergeServerUserIntoSession(session, data.user));
+    } else if (data.credits) {
+      const session = getStoredSession();
+      if (session) {
+        saveSession({
+          ...session,
+          credits: data.credits.totalCredits,
+          dailyCredits: data.credits.dailyCredits,
+          boostCredits: data.credits.boostCredits,
+          dailyAllowance: data.credits.dailyAllowance,
+          billingSyncedAt: new Date().toISOString()
+        });
+      }
+    }
+    return data;
+  }
+
+  async function refundCredits({ dailyUsed = 0, boostUsed = 0, amount = 0 } = {}) {
+    const response = await dataApiFetch("/api/billing/credits/refund", {
+      method: "POST",
+      body: JSON.stringify({
+        daily_used: dailyUsed,
+        boost_used: boostUsed,
+        amount
+      })
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || data.error) throw new Error(data.error || "Could not refund credits.");
+    if (data.user) {
+      const session = getStoredSession();
+      if (session) saveSession(mergeServerUserIntoSession(session, data.user));
+    }
+    return data;
+  }
+
   async function createPortalSession({ returnUrl } = {}) {
     const response = await dataApiFetch("/api/billing/create-portal-session", {
       method: "POST",
@@ -1164,9 +1314,15 @@
     dataApiBase,
     downloadJSON,
     estimateCredits,
+    spendCredits,
+    refundCredits,
+    syncBillingSessionFromServer,
     fetchBillingEntitlements,
     fetchBillingPlans,
     fetchCreditBalance,
+    normalizeBillingPlanId,
+    displayPlan,
+    queueBillingSync,
     getBillingPlans: () => readConfig().billingPlans,
     getBoostPacks: () => (Array.isArray(window.SYNAPSE_BOOST_PACKS) ? window.SYNAPSE_BOOST_PACKS : []),
     getLastEmail,

@@ -47,7 +47,18 @@ function publicAdminUser(user = {}) {
     plan: user.plan || "free",
     subscriptionStatus: user.subscriptionStatus || user.subscription_status || "inactive",
     currentPeriodEnd: user.currentPeriodEnd || user.current_period_end || null,
-    credits: resolveUserCredits(user),
+    credits: Number.isFinite(Number(user.credits))
+      ? Math.max(0, Math.floor(Number(user.credits)))
+      : resolveUserCredits(user),
+    dailyCredits: Number.isFinite(Number(user.dailyCredits))
+      ? Math.max(0, Math.floor(Number(user.dailyCredits)))
+      : null,
+    boostCredits: Number.isFinite(Number(user.boostCredits))
+      ? Math.max(0, Math.floor(Number(user.boostCredits)))
+      : null,
+    dailyAllowance: Number.isFinite(Number(user.dailyAllowance))
+      ? Math.max(0, Math.floor(Number(user.dailyAllowance)))
+      : null,
     stripeCustomerId: user.stripeCustomerId || user.stripe_customer_id || "",
     authProvider: user.authProvider || user.auth_provider || "",
     createdAt: user.createdAt || user.created_at || null,

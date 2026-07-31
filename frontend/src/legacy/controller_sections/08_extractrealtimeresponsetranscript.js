@@ -870,6 +870,12 @@ function renderAccountMenu() {
   const email = signedIn ? session.email : "Not signed in";
   const plan = signedIn ? (session.plan || "Free") : "Free";
   const credits = signedIn ? Number(session.credits || 0) : 0;
+  const dailyCredits = signedIn && Number.isFinite(Number(session.dailyCredits))
+    ? Number(session.dailyCredits)
+    : null;
+  const boostCredits = signedIn && Number.isFinite(Number(session.boostCredits))
+    ? Number(session.boostCredits)
+    : null;
   document.querySelectorAll(".account-menu-avatar").forEach(node => {
     node.textContent = accountInitials(session);
   });
@@ -884,6 +890,9 @@ function renderAccountMenu() {
   });
   document.querySelectorAll(".account-menu-credits").forEach(node => {
     node.textContent = String(credits);
+    if (dailyCredits != null || boostCredits != null) {
+      node.title = `Daily ${dailyCredits ?? 0} · Boost ${boostCredits ?? 0}`;
+    }
   });
   document.querySelectorAll(".account-signed-in-only").forEach(node => {
     node.style.display = signedIn ? "" : "none";
@@ -907,6 +916,7 @@ async function refreshAccountSessionFromProvider() {
   if (!window.SynapseAuth?.syncSessionFromProvider) return getCurrentAccountSession();
   try {
     await window.SynapseAuth.syncSessionFromProvider();
+    await window.SynapseAuth.syncBillingSessionFromServer?.(window.SynapseAuth.getStoredSession?.());
   } catch (error) {
     console.warn("Could not refresh Synapse auth session:", error);
   }

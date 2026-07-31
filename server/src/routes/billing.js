@@ -6,6 +6,7 @@ import {
   creditMetadataFromState,
   ensureCreditState,
   estimateCredits,
+  refundCredits,
   spendCredits
 } from "../billing/credits.js";
 import {
@@ -327,6 +328,26 @@ router.post("/credits/spend", requireUser, asyncRoute(async (req, res) => {
     dailyUsed: result.dailyUsed,
     boostUsed: result.boostUsed,
     actionId: actionId || null,
+    credits: publicCreditBalance(updated || { ...req.user, creditState: result.balance }),
+    user: updated
+  });
+}));
+
+router.post("/credits/refund", requireUser, asyncRoute(async (req, res) => {
+  const result = refundCredits(req.user, {
+    dailyUsed: req.body?.daily_used ?? req.body?.dailyUsed,
+    boostUsed: req.body?.boost_used ?? req.body?.boostUsed,
+    amount: req.body?.amount ?? req.body?.credits
+  });
+  if (!result.ok) {
+    return res.status(400).json(result);
+  }
+  const updated = await applyCreditState(req.user.id, result.balance);
+  res.json({
+    ok: true,
+    refunded: result.refunded,
+    dailyRestored: result.dailyRestored,
+    boostRestored: result.boostRestored,
     credits: publicCreditBalance(updated || { ...req.user, creditState: result.balance }),
     user: updated
   });

@@ -367,6 +367,34 @@ function spendCredits(user = {}, amount, { now = new Date() } = {}) {
   };
 }
 
+function refundCredits(user = {}, { dailyUsed = 0, boostUsed = 0, amount = 0, now = new Date() } = {}) {
+  const before = ensureCreditState(user, { now });
+  const restoreDaily = Math.max(0, Math.floor(Number(dailyUsed) || 0));
+  const restoreBoost = Math.max(0, Math.floor(Number(boostUsed) || 0));
+  const restoreAmount = Math.max(0, Math.floor(Number(amount) || 0));
+  let nextDaily = before.dailyCredits + restoreDaily;
+  let nextBoost = before.boostCredits + restoreBoost;
+  if (!restoreDaily && !restoreBoost && restoreAmount > 0) {
+    // Prefer restoring into boost so a refund after midnight still persists.
+    nextBoost += restoreAmount;
+  }
+  const after = buildCreditState({
+    ...before,
+    dailyCredits: nextDaily,
+    boostCredits: nextBoost,
+    now
+  });
+  return {
+    ok: true,
+    refunded: restoreDaily + restoreBoost + (!restoreDaily && !restoreBoost ? restoreAmount : 0),
+    dailyRestored: after.dailyCredits - before.dailyCredits,
+    boostRestored: after.boostCredits - before.boostCredits,
+    before,
+    balance: after,
+    metadata: creditMetadataFromState(after)
+  };
+}
+
 export {
   CREDIT_ACTIONS,
   addBoostCredits,
@@ -378,6 +406,7 @@ export {
   creditStateChanged,
   ensureCreditState,
   estimateCredits,
+  refundCredits,
   resetCreditsForPlan,
   setBoostCredits,
   spendCredits,

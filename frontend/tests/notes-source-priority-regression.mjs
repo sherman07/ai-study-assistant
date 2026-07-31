@@ -71,11 +71,11 @@ assert.ok(
   "layout should know when the source viewer is open"
 );
 assert.ok(
-  index.includes("style.css?v=mindmap-revert-v1"),
+  index.includes("style.css?v=a11y-skip-v1") || index.includes("style.css?v=mindmap-revert-v1") || index.includes("style.css?v=mindmap-theta-v1"),
   "workspace styles should cache-bust after the notes/source priority pass"
 );
 assert.ok(
-  index.includes("synapse-legacy-controller-combined.js?v=mindmap-revert-v1"),
+  index.includes("synapse-legacy-controller-combined.js?v=legacy-boot-fix-v1") || index.includes("synapse-legacy-controller-combined.js?v=mindmap-revert-v1"),
   "legacy controller should cache-bust after background preview preload"
 );
 

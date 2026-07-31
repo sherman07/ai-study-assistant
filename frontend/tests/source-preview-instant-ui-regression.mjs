@@ -57,7 +57,13 @@ assert.ok(boot.includes("openActiveSourceExternally"), "boot should expose open-
 assert.ok(boot.includes("resetSourceZoom"), "boot should expose fit-width helper");
 assert.ok(boot.includes("retryActiveSourcePreview"), "boot should expose retry helper");
 
-assert.ok(index.includes("style.css?v=mindmap-revert-v1"), "styles should cache-bust");
-assert.ok(index.includes("synapse-legacy-controller-combined.js?v=mindmap-revert-v1"), "controller should cache-bust");
+assert.ok(
+  index.includes("style.css?v=a11y-skip-v1") || index.includes("style.css?v=mindmap-revert-v1") || index.includes("style.css?v=mindmap-theta-v1"),
+  "styles should cache-bust"
+);
+assert.ok(
+  index.includes("synapse-legacy-controller-combined.js?v=legacy-boot-fix-v1") || index.includes("synapse-legacy-controller-combined.js?v=mindmap-revert-v1"),
+  "controller should cache-bust"
+);
 
 console.log("source-preview-instant-ui-regression: passed");

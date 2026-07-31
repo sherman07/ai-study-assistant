@@ -95,7 +95,7 @@ assert.ok(loginPage.includes("config.js?v=login-remember-v1"), "Login should cac
 assert.ok(loginPage.includes("auth-client.js?v=signup-email-v1"), "Login should cache-bust the remember-me auth client");
 assert.ok(loginPage.includes("landing-auth.js?v=admin-auth-loop-v1") || loginPage.includes("landing-auth.js?v=login-remember-v1"), "Login should cache-bust the landing auth script");
 assert.ok(loginPage.includes("landing-auth.css?v=login-remember-v1"), "Login should cache-bust remember-me styles");
-assert.ok(workspacePage.includes("style.css?v=mindmap-theta-v1") || workspacePage.includes("style.css?v=legacy-boot-fix-v1") || workspacePage.includes("style.css?v=mindmap-revert-v1"), "Workspace should bypass cached pre-fix contrast styles");
+assert.ok(workspacePage.includes("style.css?v=a11y-skip-v1") || workspacePage.includes("style.css?v=mindmap-theta-v1") || workspacePage.includes("style.css?v=legacy-boot-fix-v1") || workspacePage.includes("style.css?v=mindmap-revert-v1"), "Workspace should bypass cached pre-fix contrast styles");
 assert.ok(forgotPage.includes("data-testid=\"reset-success\""), "Forgot password should expose a success state");
 assert.ok(resetPage.includes("data-testid=\"reset-password-success\""), "Reset password should expose a success state");
 assert.ok(authClientScript.includes("/api/auth/request-password-reset"), "Password recovery should use the Synapse backend email endpoint");

@@ -44,16 +44,20 @@ const serverEnvExample = read("server/.env.example");
 const backendEnvExample = read("backend/.env.example");
 const geminiEnvExample = read("backend/.env.gemini.example");
 const broadcastAssetVersion = "ai-broadcast-v19";
+const reactShellAssetVersion = "a11y-skip-v1";
 const legacyControllerAssetVersion = "settings-modal-pattern-20260720-06";
 
 assert.ok(rootIndex.includes("frontend/landing.html"), "root index should keep the landing page as the public entry");
 assert.ok(appShim.includes("frontend/index.html"), "app shim should open the study workspace frontend");
-assert.ok(index.includes(broadcastAssetVersion), "workspace HTML should bust cached React shell assets");
+assert.ok(index.includes(reactShellAssetVersion), "workspace HTML should bust cached React shell assets");
 assert.ok(styleRoot.includes('@import url("./styles/04-section.css");'), "root CSS should import broadcast styles");
-assert.ok(main.includes(broadcastAssetVersion), "main module should bust cached React and controller loader imports");
-assert.ok(appShellEntry.includes(broadcastAssetVersion), "React app entry should bust cached AppShell imports");
+assert.ok(main.includes(reactShellAssetVersion), "main module should bust cached React and controller loader imports");
+assert.ok(appShellEntry.includes(reactShellAssetVersion), "React app entry should bust cached AppShell imports");
 assert.ok(appShell.includes(broadcastAssetVersion), "AppShell should bust cached child component imports");
-assert.ok(analysisStage.includes(`StudyTools.js?v=${broadcastAssetVersion}`), "AnalysisStage should bust cached StudyTools imports");
+assert.ok(
+  analysisStage.includes(`StudyTools.js?v=${broadcastAssetVersion}`) || analysisStage.includes("StudyTools.js?v=mindmap-revert-v1"),
+  "AnalysisStage should bust cached StudyTools imports"
+);
 assert.ok(loader.includes(legacyControllerAssetVersion), "controller script URL should bust cached controller");
 assert.ok(legacyController.includes(`CONTROLLER_VERSION = "${legacyControllerAssetVersion}"`), "legacy controller sections should use the settings cache key");
 assert.ok(app.includes('"/api/broadcast-jobs"'), "Express app should mount broadcast job routes");

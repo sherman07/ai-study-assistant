@@ -248,6 +248,12 @@ html[data-theme="dark"] :where(.auth-label, .auth-header p, .billing-nav-links, 
    overrides keep those surfaces on the same semantic palette as the rest of
    the app; without them the renderer's light defaults create white-on-white
    text whenever the account theme is dark. */
+html[data-theme="dark"] .source-open .notes-card .notes-toolbar,
+html[data-theme="dark"] .app-layout.generated-notes-state:not(.source-viewer-open) .notes-toolbar {
+  background: color-mix(in srgb, var(--color-surface-primary) 92%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--border-blue) 80%, transparent);
+}
+
 html[data-theme="dark"] .notes-card,
 html[data-theme="dark"] .notes-summary-card,
 html[data-theme="dark"] .notes-section,

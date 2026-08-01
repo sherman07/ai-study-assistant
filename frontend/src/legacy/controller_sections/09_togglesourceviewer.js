@@ -1,10 +1,11 @@
 const SOURCE_PREVIEW_TIMEOUT_MS = Number(window.SYNAPSE_SOURCE_PREVIEW_TIMEOUT_MS || 90 * 1000);
 const NOTES_SOURCE_SPLIT_STORAGE_KEY = "synapse.notes.source.split.ratio.v1";
 const NOTES_SOURCE_SPLIT_DEFAULT_RATIO = 1.72 / (1.72 + 0.58);
-const NOTES_SOURCE_SPLIT_MIN_NOTES_PX = 360;
-const NOTES_SOURCE_SPLIT_MIN_PREVIEW_PX = 260;
+const NOTES_SOURCE_SPLIT_MIN_NOTES_PX = 420;
+const NOTES_SOURCE_SPLIT_MIN_PREVIEW_PX = 280;
 const NOTES_SOURCE_SPLIT_MOBILE_MQ = "(max-width: 1180px)";
-const NOTES_SOURCE_SPLIT_TUTOR_SIDE_MQ = "(min-width: 1480px)";
+const NOTES_SOURCE_SPLIT_TUTOR_SIDE_MQ = "(min-width: 1600px)";
+const NOTES_SOURCE_SPLIT_CROWDED_MQ = "(max-width: 1360px)";
 const sourcePreviewInflight = new Map();
 const sourcePreviewPrefetchQueue = [];
 let sourcePreviewPrefetchRunning = false;
@@ -12,6 +13,8 @@ let notesSourceSplitRatio = NOTES_SOURCE_SPLIT_DEFAULT_RATIO;
 let notesSourceSplitDragging = false;
 let notesSourceSplitBound = false;
 let notesSourceSplitPointerId = null;
+let notesSourceCollapsedNavForSpace = false;
+let notesSourcePrevHistoryCollapsed = null;
 
 function toggleSourceViewer(force = null) {
   const desired = typeof force === "boolean" ? force : !sourceViewerOpen;
@@ -20,7 +23,27 @@ function toggleSourceViewer(force = null) {
     tool: "notes",
     label: "Opened source viewer"
   });
+  syncSourceViewerWorkspaceSpace(desired);
   renderSourceViewer();
+}
+
+function syncSourceViewerWorkspaceSpace(open) {
+  const crowded = Boolean(window.matchMedia?.(NOTES_SOURCE_SPLIT_CROWDED_MQ)?.matches);
+  if (open && crowded && typeof toggleHistoryNav === "function") {
+    if (!notesSourceCollapsedNavForSpace) {
+      notesSourcePrevHistoryCollapsed = Boolean(historyNavCollapsed);
+      notesSourceCollapsedNavForSpace = true;
+      if (!historyNavCollapsed) toggleHistoryNav(true);
+    }
+    return;
+  }
+  if (!open && notesSourceCollapsedNavForSpace) {
+    notesSourceCollapsedNavForSpace = false;
+    if (notesSourcePrevHistoryCollapsed === false && typeof toggleHistoryNav === "function") {
+      toggleHistoryNav(false);
+    }
+    notesSourcePrevHistoryCollapsed = null;
+  }
 }
 
 function clampNotesSourceSplitRatio(ratio) {

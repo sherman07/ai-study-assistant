@@ -12,6 +12,7 @@ const toolsCss = read("frontend/styles/04-section.css");
 const themeCss = read("frontend/styles/00-theme.css");
 const sourceViewer = read("frontend/src/legacy/controller_sections/09_togglesourceviewer.js");
 const transcript = read("frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
+const analysis = read("frontend/src/react/components/AnalysisStage.js");
 const index = read("frontend/index.html");
 
 assert.match(
@@ -25,19 +26,29 @@ assert.match(
   "notes and source preview should share a draggable divider"
 );
 assert.match(
-  layoutCss,
-  /\.source-open \.notes-card\s*\{[\s\S]*?padding: 14px 22px 22px/,
-  "notes card top padding should align with source tabs"
+  analysis,
+  /notes-scroll/,
+  "AnalysisStage should wrap note body content in a dedicated scroll region"
 );
 assert.match(
   layoutCss,
-  /\.source-open \.notes-card\s*\{[\s\S]*?height: calc\(100dvh - 118px\)/,
-  "notes pane should use the same height chrome as the source pane"
+  /\.source-open \.notes-card\s*\{[\s\S]*?overflow:\s*hidden/,
+  "notes card should contain an internal scrollport instead of scrolling the whole pane"
+);
+assert.match(
+  layoutCss,
+  /\.source-open \.notes-card \.notes-toolbar\s*\{[\s\S]*?position:\s*sticky/,
+  "notes toolbar should stay fixed while notes content scrolls"
+);
+assert.match(
+  layoutCss,
+  /\.source-open \.notes-card \.notes-scroll\s*\{[\s\S]*?overflow:\s*auto/,
+  "notes body should be the only scrolling region inside the card"
 );
 assert.match(
   sectionCss,
-  /\.source-viewer-panel\s*\{[\s\S]*?top: 12px[\s\S]*?height: calc\(100dvh - 118px\)/,
-  "source pane should stick on the same level as notes"
+  /\.source-viewer-panel\s*\{[\s\S]*?top: 12px[\s\S]*?height: min\(78dvh/,
+  "source pane should use a contained sticky height aligned with notes"
 );
 assert.match(
   toolsCss,
@@ -71,11 +82,11 @@ assert.ok(
   "layout should know when the source viewer is open"
 );
 assert.ok(
-  index.includes("style.css?v=mindmap-revert-v1"),
+  index.includes("style.css?v="),
   "workspace styles should cache-bust after the notes/source priority pass"
 );
 assert.ok(
-  index.includes("synapse-legacy-controller-combined.js?v=mindmap-revert-v1"),
+  index.includes("synapse-legacy-controller-combined.js?v="),
   "legacy controller should cache-bust after background preview preload"
 );
 

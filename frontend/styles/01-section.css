@@ -2079,14 +2079,14 @@ body.notes-source-split-resizing * {
   grid-column: 1 / -1;
 }
 
-/* Generated Study Notes: keep notes visible above Study Tools.
-   Do NOT lock the whole notes-area to 100dvh/overflow:hidden — that crushed
-   the notes card when Study Tools (Mind Map, etc.) took the remaining space. */
-.app-layout.generated-notes-state.analysis-ready .notes-area {
+/* Generated Study Notes: true full-screen reading pane.
+   Slim top chrome only; notes card covers the rest of the viewport.
+   Study Tools stay below via normal page scroll (do not lock notes-area). */
+.app-layout.generated-notes-state.analysis-ready:not(.source-viewer-open) .notes-area {
   width: 100% !important;
   max-width: none;
   margin-left: 0 !important;
-  padding: 16px 16px 40px !important;
+  padding: 0 !important;
   box-sizing: border-box;
   height: auto;
   max-height: none;
@@ -2096,28 +2096,38 @@ body.notes-source-split-resizing * {
   display: block;
 }
 
-.app-layout.generated-notes-state.analysis-ready.history-collapsed .notes-area {
-  padding-left: 56px !important;
+.app-layout.generated-notes-state.analysis-ready.history-collapsed:not(.source-viewer-open) .notes-area {
+  padding-left: 0 !important;
 }
 
-.app-layout.generated-notes-state.analysis-ready:not(.assistant-closed) .notes-area {
-  padding-right: 14px !important;
+.app-layout.generated-notes-state.analysis-ready:not(.assistant-closed):not(.source-viewer-open) .notes-area {
+  padding-right: 0 !important;
 }
 
-.app-layout.generated-notes-state .notes-header.compact-header {
-  margin-bottom: 10px;
-  gap: 10px;
+.app-layout.generated-notes-state:not(.source-viewer-open) .notes-header.compact-header {
+  margin: 0;
+  padding: 6px 14px;
+  min-height: 44px;
+  gap: 8px;
   align-items: center;
+  background: color-mix(in srgb, var(--hero-mid, #eaf4ff) 70%, #fff);
+  border-bottom: 1px solid rgba(197, 213, 242, 0.7);
 }
 
-.app-layout.generated-notes-state .compact-header h1 {
-  font-size: clamp(1.2rem, 2vw, 1.55rem);
-  letter-spacing: -0.04em;
+.app-layout.generated-notes-state:not(.source-viewer-open) .compact-header h1 {
+  font-size: 1rem;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
 }
 
-.app-layout.generated-notes-state .compact-header p {
-  font-size: 0.88rem;
-  line-height: 1.35;
+.app-layout.generated-notes-state:not(.source-viewer-open) .compact-header p {
+  display: none;
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) .new-upload-btn {
+  min-height: 34px;
+  padding: 0 12px;
+  font-size: 0.86rem;
 }
 
 .app-layout.generated-notes-state .analysis-stage,
@@ -2128,16 +2138,19 @@ body.notes-source-split-resizing * {
   max-width: none;
 }
 
-/* Notes card fills nearly the first screen; Study Tools stay below via page scroll. */
+/* Cover the remaining viewport under the slim header. */
 .app-layout.generated-notes-state:not(.source-viewer-open) .notes-card {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 132px);
-  min-height: calc(100dvh - 132px);
-  max-height: calc(100dvh - 112px);
+  height: calc(100dvh - 44px);
+  min-height: calc(100dvh - 44px);
+  max-height: calc(100dvh - 44px);
   padding: 0;
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  box-shadow: none;
 }
 
 .app-layout.generated-notes-state .notes-toolbar {
@@ -2145,7 +2158,7 @@ body.notes-source-split-resizing * {
   position: relative;
   z-index: 4;
   margin: 0;
-  padding: 14px 18px 12px;
+  padding: 12px 16px 10px;
   border-bottom: 1px solid rgba(197, 213, 242, 0.92);
   background: #ffffff;
   box-shadow: 0 8px 18px rgba(41, 76, 130, 0.05);
@@ -2157,12 +2170,14 @@ body.notes-source-split-resizing * {
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  padding: 14px 22px 28px;
+  padding: 16px 22px 32px;
   width: 100%;
 }
 
 .app-layout.generated-notes-state:not(.source-viewer-open) .study-tools-card {
-  margin-top: 18px;
+  margin: 16px;
+  width: auto;
+  max-width: none;
 }
 
 /* Reading body uses the available card width. */

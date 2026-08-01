@@ -29,33 +29,41 @@
 
   .source-open .notes-card,
   .app-layout.generated-notes-state:not(.source-viewer-open) .notes-card {
-    height: calc(100dvh - 118px);
-    min-height: calc(100dvh - 118px);
-    max-height: calc(100dvh - 100px);
+    height: calc(100dvh - 44px);
+    min-height: calc(100dvh - 44px);
+    max-height: calc(100dvh - 44px);
     width: 100%;
-    border-radius: 16px;
+    border-radius: 0;
   }
 
-  .app-layout.generated-notes-state.analysis-ready .notes-area {
-    padding: 10px 10px 28px !important;
+  .app-layout.generated-notes-state.analysis-ready:not(.source-viewer-open) .notes-area {
+    padding: 0 !important;
     height: auto !important;
     max-height: none !important;
     overflow-y: auto !important;
   }
 
-  .app-layout.generated-notes-state.analysis-ready.history-collapsed .notes-area {
-    padding-left: 10px !important;
+  .app-layout.generated-notes-state.analysis-ready.history-collapsed:not(.source-viewer-open) .notes-area {
+    padding-left: 0 !important;
+  }
+
+  .app-layout.generated-notes-state:not(.source-viewer-open) .notes-header.compact-header {
+    padding: 6px 10px;
   }
 
   .source-open .notes-card .notes-toolbar,
   .app-layout.generated-notes-state .notes-toolbar {
-    padding: 12px 14px 10px;
+    padding: 10px 12px 8px;
   }
 
   .source-open .notes-card .notes-scroll,
   .app-layout.generated-notes-state:not(.source-viewer-open) .notes-scroll {
-    padding: 8px 14px 18px;
+    padding: 10px 14px 20px;
     min-height: 0;
+  }
+
+  .app-layout.generated-notes-state:not(.source-viewer-open) .study-tools-card {
+    margin: 12px;
   }
 
   .source-viewer-panel {

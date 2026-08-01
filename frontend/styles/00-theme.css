@@ -408,13 +408,13 @@ html[data-theme="dark"] .source-slide-text h4 {
     max-height: none;
     min-height: 100dvh;
     margin-left: 0 !important;
-    padding: 14px 14px 36px !important;
+    padding: 0 !important;
     overflow-x: clip;
     overflow-y: auto;
   }
 
-  .app-layout.generated-notes-state.analysis-ready.history-collapsed .notes-area {
-    padding-left: 52px !important;
+  .app-layout.generated-notes-state.analysis-ready.history-collapsed:not(.source-viewer-open) .notes-area {
+    padding-left: 0 !important;
   }
 }
 /* Study tools and generated tables are shared by legacy renderers and React.

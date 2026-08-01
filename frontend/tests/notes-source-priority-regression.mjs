@@ -47,17 +47,17 @@ assert.match(
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state\.analysis-ready \.notes-area\s*\{[\s\S]*?width:\s*100%\s*!important/,
+  /\.app-layout\.generated-notes-state\.analysis-ready:not\(\.source-viewer-open\) \.notes-area\s*\{[\s\S]*?width:\s*100%\s*!important/,
   "generated notes should use a full-bleed notes area instead of a narrow centered column"
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state\.analysis-ready \.notes-area\s*\{[\s\S]*?overflow-y:\s*auto/,
+  /\.app-layout\.generated-notes-state\.analysis-ready:not\(\.source-viewer-open\) \.notes-area\s*\{[\s\S]*?overflow-y:\s*auto/,
   "generated notes page should keep normal page scroll so Study Tools stay reachable below notes"
 );
 assert.doesNotMatch(
   layoutCss,
-  /\.app-layout\.generated-notes-state\.analysis-ready:not\(\.source-viewer-open\) \.notes-area\s*\{[\s\S]*?overflow:\s*hidden/,
+  /\.app-layout\.generated-notes-state\.analysis-ready:not\(\.source-viewer-open\) \.notes-area\s*\{[^}]*overflow:\s*hidden/,
   "generated notes must not lock the whole page with overflow hidden (that hid notes under Study Tools)"
 );
 
@@ -68,8 +68,8 @@ assert.match(
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-card\s*\{[\s\S]*?height:\s*calc\(100dvh/,
-  "generated notes card should fill nearly the full viewport for reading"
+  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-card\s*\{[\s\S]*?height:\s*calc\(100dvh - 44px\)/,
+  "generated notes card should cover the viewport under a slim header"
 );
 assert.match(
   layoutCss,

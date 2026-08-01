@@ -1,7 +1,7 @@
 import { h, icon, legacyAction } from "../runtime.js";
-import { NotesToolbar } from "./NotesToolbar.js?v=notes-responsive-v1";
-import { SourceViewerPanel } from "./SourceViewerPanel.js?v=notes-responsive-v1";
-import { StudyTools } from "./StudyTools.js?v=notes-responsive-v1";
+import { NotesToolbar } from "./NotesToolbar.js?v=notes-responsive-v2";
+import { SourceViewerPanel } from "./SourceViewerPanel.js?v=notes-responsive-v2";
+import { StudyTools } from "./StudyTools.js?v=notes-responsive-v2";
 
 export function AnalysisStage() {
   return h(

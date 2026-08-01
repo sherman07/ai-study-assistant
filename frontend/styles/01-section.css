@@ -2079,8 +2079,77 @@ body.notes-source-split-resizing * {
   grid-column: 1 / -1;
 }
 
-/* Contained reading pane: keep notes in a scrollable card instead of a
-   near-fullscreen sticky frame that swallows the workspace chrome. */
+/* Viewport-locked Study Notes: page chrome stays put; only #notesScroll moves. */
+.app-layout.generated-notes-state.analysis-ready:not(.source-viewer-open) .notes-area {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 28px;
+  padding-bottom: 20px;
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) .analysis-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) .analysis-stage > .notes-header,
+.app-layout.generated-notes-state:not(.source-viewer-open) .analysis-stage > #examReadinessSummary,
+.app-layout.generated-notes-state:not(.source-viewer-open) .analysis-stage > #loadingBox {
+  flex: 0 0 auto;
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) #resultGrid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  align-content: stretch;
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) .notes-card {
+  flex: 1 1 auto;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) .study-tools-card,
+.app-layout.generated-notes-state:not(.source-viewer-open) .notes-source-splitter,
+.app-layout.generated-notes-state:not(.source-viewer-open) .source-viewer-panel {
+  flex: 0 0 auto;
+}
+
+.app-layout.generated-notes-state .notes-toolbar {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 4;
+  margin: 0;
+  padding: 16px 20px 14px;
+  border-bottom: 1px solid rgba(197, 213, 242, 0.92);
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(41, 76, 130, 0.06);
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) .notes-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 12px 22px 28px;
+}
+
+/* Contained reading pane when Sources is open: keep both panes in-view. */
 .source-open .notes-card {
   border-radius: var(--radius-lg);
   border-right: 1px solid var(--border-blue);
@@ -2097,14 +2166,13 @@ body.notes-source-split-resizing * {
 
 .source-open .notes-card .notes-toolbar {
   flex: 0 0 auto;
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 3;
   margin: 0;
   padding: 14px 18px 12px;
   border-bottom: 1px solid rgba(197, 213, 242, 0.88);
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(14px);
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(41, 76, 130, 0.05);
 }
 
 .source-open .notes-card .notes-scroll {
@@ -2145,32 +2213,6 @@ body.notes-source-split-resizing * {
 
 .notes-toolbar h2 {
   margin: 0;
-}
-
-/* Default generated-notes reading pane: fixed toolbar, scrollable body. */
-.app-layout.generated-notes-state:not(.source-viewer-open) .notes-card {
-  padding: 0;
-  max-height: min(82dvh, calc(100dvh - 160px));
-  overflow: hidden;
-}
-
-.app-layout.generated-notes-state:not(.source-viewer-open) .notes-toolbar {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 18px 22px 14px;
-  border-bottom: 1px solid rgba(197, 213, 242, 0.78);
-  background: rgba(255, 255, 255, 0.96);
-  backdrop-filter: blur(12px);
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-
-.app-layout.generated-notes-state:not(.source-viewer-open) .notes-scroll {
-  overflow: auto;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  padding: 8px 22px 26px;
 }
 
 .notes-actions {

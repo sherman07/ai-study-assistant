@@ -34,7 +34,7 @@
   }
 
   .source-open .notes-card .notes-toolbar,
-  .app-layout.generated-notes-state:not(.source-viewer-open) .notes-toolbar {
+  .app-layout.generated-notes-state .notes-toolbar {
     padding: 12px 14px 10px;
   }
 

@@ -37,13 +37,33 @@ assert.match(
 );
 assert.match(
   layoutCss,
-  /\.source-open \.notes-card \.notes-toolbar\s*\{[\s\S]*?position:\s*sticky/,
+  /\.source-open \.notes-card \.notes-toolbar\s*\{[\s\S]*?(?:position:\s*sticky|position:\s*relative)/,
   "notes toolbar should stay fixed while notes content scrolls"
 );
 assert.match(
   layoutCss,
   /\.source-open \.notes-card \.notes-scroll\s*\{[\s\S]*?overflow:\s*auto/,
   "notes body should be the only scrolling region inside the card"
+);
+assert.match(
+  layoutCss,
+  /\.app-layout\.generated-notes-state\.analysis-ready:not\(\.source-viewer-open\) \.notes-area\s*\{[\s\S]*?overflow:\s*hidden/,
+  "generated notes page should lock outer notes-area scroll so the toolbar cannot drift"
+);
+assert.match(
+  layoutCss,
+  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-card\s*\{[\s\S]*?overflow:\s*hidden/,
+  "generated notes card should own a definite internal scrollport"
+);
+assert.match(
+  layoutCss,
+  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-scroll\s*\{[\s\S]*?overflow:\s*auto/,
+  "generated notes body should scroll independently of the toolbar"
+);
+assert.match(
+  sectionCss,
+  /\.notes-summary-card\s*\{[\s\S]*?max-width:\s*100%/,
+  "note summary cards should use the full reading width instead of a narrow column"
 );
 assert.match(
   sectionCss,

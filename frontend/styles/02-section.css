@@ -69,7 +69,7 @@
 .summary-content > p,
 .summary-content > ul,
 .summary-content > ol {
-  max-width: 92ch;
+  max-width: min(92ch, 100%);
 }
 
 .summary-content p {
@@ -127,7 +127,8 @@
 .summary-content strong { color: var(--text); }
 
 .notes-summary-card {
-  max-width: 92ch;
+  max-width: 100%;
+  width: 100%;
   margin-bottom: 1.2rem;
   padding: 1rem 1.1rem;
   border: 1px solid rgba(99, 125, 255, 0.14);
@@ -152,7 +153,8 @@
 }
 
 .notes-section {
-  max-width: 94ch;
+  max-width: 100%;
+  width: 100%;
   margin: 0 0 1rem;
   border: 1px solid rgba(205, 218, 244, 0.92);
   border-radius: 18px;
@@ -306,7 +308,7 @@
 
 .professional-mode-surface {
   width: 100%;
-  max-width: 98ch;
+  max-width: 100%;
   display: grid;
   gap: 1rem;
   color: var(--text-soft);
@@ -335,7 +337,7 @@
 
 .professional-mode-section {
   width: 100%;
-  max-width: 98ch;
+  max-width: 100%;
   margin: 0;
 }
 
@@ -448,7 +450,7 @@
   display: grid;
   gap: 0.7rem;
   width: 100%;
-  max-width: 98ch;
+  max-width: 100%;
 }
 
 .professional-concept-connections-card .professional-section-header,

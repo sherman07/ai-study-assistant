@@ -41,6 +41,6 @@ assert.ok(boot.includes("gradeFlashcard"), "gradeFlashcard must be exported on w
 assert.ok(css.includes("study-tool-notice-host"), "toast host styles required");
 assert.ok(css.includes("scroll-snap-type"), "mobile tool switcher should scroll cleanly");
 assert.ok(flashCss.includes("flashcard-grade-row"), "flashcard grade styles required");
-assert.ok(/mindmap-revert-v1|credits-notes-v2|notes-responsive-v2|credits-live-v2/.test(index), "workspace assets should cache-bust after study tools UX upgrade");
+assert.ok(/mindmap-revert-v1|notes-layout-fix-v1|notes-responsive-v2|credits-live-v2/.test(index), "workspace assets should cache-bust after study tools UX upgrade");
 
 console.log("study-tools-ux-upgrade-regression: passed");

@@ -1,7 +1,7 @@
 import { h, icon, legacyAction } from "../runtime.js";
-import { NotesToolbar } from "./NotesToolbar.js?v=credits-notes-v2";
-import { SourceViewerPanel } from "./SourceViewerPanel.js?v=credits-notes-v2";
-import { StudyTools } from "./StudyTools.js?v=credits-notes-v2";
+import { NotesToolbar } from "./NotesToolbar.js?v=notes-layout-fix-v1";
+import { SourceViewerPanel } from "./SourceViewerPanel.js?v=notes-layout-fix-v1";
+import { StudyTools } from "./StudyTools.js?v=notes-layout-fix-v1";
 
 export function AnalysisStage() {
   return h(

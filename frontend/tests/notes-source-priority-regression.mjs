@@ -63,13 +63,23 @@ assert.doesNotMatch(
 
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state \.summary-content[\s\S]*?max-width:\s*none/,
-  "generated notes body content should expand to the full card width"
+  /\.app-layout\.generated-notes-state \.summary-content > p[\s\S]*?max-width:\s*min\(92ch/,
+  "generated notes body should keep a readable line length inside the tall card"
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-card\s*\{[\s\S]*?height:\s*calc\(100dvh - 44px\)/,
-  "generated notes card should cover the viewport under a slim header"
+  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-card\s*\{[\s\S]*?height:\s*calc\(100dvh - 72px\)/,
+  "generated notes card should keep full viewport height"
+);
+assert.match(
+  layoutCss,
+  /\.app-layout\.generated-notes-state\.analysis-ready:not\(\.source-viewer-open\) \.notes-area\s*\{[\s\S]*?padding:\s*12px 28px 36px\s*!important/,
+  "generated notes should restore side gutters instead of edge-to-edge width"
+);
+assert.match(
+  layoutCss,
+  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-card\s*\{[\s\S]*?border-radius:\s*var\(--radius-lg\)/,
+  "generated notes card should keep rounded card width treatment"
 );
 assert.match(
   layoutCss,

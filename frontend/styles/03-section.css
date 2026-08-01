@@ -27,6 +27,22 @@
     width: 100%;
   }
 
+  .source-open .notes-card,
+  .app-layout.generated-notes-state:not(.source-viewer-open) .notes-card {
+    height: min(72dvh, calc(100dvh - 120px));
+    max-height: min(72dvh, calc(100dvh - 120px));
+  }
+
+  .source-open .notes-card .notes-toolbar,
+  .app-layout.generated-notes-state .notes-toolbar {
+    padding: 12px 14px 10px;
+  }
+
+  .source-open .notes-card .notes-scroll,
+  .app-layout.generated-notes-state:not(.source-viewer-open) .notes-scroll {
+    padding: 4px 14px 18px;
+  }
+
   .source-viewer-panel {
     min-height: min(420px, 74dvh);
     height: 74dvh;

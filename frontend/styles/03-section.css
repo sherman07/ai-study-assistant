@@ -29,29 +29,29 @@
 
   .source-open .notes-card,
   .app-layout.generated-notes-state:not(.source-viewer-open) .notes-card {
-    height: calc(100dvh - 96px);
-    min-height: calc(100dvh - 96px);
-    max-height: calc(100dvh - 96px);
+    height: calc(100dvh - 72px);
+    min-height: calc(100dvh - 72px);
+    max-height: calc(100dvh - 72px);
     width: 100%;
     border-radius: 18px;
   }
 
   .app-layout.generated-notes-state.source-viewer-open .source-open .notes-card,
   .app-layout.generated-notes-state.source-viewer-open .source-open .source-viewer-panel {
-    height: calc(100dvh - 96px) !important;
-    min-height: calc(100dvh - 96px) !important;
-    max-height: calc(100dvh - 96px) !important;
+    height: calc(100dvh - 72px) !important;
+    min-height: calc(100dvh - 72px) !important;
+    max-height: calc(100dvh - 72px) !important;
   }
 
   .app-layout.generated-notes-state.analysis-ready:not(.source-viewer-open) .notes-area {
-    padding: 10px 14px 28px !important;
+    padding: 8px 12px 8px !important;
     height: auto !important;
     max-height: none !important;
     overflow-y: auto !important;
   }
 
   .app-layout.generated-notes-state.analysis-ready.source-viewer-open .notes-area {
-    padding: 10px 14px 28px !important;
+    padding: 8px 12px 8px !important;
     height: auto !important;
     max-height: none !important;
     overflow-y: auto !important;

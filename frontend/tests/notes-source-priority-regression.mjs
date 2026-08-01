@@ -68,27 +68,27 @@ assert.match(
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-card\s*\{[\s\S]*?height:\s*calc\(100dvh - 72px\)/,
+  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-card\s*\{[\s\S]*?height:\s*calc\(100dvh - 52px\)/,
   "generated notes card should keep full viewport height"
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state\.source-viewer-open \.source-open \.notes-card[\s\S]*?height:\s*calc\(100dvh - 72px\)/,
+  /\.app-layout\.generated-notes-state\.source-viewer-open \.source-open \.notes-card[\s\S]*?height:\s*calc\(100dvh - 52px\)/,
   "notes + sources split should use the same tall height as notes-only"
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state\.source-viewer-open \.source-open \.source-viewer-panel[\s\S]*?height:\s*calc\(100dvh - 72px\)/,
+  /\.app-layout\.generated-notes-state\.source-viewer-open \.source-open \.source-viewer-panel[\s\S]*?height:\s*calc\(100dvh - 52px\)/,
   "source pane should match the tall notes height when shown together"
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state\.source-viewer-open \.result-grid\.source-open \.notes-source-splitter[\s\S]*?height:\s*calc\(100dvh - 72px\)/,
+  /\.app-layout\.generated-notes-state\.source-viewer-open \.result-grid\.source-open \.notes-source-splitter[\s\S]*?height:\s*calc\(100dvh - 52px\)/,
   "notes/source splitter should span the same tall height so drag resize stays usable"
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state\.analysis-ready:not\(\.source-viewer-open\) \.notes-area\s*\{[\s\S]*?padding:\s*12px 28px 36px\s*!important/,
+  /\.app-layout\.generated-notes-state\.analysis-ready:not\(\.source-viewer-open\) \.notes-area\s*\{[\s\S]*?padding:\s*8px 28px 8px\s*!important/,
   "generated notes should restore side gutters instead of edge-to-edge width"
 );
 assert.match(

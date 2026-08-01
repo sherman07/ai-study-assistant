@@ -408,7 +408,7 @@ html[data-theme="dark"] .source-slide-text h4 {
     max-height: none;
     min-height: 100dvh;
     margin-left: 0 !important;
-    padding: 12px 22px 32px !important;
+    padding: 8px 22px 8px !important;
     overflow-x: clip;
     overflow-y: auto;
   }
@@ -424,7 +424,7 @@ html[data-theme="dark"] .source-slide-text h4 {
     max-height: none;
     min-height: 100dvh;
     margin-left: 0 !important;
-    padding: 12px 22px 32px !important;
+    padding: 8px 22px 8px !important;
     overflow-x: clip;
     overflow-y: auto;
   }

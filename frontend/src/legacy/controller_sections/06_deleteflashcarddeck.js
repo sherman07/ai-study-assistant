@@ -680,48 +680,67 @@ async function generateFlashcards() {
 
   flashcardSettings = normalizeFlashcardSettings(flashcardSettings);
   safeSetLocalStorage(FLASHCARD_SETTINGS_KEY, JSON.stringify(flashcardSettings));
-  isFlashcardGenerating = true;
-  flashcardError = "";
-  currentFlashcards = [];
-  activeFlashcardIndex = 0;
-  flashcardSide = "front";
-  flashcardMatchingState = null;
-  flashcardBuilderOpen = false;
-  switchTool("flashcards");
-  renderFlashcardPanel();
+
+  const runFlashcardGeneration = async () => {
+    isFlashcardGenerating = true;
+    flashcardError = "";
+    currentFlashcards = [];
+    activeFlashcardIndex = 0;
+    flashcardSide = "front";
+    flashcardMatchingState = null;
+    flashcardBuilderOpen = false;
+    switchTool("flashcards");
+    renderFlashcardPanel();
+
+    try {
+      const response = await apiClient.fetch("/flashcards/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: storedTitle,
+          summary: fullSummary,
+          sections,
+          source_fingerprint: currentSourceFingerprint,
+          preferred_language: flashcardSettings.preferredLanguage,
+          count_mode: flashcardSettings.countMode,
+          card_count: flashcardCountValue(flashcardSettings)
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `Flashcard generation failed with status ${response.status}.`);
+      }
+      currentFlashcards = normalizeClientFlashcardDeck(data);
+      if (!currentFlashcards.length) throw new Error("No usable flashcards were returned.");
+      persistFlashcardsForCurrentNote();
+      if (typeof recordStudyActivity === "function") recordStudyActivity("flashcards_generated", {
+        tool: "flashcards",
+        label: `Generated ${currentFlashcards.length} flashcards`,
+        metadata: { cardCount: currentFlashcards.length }
+      });
+    } catch (error) {
+      console.error(error);
+      flashcardError = error.message || "Flashcard generation failed.";
+      throw error;
+    } finally {
+      isFlashcardGenerating = false;
+      renderFlashcardPanel();
+    }
+  };
 
   try {
-    const response = await apiClient.fetch("/flashcards/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: storedTitle,
-        summary: fullSummary,
-        sections,
-        source_fingerprint: currentSourceFingerprint,
-        preferred_language: flashcardSettings.preferredLanguage,
-        count_mode: flashcardSettings.countMode,
-        card_count: flashcardCountValue(flashcardSettings)
-      })
-    });
-    const data = await response.json();
-    if (!response.ok || data.error) {
-      throw new Error(data.error || `Flashcard generation failed with status ${response.status}.`);
+    if (window.SynapseCredits?.withCreditReservation) {
+      await window.SynapseCredits.withCreditReservation("practice_generation", runFlashcardGeneration, {
+        confirmLabel: "Generate flashcards"
+      });
+    } else {
+      await runFlashcardGeneration();
     }
-    currentFlashcards = normalizeClientFlashcardDeck(data);
-    if (!currentFlashcards.length) throw new Error("No usable flashcards were returned.");
-    persistFlashcardsForCurrentNote();
-    if (typeof recordStudyActivity === "function") recordStudyActivity("flashcards_generated", {
-      tool: "flashcards",
-      label: `Generated ${currentFlashcards.length} flashcards`,
-      metadata: { cardCount: currentFlashcards.length }
-    });
   } catch (error) {
-    console.error(error);
-    flashcardError = error.message || "Flashcard generation failed.";
-  } finally {
-    isFlashcardGenerating = false;
-    renderFlashcardPanel();
+    if (!String(error?.message || "").toLowerCase().includes("cancelled")) {
+      flashcardError = error?.message || flashcardError || "Flashcard generation failed.";
+      renderFlashcardPanel();
+    }
   }
 }
 

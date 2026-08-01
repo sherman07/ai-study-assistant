@@ -248,6 +248,13 @@ html[data-theme="dark"] :where(.auth-label, .auth-header p, .billing-nav-links, 
    overrides keep those surfaces on the same semantic palette as the rest of
    the app; without them the renderer's light defaults create white-on-white
    text whenever the account theme is dark. */
+html[data-theme="dark"] .source-open .notes-card .notes-toolbar,
+html[data-theme="dark"] .app-layout.generated-notes-state .notes-toolbar {
+  background: var(--color-surface-primary);
+  border-bottom-color: color-mix(in srgb, var(--border-blue) 80%, transparent);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
 html[data-theme="dark"] .notes-card,
 html[data-theme="dark"] .notes-summary-card,
 html[data-theme="dark"] .notes-section,
@@ -394,11 +401,19 @@ html[data-theme="dark"] .source-slide-text h4 {
     height: auto;
   }
 
-  .app-layout.generated-notes-state.analysis-ready .notes-area {
-    width: auto;
-    min-height: 100dvh;
-    padding: 32px 24px 88px;
-    overflow-y: auto;
+  .app-layout.generated-notes-state.analysis-ready:not(.source-viewer-open) .notes-area {
+    width: 100% !important;
+    max-width: none;
+    height: 100dvh;
+    max-height: 100dvh;
+    min-height: 0;
+    margin-left: 0 !important;
+    padding: 10px 10px 12px !important;
+    overflow: hidden;
+  }
+
+  .app-layout.generated-notes-state.analysis-ready.history-collapsed .notes-area {
+    padding-left: 52px !important;
   }
 }
 /* Study tools and generated tables are shared by legacy renderers and React.

@@ -1064,6 +1064,38 @@ function parseMixedSources(rawSource) {
   };
 }
 
+async function refundGenerationJobCredits(jobId, reason = "failed") {
+  const job = typeof getGenerationJob === "function" ? getGenerationJob(jobId) : null;
+  const spend = job?.request?.creditSpend;
+  if (!spend || spend.refunded) return null;
+  if (!window.SynapseAuth?.refundCredits) return null;
+  try {
+    const result = await window.SynapseAuth.refundCredits({
+      dailyUsed: spend.dailyUsed,
+      boostUsed: spend.boostUsed,
+      amount: spend.charged
+    });
+    if (typeof upsertGenerationJob === "function") {
+      upsertGenerationJob({
+        jobId,
+        request: {
+          ...(job.request || {}),
+          creditSpend: {
+            ...spend,
+            refunded: true,
+            refundReason: reason
+          }
+        }
+      });
+    }
+    if (typeof renderAccountMenu === "function") renderAccountMenu();
+    return result;
+  } catch (error) {
+    console.warn("Synapse credit refund failed:", error);
+    return null;
+  }
+}
+
 async function analyzeMaterials() {
   return startGenerationJobFromCurrentUpload();
 }
@@ -1098,34 +1130,61 @@ async function startGenerationJobFromCurrentUpload() {
     return existingJob;
   }
 
-  const request = {
-    rawSource,
-    freeText: parsedSources.freeText,
-    sourceLinks,
-    uploadedLinks: [...uploadedLinks],
-    fileNames: uploadedFiles.map(file => file.name || "Uploaded source"),
-    hasFiles: uploadedFiles.length > 0,
-    preferredLanguage: preferredLanguage ? preferredLanguage.value : "auto",
-    detailLevel: detailLevel ? detailLevel.value : "auto",
-    promptMode: promptMode ? promptMode.value : "professor_mode",
-    noteLength: noteLengthSelect ? noteLengthSelect.value : "standard_notes",
-    aiProvider: aiProvider ? normaliseAiProvider(aiProvider.value) : "",
-    clientFingerprint: currentSourceFingerprint
+  const noteLengthValue = noteLengthSelect ? noteLengthSelect.value : "standard_notes";
+  const creditAction = window.SynapseCredits?.creditActionForNoteLength?.(noteLengthValue) || "standard_notes";
+
+  const launchJob = async (spend = null) => {
+    const request = {
+      rawSource,
+      freeText: parsedSources.freeText,
+      sourceLinks,
+      uploadedLinks: [...uploadedLinks],
+      fileNames: uploadedFiles.map(file => file.name || "Uploaded source"),
+      hasFiles: uploadedFiles.length > 0,
+      preferredLanguage: preferredLanguage ? preferredLanguage.value : "auto",
+      detailLevel: detailLevel ? detailLevel.value : "auto",
+      promptMode: promptMode ? promptMode.value : "professor_mode",
+      noteLength: noteLengthValue,
+      aiProvider: aiProvider ? normaliseAiProvider(aiProvider.value) : "",
+      clientFingerprint: currentSourceFingerprint,
+      creditAction,
+      creditSpend: spend
+        ? {
+            charged: spend.charged,
+            dailyUsed: spend.dailyUsed,
+            boostUsed: spend.boostUsed,
+            actionId: spend.actionId || creditAction
+          }
+        : null
+    };
+    const job = createGenerationJob({
+      noteId: currentSourceFingerprint,
+      classId: currentSourceFingerprint,
+      sourceTitle: generationSourceTitle(uploadedFiles, rawSource, sourceLinks),
+      request
+    });
+    openGenerationJob(job.jobId);
+    setGenerateButtonForJob(job);
+    enqueueGenerationJobRun(job.jobId, {
+      ...request,
+      parsedSources,
+      files: [...uploadedFiles]
+    });
+    return job;
   };
-  const job = createGenerationJob({
-    noteId: currentSourceFingerprint,
-    classId: currentSourceFingerprint,
-    sourceTitle: generationSourceTitle(uploadedFiles, rawSource, sourceLinks),
-    request
-  });
-  openGenerationJob(job.jobId);
-  setGenerateButtonForJob(job);
-  enqueueGenerationJobRun(job.jobId, {
-    ...request,
-    parsedSources,
-    files: [...uploadedFiles]
-  });
-  return job;
+
+  if (window.SynapseCredits?.withCreditReservation) {
+    try {
+      return await window.SynapseCredits.withCreditReservation(creditAction, launchJob, {
+        confirmLabel: "Generate notes"
+      });
+    } catch (error) {
+      if (String(error?.message || "").toLowerCase().includes("cancelled")) return null;
+      alert(error?.message || "Could not start generation with credits.");
+      return null;
+    }
+  }
+  return launchJob(null);
 }
 
 async function runGenerationJobAnalysis(jobId, context = {}) {
@@ -1404,6 +1463,9 @@ async function runGenerationJobAnalysis(jobId, context = {}) {
     console.error(error);
     const wasCancelled = getGenerationJob(jobId)?.status === "cancelled";
     if (!wasCancelled) {
+      if (typeof refundGenerationJobCredits === "function") {
+        await refundGenerationJobCredits(jobId, "failed").catch(() => {});
+      }
       upsertGenerationJob({
         jobId,
         status: "failed",

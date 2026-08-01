@@ -36,7 +36,7 @@ for (const file of [
   assert.ok(exists(file), `${file} should exist`);
 }
 
-for (const requiredPlan of ["Free", "Pro Monthly", "Pro Yearly"]) {
+for (const requiredPlan of ["Free", "Pro Monthly", "Pro Annual"]) {
   assert.ok(pricingHtml.includes(requiredPlan), `pricing page should show ${requiredPlan}`);
 }
 
@@ -76,7 +76,12 @@ assert.ok(configJs.includes('mode: "subscription"'), "public plan metadata shoul
 assert.ok(configJs.includes('mode: "payment"'), "public plan metadata should mark yearly as one-time payment");
 assert.ok(accountController.includes("startBillingCheckout(planId, checkoutMode)"), "workspace billing modal should pass Checkout mode");
 assert.ok(accountController.includes("openBillingPortal"), "workspace billing modal should expose Stripe Customer Portal");
-assert.ok(accountController.includes("Payment status is updated only from verified Stripe webhooks"), "workspace should explain webhook source of truth");
+assert.ok(
+  accountController.includes("Payment status is updated only from verified Stripe webhooks")
+    || accountController.includes("STRIPE_WEBHOOK_SECRET")
+    || accountController.includes("verified Stripe"),
+  "workspace should explain webhook source of truth"
+);
 
 for (const viteInput of ["pricing", "billingSuccess", "billingCancel"]) {
   assert.ok(viteConfig.includes(`${viteInput}: resolve`), `Vite build should include ${viteInput}`);

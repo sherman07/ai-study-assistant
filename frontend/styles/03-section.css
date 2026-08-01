@@ -27,6 +27,32 @@
     width: 100%;
   }
 
+  .source-open .notes-card,
+  .app-layout.generated-notes-state:not(.source-viewer-open) .notes-card {
+    height: min(78dvh, calc(100dvh - 96px));
+    max-height: min(78dvh, calc(100dvh - 96px));
+    width: 100%;
+    border-radius: 16px;
+  }
+
+  .app-layout.generated-notes-state.analysis-ready .notes-area {
+    padding: 8px 8px 10px !important;
+  }
+
+  .app-layout.generated-notes-state.analysis-ready.history-collapsed .notes-area {
+    padding-left: 8px !important;
+  }
+
+  .source-open .notes-card .notes-toolbar,
+  .app-layout.generated-notes-state .notes-toolbar {
+    padding: 12px 14px 10px;
+  }
+
+  .source-open .notes-card .notes-scroll,
+  .app-layout.generated-notes-state:not(.source-viewer-open) .notes-scroll {
+    padding: 8px 14px 18px;
+  }
+
   .source-viewer-panel {
     min-height: min(420px, 74dvh);
     height: 74dvh;

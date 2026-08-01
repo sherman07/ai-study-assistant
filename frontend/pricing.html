@@ -4,15 +4,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Pricing | Synapse</title>
-  <meta name="description" content="Choose a Synapse plan: Free, Pro monthly, or Pro yearly with secure Stripe Checkout." />
+  <meta name="description" content="Synapse AI credits: Free daily study, Pro Monthly, Pro Annual, and Boost Credit packs with clear estimates before generation." />
   <meta name="theme-color" content="#4a7cff" />
   <script src="theme-bootstrap.js?v=theme-system-v2"></script>
   <meta property="og:title" content="Pricing | Synapse" />
-  <meta property="og:description" content="Upgrade Synapse with secure Stripe Checkout and server-verified billing." />
+  <meta property="og:description" content="Turn lectures and readings into notes, practice, and deeper understanding with daily AI credits." />
   <meta property="og:image" content="/logos/synapse.png" />
   <link rel="icon" type="image/png" href="/logos/synapse.png">
   <link rel="apple-touch-icon" href="/logos/synapse.png">
-  <link rel="stylesheet" href="billing-pages.css?v=stripe-billing-v1">
+  <link rel="stylesheet" href="billing-pages.css?v=credits-notes-v2">
   <link rel="stylesheet" href="styles/00-theme.css?v=ui-english-v1">
   <link rel="stylesheet" href="styles/99-dark-mode.css?v=dark-mode-v6">
 </head>
@@ -35,63 +35,146 @@
     <main>
       <section class="billing-hero">
         <div class="billing-container">
-          <p class="billing-kicker">Stripe Checkout</p>
-          <h1>Choose the plan that fits your <span>study rhythm.</span></h1>
-          <p>Start free, upgrade to Pro monthly, or save with Pro yearly. Checkout is hosted by Stripe; Synapse updates Pro access only after verified Stripe webhooks.</p>
+          <p class="billing-kicker">Study Further, Every Day</p>
+          <h1>Turn lectures, readings, and ideas into <span>clear learning.</span></h1>
+          <p>Synapse gives you fresh AI credits every day. Quick questions use fewer credits, while larger documents, Deep Study, visual generation, and voice experiences use more. You will always see an estimate before generation begins.</p>
         </div>
       </section>
 
       <section class="billing-container" aria-label="Synapse pricing plans">
+        <div class="section-intro">
+          <h2>Start Learning for Free</h2>
+          <p>Choose Free, Pro Monthly, or Pro Annual. Checkout is hosted by Stripe; Synapse updates access and Boost Credits only after verified webhooks.</p>
+        </div>
+
         <div class="plan-grid">
           <article class="plan-card">
-            <span class="plan-badge">Free</span>
+            <span class="plan-badge">Free — $0</span>
             <h2>Free</h2>
-            <p>Core study generation for getting started.</p>
-            <div class="plan-price"><strong>$0</strong><span>forever</span></div>
+            <p>Explore Synapse with <strong>500 welcome credits</strong>, followed by <strong>50 fresh AI credits every day</strong>.</p>
+            <div class="plan-price"><strong>$0</strong><span>no card required</span></div>
             <ul>
-              <li>Basic source upload workflow</li>
-              <li>Starter notes and mind maps</li>
-              <li>Limited practice sessions</li>
-              <li>Community-speed processing</li>
+              <li>500 welcome AI credits</li>
+              <li>50 fresh AI credits daily</li>
+              <li>Upload your learning materials</li>
+              <li>Generate essential study notes</li>
+              <li>Ask focused study questions</li>
+              <li>Explore core learning tools</li>
             </ul>
-            <button class="billing-button" type="button" data-checkout-plan="free">Continue Free</button>
+            <button class="billing-button" type="button" data-checkout-plan="free">Start studying for free</button>
           </article>
 
           <article class="plan-card recommended">
-            <span class="plan-badge">Most flexible</span>
+            <span class="plan-badge">Pro Monthly — $9.99</span>
             <h2>Pro Monthly</h2>
-            <p>Upgrade to Pro with monthly billing.</p>
-            <div class="plan-price"><strong>$9</strong><span>per month</span></div>
+            <p>Receive <strong>1,000 fresh AI credits every day</strong> and build a consistent learning routine with the complete Synapse study experience.</p>
+            <div class="plan-price"><strong>$9.99</strong><span>USD per month</span></div>
+            <p class="plan-note">Your daily allowance is usually enough for several Standard Notes generations or a flexible mix of notes, tutoring, revision, and practice.</p>
             <ul>
-              <li>More uploads and generated study outputs</li>
-              <li>Advanced analytics and weak-topic tracking</li>
-              <li>Priority processing for heavy study days</li>
-              <li>Manage or cancel in Stripe Customer Portal</li>
+              <li>1,000 fresh AI credits daily</li>
+              <li>Standard Notes and Deep Study</li>
+              <li>Advanced learning and revision tools</li>
+              <li>Clear credit estimates before generation</li>
+              <li>More flexibility for larger materials</li>
+              <li>Add Boost Credits whenever you need more</li>
+              <li>Manage or cancel through your account</li>
             </ul>
-            <button class="billing-button primary" type="button" data-checkout-plan="pro_monthly" data-checkout-mode="subscription">Upgrade to Pro</button>
+            <button class="billing-button primary" type="button" data-checkout-plan="pro_monthly" data-checkout-mode="subscription">Upgrade to Pro Monthly</button>
           </article>
 
           <article class="plan-card">
-            <span class="plan-badge">Best value</span>
-            <h2>Pro Yearly</h2>
-            <p>Upgrade to Pro with one-time annual access.</p>
-            <div class="plan-price"><strong>$90</strong><span>per year</span></div>
+            <span class="plan-badge">Pro Annual — $99.99</span>
+            <h2>Pro Annual</h2>
+            <p>Get the complete Pro experience with <strong>1,000 fresh AI credits every day</strong>, while saving <strong>$19.89</strong> compared with twelve monthly payments.</p>
+            <div class="plan-price"><strong>$99.99</strong><span>USD per year</span></div>
             <ul>
-              <li>Everything in Pro Monthly</li>
-              <li>Lower annual cost for long exam seasons</li>
-              <li>Priority processing and advanced exports</li>
-              <li>Billing status verified by Stripe webhooks</li>
+              <li>1,000 fresh AI credits daily</li>
+              <li>All Pro learning features</li>
+              <li>A full year of consistent study support</li>
+              <li>Approximately 16.6% annual savings</li>
+              <li>Transparent estimates before AI generation</li>
+              <li>Optional Boost Credits for heavier study days</li>
             </ul>
-            <button class="billing-button primary" type="button" data-checkout-plan="pro_yearly" data-checkout-mode="payment">Upgrade to Pro</button>
+            <button class="billing-button primary" type="button" data-checkout-plan="pro_yearly" data-checkout-mode="payment">Choose Pro Annual</button>
           </article>
         </div>
         <p class="billing-status" id="billingStatus" role="status" aria-live="polite"></p>
       </section>
+
+      <section class="billing-container billing-section" id="boost" aria-label="Boost Credits">
+        <div class="section-intro">
+          <p class="billing-kicker">Need More Credits Today?</p>
+          <h2>Keep Studying With Boost Credits</h2>
+          <p>Your daily allowance should never have to interrupt an important study session. Add Boost Credits for additional notes, deeper analysis, generated visuals, longer tutoring sessions, or more intensive study support.</p>
+        </div>
+
+        <div class="boost-table-wrap">
+          <table class="boost-table">
+            <thead>
+              <tr>
+                <th scope="col">Boost pack</th>
+                <th scope="col">Credits</th>
+                <th scope="col">Price</th>
+                <th scope="col"><span class="visually-hidden">Checkout</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Small Boost</td>
+                <td>10,000</td>
+                <td>$4.99 USD</td>
+                <td><button class="billing-button" type="button" data-boost-pack="boost_small">Add</button></td>
+              </tr>
+              <tr>
+                <td>Standard Boost</td>
+                <td>25,000</td>
+                <td>$9.99 USD</td>
+                <td><button class="billing-button primary" type="button" data-boost-pack="boost_standard">Add</button></td>
+              </tr>
+              <tr>
+                <td>Plus Boost</td>
+                <td>70,000</td>
+                <td>$24.99 USD</td>
+                <td><button class="billing-button" type="button" data-boost-pack="boost_plus">Add</button></td>
+              </tr>
+              <tr>
+                <td>Max Boost</td>
+                <td>150,000</td>
+                <td>$49.99 USD</td>
+                <td><button class="billing-button" type="button" data-boost-pack="boost_max">Add</button></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="plan-note boost-note">Boost Credits remain in your account until you use them. Synapse always uses your fresh daily credits first, helping you receive the greatest possible value from every purchase.</p>
+      </section>
+
+      <section class="billing-container billing-section" aria-label="How Synapse credits work">
+        <div class="section-intro">
+          <h2>How Synapse Credits Work</h2>
+          <p>Every learning task requires a different amount of AI processing. A quick tutor question may use only a small number of credits. Analyzing a long document, producing Deep Study notes, interpreting visual material, generating an image, or running a live voice session requires more.</p>
+        </div>
+        <div class="credit-explain-grid">
+          <article class="credit-explain-card">
+            <h3>Before each AI action</h3>
+            <ul>
+              <li>the expected credit range</li>
+              <li>the maximum possible charge</li>
+              <li>which credit balance will be used</li>
+              <li>a lower-cost option when one is available</li>
+            </ul>
+          </article>
+          <article class="credit-explain-card">
+            <h3>Designed for clearer studying</h3>
+            <p>Synapse credits make AI usage understandable without forcing you to count tokens or learn complicated model pricing. Choose how deeply you want to study, review the estimate, and continue when you are ready.</p>
+          </article>
+        </div>
+      </section>
     </main>
   </div>
 
-  <script src="config.js?v=login-remember-v1"></script>
-  <script src="auth-client.js?v=stripe-billing-v1"></script>
-  <script src="pricing.js?v=stripe-billing-v1"></script>
+  <script src="config.js?v=credits-notes-v2"></script>
+  <script src="auth-client.js?v=credits-notes-v2"></script>
+  <script src="pricing.js?v=credits-notes-v2"></script>
 </body>
 </html>

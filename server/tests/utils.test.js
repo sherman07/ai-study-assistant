@@ -3,7 +3,24 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { billingPlanList, creditsForPlan, hasActivePro, resolveUserCredits, subscriptionAccessPlan, userEntitlements } from "../src/billing/plans.js";
+import {
+  addBoostCredits,
+  ensureCreditState,
+  estimateCredits,
+  refundCredits,
+  spendCredits,
+  utcDateKey
+} from "../src/billing/credits.js";
+import {
+  billingPlanList,
+  boostPackList,
+  creditsForPlan,
+  dailyCreditsForPlan,
+  hasActivePro,
+  resolveUserCredits,
+  subscriptionAccessPlan,
+  userEntitlements
+} from "../src/billing/plans.js";
 import { allowedReturnUrl } from "../src/routes/billing.js";
 import { stableUserId } from "../src/utils/ids.js";
 import { allowedValue, cleanString, limitValue, validateProgressPayload } from "../src/utils/validators.js";
@@ -59,14 +76,94 @@ test("billing plan metadata separates subscription and one-time Checkout modes",
   assert.equal(plans.find(plan => plan.id === "free")?.mode, null);
   assert.equal(plans.find(plan => plan.id === "pro_monthly")?.mode, "subscription");
   assert.equal(plans.find(plan => plan.id === "pro_yearly")?.mode, "payment");
+  assert.equal(plans.find(plan => plan.id === "free")?.dailyCredits, 50);
+  assert.equal(plans.find(plan => plan.id === "free")?.welcomeCredits, 500);
+  assert.equal(plans.find(plan => plan.id === "pro_monthly")?.dailyCredits, 1000);
+  assert.equal(plans.find(plan => plan.id === "pro_yearly")?.priceCents, 9999);
+  assert.equal(boostPackList().length, 4);
+  assert.equal(boostPackList().find(pack => pack.id === "boost_max")?.credits, 150000);
 });
 
 test("creditsForPlan and resolveUserCredits respect plan defaults and overrides", () => {
   assert.equal(creditsForPlan("free"), 500);
-  assert.equal(creditsForPlan("pro_monthly"), 4000);
+  assert.equal(creditsForPlan("pro_monthly"), 1000);
+  assert.equal(dailyCreditsForPlan("free"), 50);
+  assert.equal(dailyCreditsForPlan("pro_yearly"), 1000);
   assert.equal(resolveUserCredits({ plan: "free" }), 500);
   assert.equal(resolveUserCredits({ plan: "free", credits: 42 }), 42);
   assert.equal(resolveUserCredits({ plan: "pro_yearly", metadata: { credits: 9 } }), 9);
+});
+
+test("daily credits refresh and boost credits persist", () => {
+  const now = new Date("2026-07-30T12:00:00.000Z");
+  const free = ensureCreditState({ plan: "free", metadata: {} }, { now });
+  assert.equal(free.dailyCredits, 50);
+  assert.equal(free.boostCredits, 500);
+  assert.equal(free.totalCredits, 550);
+  assert.equal(free.dailyRefreshedOn, "2026-07-30");
+
+  const nextDay = ensureCreditState({
+    plan: "free",
+    metadata: {
+      daily_credits: 0,
+      boost_credits: 420,
+      daily_refreshed_on: "2026-07-29",
+      welcome_granted: true,
+      credits: 420
+    }
+  }, { now });
+  assert.equal(nextDay.dailyCredits, 50);
+  assert.equal(nextDay.boostCredits, 420);
+  assert.equal(nextDay.totalCredits, 470);
+
+  const withBoost = addBoostCredits(nextDay, 10000);
+  assert.equal(withBoost.boostCredits, 10420);
+  assert.equal(withBoost.dailyCredits, 50);
+});
+
+test("credit spend uses daily balance before boost", () => {
+  const user = {
+    plan: "pro_monthly",
+    metadata: {
+      daily_credits: 100,
+      boost_credits: 500,
+      daily_refreshed_on: utcDateKey(),
+      welcome_granted: true,
+      credits: 600
+    }
+  };
+  const result = spendCredits(user, 150);
+  assert.equal(result.ok, true);
+  assert.equal(result.dailyUsed, 100);
+  assert.equal(result.boostUsed, 50);
+  assert.equal(result.balance.dailyCredits, 0);
+  assert.equal(result.balance.boostCredits, 450);
+
+  const refunded = refundCredits(
+    { plan: "pro_monthly", metadata: result.metadata },
+    { dailyUsed: result.dailyUsed, boostUsed: result.boostUsed }
+  );
+  assert.equal(refunded.ok, true);
+  assert.equal(refunded.balance.dailyCredits, 100);
+  assert.equal(refunded.balance.boostCredits, 500);
+});
+
+test("credit estimates expose range, max charge, and lower-cost options", () => {
+  const estimate = estimateCredits({
+    plan: "pro_monthly",
+    isPro: true,
+    metadata: {
+      daily_credits: 1000,
+      boost_credits: 0,
+      daily_refreshed_on: utcDateKey(),
+      welcome_granted: true
+    }
+  }, "deep_study");
+  assert.equal(estimate.ok, true);
+  assert.equal(estimate.estimate.maximumCharge, 650);
+  assert.equal(estimate.estimate.expectedRange.min, 280);
+  assert.equal(estimate.lowerCostOption?.id, "standard_notes");
+  assert.equal(estimate.canAfford, true);
 });
 
 test("billing entitlements only grant Pro for active unexpired statuses", () => {
@@ -80,6 +177,7 @@ test("billing entitlements only grant Pro for active unexpired statuses", () => 
   assert.equal(hasActivePro({ plan: "pro_monthly", subscriptionStatus: "active", currentPeriodEnd: past }), false);
   assert.equal(subscriptionAccessPlan("pro_monthly", "canceled"), "free");
   assert.equal(userEntitlements({ plan: "pro_monthly", subscriptionStatus: "active", currentPeriodEnd: future }).features.proStudy, true);
+  assert.equal(userEntitlements({ plan: "pro_monthly", subscriptionStatus: "active", currentPeriodEnd: future }).features.deepStudy, true);
 });
 
 test("billing return URLs stay on allowed origins", () => {
@@ -139,6 +237,7 @@ test("Render blueprint deploys Python AI backend and Node data API separately", 
   assert.ok(renderYamlSource.includes("rootDir: server"), "Node data API should build from the server directory");
   assert.ok(renderYamlSource.includes("buildCommand: npm ci --omit=dev"), "Node data API should install production npm dependencies");
   assert.ok(renderYamlSource.includes("startCommand: npm start"), "Node data API should use its package start script");
+  assert.ok(renderYamlSource.includes("STRIPE_PRICE_BOOST_SMALL"), "Data API should accept Boost pack price IDs");
 });
 
 test("Render blueprint does not provision an unused MySQL service", () => {
@@ -221,7 +320,11 @@ test("stripe billing routes verify webhooks and keep secrets server-side", () =>
     "STRIPE_SECRET_KEY",
     "STRIPE_WEBHOOK_SECRET",
     "STRIPE_PRICE_PRO_MONTHLY",
-    "STRIPE_PRICE_PRO_YEARLY"
+    "STRIPE_PRICE_PRO_YEARLY",
+    "STRIPE_PRICE_BOOST_SMALL",
+    "STRIPE_PRICE_BOOST_STANDARD",
+    "STRIPE_PRICE_BOOST_PLUS",
+    "STRIPE_PRICE_BOOST_MAX"
   ]) {
     assert.ok(configSource.includes(envName), `${envName} should be read from server environment`);
   }
@@ -237,6 +340,9 @@ test("stripe billing routes verify webhooks and keep secrets server-side", () =>
   }
 
   assert.ok(routeSource.includes("checkout.sessions.create"), "billing route should create Stripe Checkout Sessions");
+  assert.ok(routeSource.includes("create-boost-checkout-session"), "billing route should create Boost Checkout Sessions");
+  assert.ok(routeSource.includes("/credits/estimate"), "billing route should expose credit estimates");
+  assert.ok(routeSource.includes("/credits/refund"), "billing route should expose credit refunds");
   assert.ok(routeSource.includes("billingPortal.sessions.create"), "billing route should create Stripe Customer Portal sessions");
   assert.ok(routeSource.includes("webhooks.constructEvent"), "webhook route must verify Stripe signatures");
   assert.ok(routeSource.includes("checkout.session.completed"), "webhook route should handle completed Checkout");

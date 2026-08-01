@@ -43,7 +43,7 @@ const styles = read("frontend/styles/04-section.css");
 const serverEnvExample = read("server/.env.example");
 const backendEnvExample = read("backend/.env.example");
 const geminiEnvExample = read("backend/.env.gemini.example");
-const broadcastAssetVersion = "ai-broadcast-v19";
+const broadcastAssetVersion = "credits-notes-v2";
 const legacyControllerAssetVersion = "settings-modal-pattern-20260720-06";
 
 assert.ok(rootIndex.includes("frontend/landing.html"), "root index should keep the landing page as the public entry");

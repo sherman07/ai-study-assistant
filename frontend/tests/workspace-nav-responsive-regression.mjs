@@ -70,8 +70,8 @@ assert.match(
 );
 assert.match(
   sectionCss,
-  /\.source-viewer-panel\s*\{[\s\S]*?height: calc\(100dvh - 118px\)/,
-  "source pane height should match the notes pane chrome"
+  /\.source-viewer-panel\s*\{[\s\S]*?height: min\(78dvh/,
+  "source pane height should use a contained sticky reading height"
 );
 assert.match(
   sectionCss,

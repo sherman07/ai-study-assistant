@@ -69,7 +69,7 @@
 .summary-content > p,
 .summary-content > ul,
 .summary-content > ol {
-  max-width: 92ch;
+  max-width: min(92ch, 100%);
 }
 
 .summary-content p {
@@ -127,7 +127,8 @@
 .summary-content strong { color: var(--text); }
 
 .notes-summary-card {
-  max-width: 92ch;
+  max-width: 100%;
+  width: 100%;
   margin-bottom: 1.2rem;
   padding: 1rem 1.1rem;
   border: 1px solid rgba(99, 125, 255, 0.14);
@@ -152,7 +153,8 @@
 }
 
 .notes-section {
-  max-width: 94ch;
+  max-width: 100%;
+  width: 100%;
   margin: 0 0 1rem;
   border: 1px solid rgba(205, 218, 244, 0.92);
   border-radius: 18px;
@@ -306,7 +308,7 @@
 
 .professional-mode-surface {
   width: 100%;
-  max-width: 98ch;
+  max-width: 100%;
   display: grid;
   gap: 1rem;
   color: var(--text-soft);
@@ -335,7 +337,7 @@
 
 .professional-mode-section {
   width: 100%;
-  max-width: 98ch;
+  max-width: 100%;
   margin: 0;
 }
 
@@ -448,7 +450,7 @@
   display: grid;
   gap: 0.7rem;
   width: 100%;
-  max-width: 98ch;
+  max-width: 100%;
 }
 
 .professional-concept-connections-card .professional-section-header,
@@ -625,46 +627,48 @@
   position: sticky;
   top: 12px;
   min-height: 0;
-  height: calc(100dvh - 118px);
-  max-height: calc(100dvh - 118px);
+  height: min(78dvh, calc(100dvh - 148px));
+  max-height: min(78dvh, calc(100dvh - 148px));
   display: flex;
   flex-direction: column;
   background: rgba(255, 255, 255, 0.94);
   border-color: rgba(197, 213, 242, 0.92);
-  box-shadow: 0 20px 52px rgba(41, 76, 130, 0.14);
+  box-shadow: var(--shadow-panel);
+  border-radius: var(--radius-lg);
 }
 
 .source-open .source-viewer-panel {
-  border-radius: 0 30px 30px 0;
+  border-radius: var(--radius-lg);
   border-left: 1px solid rgba(197, 213, 242, 0.92);
 }
 
 .app-layout:not(.assistant-closed) .source-open .source-viewer-panel {
   position: relative;
   top: auto;
-  height: min(680px, 72dvh);
-  max-height: 72dvh;
+  height: min(62dvh, 640px);
+  max-height: min(62dvh, 640px);
   border-radius: var(--radius-lg);
   border-left: 1px solid rgba(197, 213, 242, 0.92);
 }
 
-@media (min-width: 1480px) {
+@media (min-width: 1600px) {
   .app-layout:not(.assistant-closed) .source-open .notes-card {
-    border-radius: 30px 0 0 30px;
-    border-right: 0;
-    padding: 14px 22px 22px;
+    border-radius: var(--radius-lg);
+    border-right: 1px solid var(--border-blue);
+    padding: 0;
     position: sticky;
     top: 12px;
-    height: calc(100dvh - 118px);
-    max-height: calc(100dvh - 118px);
+    height: min(78dvh, calc(100dvh - 148px));
+    max-height: min(78dvh, calc(100dvh - 148px));
+    overflow: hidden;
   }
 
   .app-layout:not(.assistant-closed) .source-open .source-viewer-panel {
     position: sticky;
     top: 12px;
-    height: calc(100dvh - 118px);
-    max-height: calc(100dvh - 118px);
-    border-radius: 0 30px 30px 0;
+    height: min(78dvh, calc(100dvh - 148px));
+    max-height: min(78dvh, calc(100dvh - 148px));
+    border-radius: var(--radius-lg);
   }
 }
 
@@ -880,7 +884,7 @@
 
 .source-open .source-viewer-panel.is-native-pdf {
   border-left: 1px solid rgba(197, 213, 242, 0.92);
-  border-radius: 0 30px 30px 0;
+  border-radius: var(--radius-lg);
 }
 
 .source-viewer-panel.is-native-pdf .source-viewer-chrome {
@@ -1484,31 +1488,39 @@
   }
 
   .source-open .notes-card {
-    border-radius: 26px;
+    border-radius: var(--radius-lg);
     border-right: 1px solid var(--border-blue);
     position: relative;
     top: auto;
-    height: auto;
-    max-height: none;
-    overflow: visible;
-    padding: 22px;
+    height: min(68dvh, 720px);
+    max-height: min(68dvh, 720px);
+    overflow: hidden;
+    padding: 0;
+  }
+
+  .source-open .notes-card .notes-toolbar {
+    padding: 14px 16px 12px;
+  }
+
+  .source-open .notes-card .notes-scroll {
+    padding: 6px 16px 20px;
   }
 
   .source-viewer-panel {
     position: relative;
     top: auto;
-    min-height: min(560px, 78dvh);
-    height: min(760px, 78dvh);
-    max-height: 78dvh;
+    min-height: min(420px, 58dvh);
+    height: min(560px, 62dvh);
+    max-height: 62dvh;
   }
 
   .source-open .source-viewer-panel {
     position: relative;
     top: auto;
-    height: min(760px, 78dvh);
-    max-height: 78dvh;
-    border-radius: 26px;
+    height: min(560px, 62dvh);
+    max-height: 62dvh;
+    border-radius: var(--radius-lg);
     border-left: 1px solid rgba(197, 213, 242, 0.92);
-    box-shadow: 0 20px 52px rgba(41, 76, 130, 0.14);
+    box-shadow: var(--shadow-panel);
   }
 }

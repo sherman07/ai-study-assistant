@@ -1905,9 +1905,9 @@ body.mobile-assistant-open::before {
   /* Notes stay the primary reading surface; preview is a supporting pane.
      Track sizes are overridable for the draggable splitter. */
   grid-template-columns:
-    minmax(320px, var(--notes-split-notes))
+    minmax(420px, var(--notes-split-notes))
     var(--notes-split-divider)
-    minmax(240px, var(--notes-split-source));
+    minmax(280px, var(--notes-split-source));
   align-items: stretch;
   column-gap: 0;
   row-gap: 22px;
@@ -1947,8 +1947,8 @@ body.notes-source-split-resizing * {
   position: sticky;
   top: 12px;
   z-index: 4;
-  height: calc(100dvh - 118px);
-  max-height: calc(100dvh - 118px);
+  height: min(78dvh, calc(100dvh - 148px));
+  max-height: min(78dvh, calc(100dvh - 148px));
   width: var(--notes-split-divider);
   margin: 0;
   padding: 0;
@@ -2004,16 +2004,36 @@ body.notes-source-split-resizing * {
   display: none;
 }
 
-@media (min-width: 1480px) {
+/* Only allow tutor + sources side-by-side on very wide desktops. */
+@media (min-width: 1600px) {
   .app-layout:not(.assistant-closed) .result-grid.source-open {
     grid-template-columns:
-      minmax(320px, var(--notes-split-notes))
+      minmax(420px, var(--notes-split-notes))
       var(--notes-split-divider)
-      minmax(240px, var(--notes-split-source));
+      minmax(280px, var(--notes-split-source));
   }
 
   .app-layout:not(.assistant-closed) .result-grid.source-open .notes-source-splitter {
     display: flex;
+  }
+}
+
+/* When the left learning rail is open, stack sources earlier so notes stay readable. */
+@media (max-width: 1360px) {
+  .app-layout:not(.history-collapsed) .result-grid.source-open {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: 18px;
+  }
+
+  .app-layout:not(.history-collapsed) .result-grid.source-open .notes-source-splitter {
+    display: none;
+  }
+
+  .app-layout:not(.history-collapsed) .source-open .notes-card {
+    position: relative;
+    top: auto;
+    height: min(70dvh, 760px);
+    max-height: min(70dvh, 760px);
   }
 }
 
@@ -2042,23 +2062,193 @@ body.notes-source-split-resizing * {
   min-width: 0;
 }
 
+.notes-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 0;
+}
+
+.notes-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: visible;
+}
+
 .source-open .study-tools-card {
   grid-column: 1 / -1;
 }
 
+/* Viewport-locked Study Notes: page chrome stays put; only #notesScroll moves.
+   Use a near full-bleed reading surface so notes fill the available viewport. */
+.app-layout.generated-notes-state.analysis-ready .notes-area {
+  width: 100% !important;
+  max-width: none;
+  margin-left: 0 !important;
+  padding: 12px 14px 14px !important;
+  box-sizing: border-box;
+}
+
+.app-layout.generated-notes-state.analysis-ready.history-collapsed .notes-area {
+  /* Keep a slim gutter so the rail expand control does not cover the card. */
+  padding-left: 56px !important;
+}
+
+.app-layout.generated-notes-state.analysis-ready:not(.assistant-closed) .notes-area {
+  padding-right: 12px !important;
+}
+
+.app-layout.generated-notes-state.analysis-ready:not(.source-viewer-open) .notes-area {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  padding-top: 12px !important;
+  padding-bottom: 12px !important;
+}
+
+.app-layout.generated-notes-state .notes-header.compact-header {
+  margin-bottom: 10px;
+  gap: 12px;
+  align-items: center;
+}
+
+.app-layout.generated-notes-state .compact-header h1 {
+  font-size: clamp(1.2rem, 2.1vw, 1.55rem);
+  letter-spacing: -0.04em;
+}
+
+.app-layout.generated-notes-state .compact-header p {
+  display: none;
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) .analysis-stage {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: none;
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) .analysis-stage > .notes-header,
+.app-layout.generated-notes-state:not(.source-viewer-open) .analysis-stage > #examReadinessSummary,
+.app-layout.generated-notes-state:not(.source-viewer-open) .analysis-stage > #loadingBox {
+  flex: 0 0 auto;
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) #resultGrid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-content: stretch;
+  width: 100%;
+  max-width: none;
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) .notes-card {
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+  border-radius: 18px;
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) .study-tools-card,
+.app-layout.generated-notes-state:not(.source-viewer-open) .notes-source-splitter,
+.app-layout.generated-notes-state:not(.source-viewer-open) .source-viewer-panel {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: none;
+}
+
+.app-layout.generated-notes-state .notes-toolbar {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 4;
+  margin: 0;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid rgba(197, 213, 242, 0.92);
+  background: #ffffff;
+  box-shadow: 0 10px 24px rgba(41, 76, 130, 0.06);
+}
+
+.app-layout.generated-notes-state:not(.source-viewer-open) .notes-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 14px 22px 28px;
+  width: 100%;
+}
+
+/* Reading body uses the full card width (no narrow centered column). */
+.app-layout.generated-notes-state .summary-content,
+.app-layout.generated-notes-state .summary-content > p,
+.app-layout.generated-notes-state .summary-content > ul,
+.app-layout.generated-notes-state .summary-content > ol,
+.app-layout.generated-notes-state .notes-summary-card,
+.app-layout.generated-notes-state .notes-section,
+.app-layout.generated-notes-state .professional-mode-surface,
+.app-layout.generated-notes-state .professional-mode-section,
+.app-layout.generated-notes-state .professional-concept-connections-card,
+.app-layout.generated-notes-state .professional-high-quality-thinking-card,
+.app-layout.generated-notes-state .professional-common-mistakes-card {
+  max-width: none;
+  width: 100%;
+}
+
+.app-layout.generated-notes-state .notes-summary-card,
+.app-layout.generated-notes-state .professional-mode-title-card,
+.app-layout.generated-notes-state .professional-big-picture-card,
+.app-layout.generated-notes-state .professional-core-understanding-card,
+.app-layout.generated-notes-state .professional-model-output-card {
+  box-shadow: none;
+  border-color: rgba(197, 213, 242, 0.72);
+}
+
+/* Contained reading pane when Sources is open: keep both panes in-view. */
 .source-open .notes-card {
-  border-radius: 30px 0 0 30px;
-  border-right: 0;
-  box-shadow: 0 24px 58px rgba(41, 76, 130, 0.12);
-  /* Match source pane chrome so Study Notes and source tabs share one top edge. */
-  padding: 14px 22px 22px;
+  border-radius: var(--radius-lg);
+  border-right: 1px solid var(--border-blue);
+  box-shadow: var(--shadow-panel);
+  padding: 0;
   position: sticky;
   top: 12px;
-  height: calc(100dvh - 118px);
-  max-height: calc(100dvh - 118px);
-  overflow: auto;
-  scrollbar-gutter: stable;
+  height: min(78dvh, calc(100dvh - 148px));
+  max-height: min(78dvh, calc(100dvh - 148px));
+  overflow: hidden;
+  scrollbar-gutter: auto;
   min-width: 0;
+}
+
+.source-open .notes-card .notes-toolbar {
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 3;
+  margin: 0;
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid rgba(197, 213, 242, 0.88);
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(41, 76, 130, 0.05);
+}
+
+.source-open .notes-card .notes-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 8px 20px 22px;
 }
 
 .app-layout:not(.assistant-closed) .source-open .notes-card {
@@ -2066,9 +2256,18 @@ body.notes-source-split-resizing * {
   border-right: 1px solid var(--border-blue);
   position: relative;
   top: auto;
-  height: auto;
-  max-height: none;
-  padding: 30px;
+  height: min(68dvh, 720px);
+  max-height: min(68dvh, 720px);
+  overflow: hidden;
+  padding: 0;
+}
+
+.app-layout:not(.assistant-closed) .source-open .notes-card .notes-toolbar {
+  padding: 14px 18px 12px;
+}
+
+.app-layout:not(.assistant-closed) .source-open .notes-card .notes-scroll {
+  padding: 8px 20px 22px;
 }
 
 .notes-toolbar {
@@ -2089,6 +2288,18 @@ body.notes-source-split-resizing * {
   justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+@media (max-width: 920px) {
+  .source-open .notes-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+  }
+
+  .source-open .notes-actions {
+    justify-content: stretch;
+  }
 }
 
 .notes-action-btn,

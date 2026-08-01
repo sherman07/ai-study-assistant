@@ -1,7 +1,7 @@
 import { h, icon, legacyAction } from "../runtime.js";
-import { NotesToolbar } from "./NotesToolbar.js?v=mindmap-revert-v1";
-import { SourceViewerPanel } from "./SourceViewerPanel.js?v=mindmap-revert-v1";
-import { StudyTools } from "./StudyTools.js?v=mindmap-revert-v1";
+import { NotesToolbar } from "./NotesToolbar.js?v=credits-notes-v2";
+import { SourceViewerPanel } from "./SourceViewerPanel.js?v=credits-notes-v2";
+import { StudyTools } from "./StudyTools.js?v=credits-notes-v2";
 
 export function AnalysisStage() {
   return h(
@@ -73,10 +73,14 @@ export function AnalysisStage() {
       { id: "resultGrid", className: "result-grid d-none" },
       h(
         "section",
-        { className: "notes-card" },
+        { className: "notes-card", "aria-label": "Study notes" },
         h(NotesToolbar),
-        h("div", { id: "summaryContent", className: "summary-content" }),
-        h("div", { id: "visualGallery", className: "visual-gallery d-none" })
+        h(
+          "div",
+          { className: "notes-scroll", id: "notesScroll" },
+          h("div", { id: "summaryContent", className: "summary-content" }),
+          h("div", { id: "visualGallery", className: "visual-gallery d-none" })
+        )
       ),
       h(
         "div",

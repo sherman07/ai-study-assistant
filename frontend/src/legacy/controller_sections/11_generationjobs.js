@@ -384,6 +384,9 @@ function cancelGenerationJob(jobId) {
   if (typeof clearUploadRetryPayload === "function") {
     Promise.resolve(clearUploadRetryPayload(id)).catch(() => {});
   }
+  if (typeof refundGenerationJobCredits === "function") {
+    Promise.resolve(refundGenerationJobCredits(id, "cancelled")).catch(() => {});
+  }
   upsertGenerationJob({
     jobId: id,
     status: "cancelled",

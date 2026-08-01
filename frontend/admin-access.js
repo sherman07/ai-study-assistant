@@ -3,9 +3,9 @@
 
   const admin = window.SynapseAdmin;
   let plansById = {
-    free: { id: "free", label: "Free", credits: 500 },
-    pro_monthly: { id: "pro_monthly", label: "Pro Monthly", credits: 4000 },
-    pro_yearly: { id: "pro_yearly", label: "Pro Yearly", credits: 4000 }
+    free: { id: "free", label: "Free", credits: 550 },
+    pro_monthly: { id: "pro_monthly", label: "Pro Monthly", credits: 1000 },
+    pro_yearly: { id: "pro_yearly", label: "Pro Annual", credits: 1000 }
   };
   let usersCache = [];
   let selectedUserId = "";
@@ -51,7 +51,11 @@
         </td>
         <td>${admin.escapeHtml(user.displayName || "—")}</td>
         <td>${admin.escapeHtml(planLabel(user.plan))}</td>
-        <td>${admin.escapeHtml(String(user.credits ?? 0))}</td>
+        <td title="Total = daily + boost">${admin.escapeHtml(String(user.credits ?? 0))}${
+          Number.isFinite(Number(user.dailyCredits)) || Number.isFinite(Number(user.boostCredits))
+            ? ` <small>(${admin.escapeHtml(String(user.dailyCredits ?? "—"))}d / ${admin.escapeHtml(String(user.boostCredits ?? "—"))}b)</small>`
+            : ""
+        }</td>
         <td>${admin.escapeHtml(user.subscriptionStatus || "inactive")}</td>
         <td>${admin.escapeHtml(user.platformRole || "user")}</td>
         <td>
@@ -217,8 +221,21 @@
       document.getElementById("editCredits").value = String(plansById[plan]?.credits ?? 500);
     });
     document.getElementById("editPlan")?.addEventListener("change", () => {
+      const plan = document.getElementById("editPlan")?.value || "free";
+      const statusEl = document.getElementById("editSubscriptionStatus");
+      const periodEl = document.getElementById("editPeriodEnd");
+      if (plan.startsWith("pro_")) {
+        if (statusEl) statusEl.value = "active";
+        if (periodEl && !periodEl.value) {
+          const end = new Date();
+          if (plan === "pro_yearly") end.setFullYear(end.getFullYear() + 1);
+          else end.setMonth(end.getMonth() + 1);
+          periodEl.value = toLocalInputValue(end.toISOString());
+        }
+      } else if (statusEl) {
+        statusEl.value = "inactive";
+      }
       if (document.getElementById("editResetCredits")?.checked) {
-        const plan = document.getElementById("editPlan")?.value || "free";
         document.getElementById("editCredits").value = String(plansById[plan]?.credits ?? 500);
       }
     });

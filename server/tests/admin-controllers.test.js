@@ -30,7 +30,7 @@ test("publicAdminUser normalizes controller flag", () => {
     plan: "pro_monthly"
   });
   assert.equal(user.platformRole, "controller");
-  assert.equal(user.credits, 4000);
+  assert.equal(user.credits, 1000);
   assert.equal(normalizePlatformRole("CONTROLLER"), "controller");
   assert.equal(normalizePlatformRole("admin"), "user");
 });

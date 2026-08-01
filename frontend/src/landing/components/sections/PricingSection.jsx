@@ -16,7 +16,11 @@ function PricingCard({ plan, onGetStarted }) {
         <CountUp value={plan.price} decimals={2} />
       </div>
       <div className="pricing-credits">
-        <CountUp value={plan.credits} /> credits
+        {plan.creditLabel || (
+          <>
+            <CountUp value={plan.credits} /> credits
+          </>
+        )}
       </div>
       <ul>
         {plan.features.map((feature) => (
@@ -49,7 +53,7 @@ export function PricingSection({ onGetStarted }) {
       <div className="landing-container">
         <div className="section-heading">
           <h2>Free to start, Pro when you need more.</h2>
-          <p>Choose Free, Pro Monthly, or Pro Yearly. Payments use Stripe Checkout and access updates only from verified Stripe webhooks.</p>
+          <p>Fresh AI credits every day. Free includes welcome credits; Pro unlocks 1,000 daily credits, Deep Study, and optional Boost packs. Payments use Stripe Checkout.</p>
         </div>
 
         <div className="pricing-grid">

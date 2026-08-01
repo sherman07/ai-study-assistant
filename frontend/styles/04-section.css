@@ -1106,6 +1106,43 @@ html[data-theme="dark"] .mobile-menu-btn {
   .synapse-confirmation-card { border-radius: 22px 22px 16px 16px; padding: 20px; }
 }
 
+.account-credit-summary {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--border-blue);
+  background: rgba(74, 124, 255, 0.06);
+  color: var(--text-soft);
+}
+
+.account-credit-summary p {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.account-credit-summary strong {
+  font-size: 1.15rem;
+  color: var(--text);
+}
+
+.synapse-credit-estimate-list {
+  margin: 16px 0 0;
+  padding-left: 1.1rem;
+  display: grid;
+  gap: 8px;
+  color: var(--text-soft);
+  font-weight: 650;
+  line-height: 1.45;
+  text-align: left;
+}
+
+.synapse-credit-estimate-card .account-panel-help {
+  margin-top: 12px;
+  text-align: left;
+}
+
 .account-plan-grid {
   display: grid;
   gap: 10px;

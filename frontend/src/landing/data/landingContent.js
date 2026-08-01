@@ -164,32 +164,48 @@ export const pricingPlans = [
   {
     name: "Free",
     price: 0,
-    credits: 500,
-    description: "Core study generation for getting started.",
-    features: ["Basic uploads", "Generate notes", "Create mind maps", "Limited practice", "Free forever"]
-  },
-  {
-    name: "Pro Monthly",
-    price: 9,
-    credits: 4000,
-    recommended: true,
-    description: "Upgrade to Pro with monthly billing.",
+    credits: 50,
+    creditLabel: "50 daily + 500 welcome",
+    description: "Explore Synapse with welcome credits and fresh AI credits every day.",
     features: [
-      "More uploads",
-      "All note generation features",
-      "Interactive mind maps",
-      "More practice questions",
-      "Teach-back sessions",
-      "Knowledge gap analysis",
-      "Stripe Customer Portal"
+      "500 welcome AI credits",
+      "50 fresh AI credits daily",
+      "Upload learning materials",
+      "Essential study notes",
+      "Focused study questions",
+      "No credit card required"
     ]
   },
   {
-    name: "Pro Yearly",
-    price: 90,
-    credits: 4000,
-    description: "Upgrade to Pro with one-time annual access.",
-    features: ["Everything in Pro Monthly", "Best long-term value", "Priority processing", "Advanced analytics", "Export to PDF/Word", "Webhook-verified access"]
+    name: "Pro Monthly",
+    price: 9.99,
+    credits: 1000,
+    creditLabel: "1,000 daily credits",
+    recommended: true,
+    description: "Build a consistent learning routine with the complete Synapse study experience.",
+    features: [
+      "1,000 fresh AI credits daily",
+      "Standard Notes and Deep Study",
+      "Advanced learning tools",
+      "Estimates before generation",
+      "Optional Boost Credits",
+      "Manage or cancel anytime"
+    ]
+  },
+  {
+    name: "Pro Annual",
+    price: 99.99,
+    credits: 1000,
+    creditLabel: "1,000 daily credits",
+    description: "A full year of Pro with about 16.6% savings versus monthly billing.",
+    features: [
+      "1,000 fresh AI credits daily",
+      "All Pro learning features",
+      "Save $19.89 per year",
+      "Transparent credit estimates",
+      "Optional Boost Credits",
+      "Webhook-verified access"
+    ]
   }
 ];
 

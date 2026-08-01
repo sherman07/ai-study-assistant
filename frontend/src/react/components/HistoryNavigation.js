@@ -13,6 +13,15 @@ export function HistoryNavigation() {
   const email = signedIn ? session.email : "Not signed in";
   const plan = signedIn ? (session.plan || "Free") : "Free";
   const credits = signedIn ? Number(session.credits || 0) : 0;
+  const dailyCredits = signedIn && Number.isFinite(Number(session.dailyCredits))
+    ? Number(session.dailyCredits)
+    : null;
+  const boostCredits = signedIn && Number.isFinite(Number(session.boostCredits))
+    ? Number(session.boostCredits)
+    : null;
+  const creditTitle = dailyCredits != null || boostCredits != null
+    ? `Daily ${dailyCredits ?? 0} · Boost ${boostCredits ?? 0}`
+    : undefined;
   const initials = accountInitials(signedIn ? session : null);
   const controller = signedIn && isControllerSession(session);
   const signedInStyle = signedIn ? undefined : { display: "none" };
@@ -90,7 +99,7 @@ export function HistoryNavigation() {
             "div",
             { className: "account-plan-row" },
             h("span", null, icon("bi-lightning-charge"), " ", h("span", { className: "account-menu-plan" }, plan)),
-            h("strong", null, h("span", { className: "account-menu-credits" }, String(credits)), " credits")
+            h("strong", { title: creditTitle }, h("span", { className: "account-menu-credits" }, String(credits)), " credits")
           ),
           h(
             "button",

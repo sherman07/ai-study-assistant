@@ -429,53 +429,71 @@ async function generateQuiz() {
     return;
   }
 
-  isQuizGenerating = true;
-  quizError = "";
-  const avoidQuestions = buildQuizAvoidancePayload();
-  currentQuiz = null;
-  quizAnswers = {};
-  quizRevealedAnswers = new Set();
-  quizReport = null;
-  activeQuizHistoryId = "";
-  switchTool("quiz");
-  renderQuizPanel();
+  const runQuizGeneration = async () => {
+    isQuizGenerating = true;
+    quizError = "";
+    const avoidQuestions = buildQuizAvoidancePayload();
+    currentQuiz = null;
+    quizAnswers = {};
+    quizRevealedAnswers = new Set();
+    quizReport = null;
+    activeQuizHistoryId = "";
+    switchTool("quiz");
+    renderQuizPanel();
+
+    try {
+      const response = await apiClient.fetch("/quiz/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: storedTitle,
+          summary: fullSummary,
+          sections,
+          source_fingerprint: currentSourceFingerprint,
+          preferred_language: quizSettings.preferredLanguage,
+          exam_mode: quizSettings.examMode,
+          total_questions: quizSettings.totalQuestions,
+          question_types: quizSettings.questionTypes,
+          avoid_questions: avoidQuestions,
+          previous_quiz_count: quizHistory.length,
+          variant_seed: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+        })
+      });
+      const data = await response.json();
+      if (!response.ok || data.error) {
+        throw new Error(data.error || `Quiz generation failed with status ${response.status}.`);
+      }
+      currentQuiz = normalizeClientQuiz(data);
+      activeQuizQuestionIndex = 0;
+      persistCurrentQuizToHistory({ isNew: true });
+      if (typeof recordStudyActivity === "function") recordStudyActivity("quiz_generated", {
+        tool: "quiz",
+        label: `Generated quiz with ${currentQuiz.questions.length} questions`,
+        metadata: { questionCount: currentQuiz.questions.length, examMode: currentQuiz.examMode }
+      });
+    } catch (error) {
+      console.error(error);
+      quizError = error.message || "Quiz generation failed.";
+      throw error;
+    } finally {
+      isQuizGenerating = false;
+      renderQuizPanel();
+    }
+  };
 
   try {
-    const response = await apiClient.fetch("/quiz/generate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        title: storedTitle,
-        summary: fullSummary,
-        sections,
-        source_fingerprint: currentSourceFingerprint,
-        preferred_language: quizSettings.preferredLanguage,
-        exam_mode: quizSettings.examMode,
-        total_questions: quizSettings.totalQuestions,
-        question_types: quizSettings.questionTypes,
-        avoid_questions: avoidQuestions,
-        previous_quiz_count: quizHistory.length,
-        variant_seed: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
-      })
-    });
-    const data = await response.json();
-    if (!response.ok || data.error) {
-      throw new Error(data.error || `Quiz generation failed with status ${response.status}.`);
+    if (window.SynapseCredits?.withCreditReservation) {
+      await window.SynapseCredits.withCreditReservation("practice_generation", runQuizGeneration, {
+        confirmLabel: "Generate quiz"
+      });
+    } else {
+      await runQuizGeneration();
     }
-    currentQuiz = normalizeClientQuiz(data);
-    activeQuizQuestionIndex = 0;
-    persistCurrentQuizToHistory({ isNew: true });
-    if (typeof recordStudyActivity === "function") recordStudyActivity("quiz_generated", {
-      tool: "quiz",
-      label: `Generated quiz with ${currentQuiz.questions.length} questions`,
-      metadata: { questionCount: currentQuiz.questions.length, examMode: currentQuiz.examMode }
-    });
   } catch (error) {
-    console.error(error);
-    quizError = error.message || "Quiz generation failed.";
-  } finally {
-    isQuizGenerating = false;
-    renderQuizPanel();
+    if (!String(error?.message || "").toLowerCase().includes("cancelled")) {
+      quizError = error?.message || quizError || "Quiz generation failed.";
+      renderQuizPanel();
+    }
   }
 }
 

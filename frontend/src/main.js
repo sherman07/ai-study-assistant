@@ -1,4 +1,4 @@
-import { App } from "./react/App.js?v=credits-notes-v1";
+import { App } from "./react/App.js?v=credits-notes-v2";
 import { loadLegacyController } from "./legacy/loadLegacyController.js?v=settings-modal-pattern-20260720-06";
 import {
   activateLearningCompanionThread,

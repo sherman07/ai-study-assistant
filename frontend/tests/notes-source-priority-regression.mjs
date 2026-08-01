@@ -47,8 +47,19 @@ assert.match(
 );
 assert.match(
   layoutCss,
+  /\.app-layout\.generated-notes-state\.analysis-ready \.notes-area\s*\{[\s\S]*?width:\s*100%\s*!important/,
+  "generated notes should use a full-bleed notes area instead of a narrow centered column"
+);
+assert.match(
+  layoutCss,
   /\.app-layout\.generated-notes-state\.analysis-ready:not\(\.source-viewer-open\) \.notes-area\s*\{[\s\S]*?overflow:\s*hidden/,
   "generated notes page should lock outer notes-area scroll so the toolbar cannot drift"
+);
+
+assert.match(
+  layoutCss,
+  /\.app-layout\.generated-notes-state \.summary-content[\s\S]*?max-width:\s*none/,
+  "generated notes body content should expand to the full card width"
 );
 assert.match(
   layoutCss,

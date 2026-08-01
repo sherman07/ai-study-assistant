@@ -1,10 +1,10 @@
 import { Fragment, h, icon, legacyAction } from "../runtime.js";
-import { MobileNavigation } from "./MobileNavigation.js?v=notes-true-fullscreen-v1";
-import { HistoryNavigation } from "./HistoryNavigation.js?v=notes-true-fullscreen-v1";
-import { UploadStage } from "./UploadStage.js?v=notes-true-fullscreen-v1";
-import { CompanionWorkspace } from "./CompanionWorkspace.js?v=notes-true-fullscreen-v1";
-import { AnalysisStage } from "./AnalysisStage.js?v=notes-true-fullscreen-v1";
-import { AssistantPanel, OpenAssistantButton } from "./AssistantPanel.js?v=notes-true-fullscreen-v1";
+import { MobileNavigation } from "./MobileNavigation.js?v=notes-height-only-v1";
+import { HistoryNavigation } from "./HistoryNavigation.js?v=notes-height-only-v1";
+import { UploadStage } from "./UploadStage.js?v=notes-height-only-v1";
+import { CompanionWorkspace } from "./CompanionWorkspace.js?v=notes-height-only-v1";
+import { AnalysisStage } from "./AnalysisStage.js?v=notes-height-only-v1";
+import { AssistantPanel, OpenAssistantButton } from "./AssistantPanel.js?v=notes-height-only-v1";
 
 export function AppShell() {
   return h(

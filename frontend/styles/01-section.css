@@ -2079,14 +2079,14 @@ body.notes-source-split-resizing * {
   grid-column: 1 / -1;
 }
 
-/* Generated Study Notes: true full-screen reading pane.
-   Slim top chrome only; notes card covers the rest of the viewport.
-   Study Tools stay below via normal page scroll (do not lock notes-area). */
+/* Generated Study Notes: full-height reading pane, restored side width.
+   Keep tall viewport height; restore horizontal gutters / rounded card
+   so notes are not edge-to-edge wide. Study Tools stay below via page scroll. */
 .app-layout.generated-notes-state.analysis-ready:not(.source-viewer-open) .notes-area {
   width: 100% !important;
   max-width: none;
   margin-left: 0 !important;
-  padding: 0 !important;
+  padding: 12px 28px 36px !important;
   box-sizing: border-box;
   height: auto;
   max-height: none;
@@ -2097,25 +2097,25 @@ body.notes-source-split-resizing * {
 }
 
 .app-layout.generated-notes-state.analysis-ready.history-collapsed:not(.source-viewer-open) .notes-area {
-  padding-left: 0 !important;
+  padding-left: 56px !important;
 }
 
 .app-layout.generated-notes-state.analysis-ready:not(.assistant-closed):not(.source-viewer-open) .notes-area {
-  padding-right: 0 !important;
+  padding-right: 20px !important;
 }
 
 .app-layout.generated-notes-state:not(.source-viewer-open) .notes-header.compact-header {
-  margin: 0;
-  padding: 6px 14px;
-  min-height: 44px;
+  margin: 0 0 10px;
+  padding: 0;
+  min-height: 40px;
   gap: 8px;
   align-items: center;
-  background: color-mix(in srgb, var(--hero-mid, #eaf4ff) 70%, #fff);
-  border-bottom: 1px solid rgba(197, 213, 242, 0.7);
+  background: transparent;
+  border-bottom: 0;
 }
 
 .app-layout.generated-notes-state:not(.source-viewer-open) .compact-header h1 {
-  font-size: 1rem;
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
   letter-spacing: -0.03em;
   line-height: 1.2;
 }
@@ -2138,19 +2138,18 @@ body.notes-source-split-resizing * {
   max-width: none;
 }
 
-/* Cover the remaining viewport under the slim header. */
+/* Full height, normal card width (side gutters come from notes-area padding). */
 .app-layout.generated-notes-state:not(.source-viewer-open) .notes-card {
   display: flex;
   flex-direction: column;
-  height: calc(100dvh - 44px);
-  min-height: calc(100dvh - 44px);
-  max-height: calc(100dvh - 44px);
+  height: calc(100dvh - 72px);
+  min-height: calc(100dvh - 72px);
+  max-height: calc(100dvh - 72px);
   padding: 0;
   overflow: hidden;
-  border-radius: 0;
-  border-left: none;
-  border-right: none;
-  box-shadow: none;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-blue);
+  box-shadow: var(--shadow-panel);
 }
 
 .app-layout.generated-notes-state .notes-toolbar {
@@ -2158,7 +2157,7 @@ body.notes-source-split-resizing * {
   position: relative;
   z-index: 4;
   margin: 0;
-  padding: 12px 16px 10px;
+  padding: 14px 18px 12px;
   border-bottom: 1px solid rgba(197, 213, 242, 0.92);
   background: #ffffff;
   box-shadow: 0 8px 18px rgba(41, 76, 130, 0.05);
@@ -2170,21 +2169,23 @@ body.notes-source-split-resizing * {
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
-  padding: 16px 22px 32px;
+  padding: 16px 22px 28px;
   width: 100%;
 }
 
 .app-layout.generated-notes-state:not(.source-viewer-open) .study-tools-card {
-  margin: 16px;
-  width: auto;
+  margin-top: 18px;
+  width: 100%;
   max-width: none;
 }
 
-/* Reading body uses the available card width. */
-.app-layout.generated-notes-state .summary-content,
+/* Keep readable line length inside the tall card; card itself is not edge-to-edge. */
 .app-layout.generated-notes-state .summary-content > p,
 .app-layout.generated-notes-state .summary-content > ul,
-.app-layout.generated-notes-state .summary-content > ol,
+.app-layout.generated-notes-state .summary-content > ol {
+  max-width: min(92ch, 100%);
+}
+
 .app-layout.generated-notes-state .notes-summary-card,
 .app-layout.generated-notes-state .notes-section,
 .app-layout.generated-notes-state .professional-mode-surface,
@@ -2192,7 +2193,7 @@ body.notes-source-split-resizing * {
 .app-layout.generated-notes-state .professional-concept-connections-card,
 .app-layout.generated-notes-state .professional-high-quality-thinking-card,
 .app-layout.generated-notes-state .professional-common-mistakes-card {
-  max-width: none;
+  max-width: 100%;
   width: 100%;
 }
 

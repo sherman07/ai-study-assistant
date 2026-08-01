@@ -1,7 +1,7 @@
 import { h, icon, legacyAction } from "../runtime.js";
-import { NotesToolbar } from "./NotesToolbar.js?v=notes-true-fullscreen-v1";
-import { SourceViewerPanel } from "./SourceViewerPanel.js?v=notes-true-fullscreen-v1";
-import { StudyTools } from "./StudyTools.js?v=notes-true-fullscreen-v1";
+import { NotesToolbar } from "./NotesToolbar.js?v=notes-height-only-v1";
+import { SourceViewerPanel } from "./SourceViewerPanel.js?v=notes-height-only-v1";
+import { StudyTools } from "./StudyTools.js?v=notes-height-only-v1";
 
 export function AnalysisStage() {
   return h(

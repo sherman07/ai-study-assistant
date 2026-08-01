@@ -21,6 +21,6 @@ assert.ok(!css.includes(".mm-links"), "theta SVG link CSS must be removed");
 assert.ok(css.includes(".mm-tree-list::before"), "original CSS connectors required");
 assert.ok(!backend.includes("never mid-word"), "custom paragraph rewrite must be removed");
 assert.ok(backend.includes("value[: limit - 1]"), "original short_mindmap_text required");
-assert.ok(/mindmap-revert-v1|notes-true-fullscreen-v1|notes-responsive-v2|credits-live-v2/.test(index), "cache-bust after full mind map revert");
+assert.ok(/mindmap-revert-v1|notes-height-only-v1|notes-responsive-v2|credits-live-v2/.test(index), "cache-bust after full mind map revert");
 
 console.log("mindmap-revert-regression: passed");

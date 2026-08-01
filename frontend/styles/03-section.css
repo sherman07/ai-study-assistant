@@ -29,26 +29,27 @@
 
   .source-open .notes-card,
   .app-layout.generated-notes-state:not(.source-viewer-open) .notes-card {
-    height: calc(100dvh - 44px);
-    min-height: calc(100dvh - 44px);
-    max-height: calc(100dvh - 44px);
+    height: calc(100dvh - 96px);
+    min-height: calc(100dvh - 96px);
+    max-height: calc(100dvh - 96px);
     width: 100%;
-    border-radius: 0;
+    border-radius: 18px;
   }
 
   .app-layout.generated-notes-state.analysis-ready:not(.source-viewer-open) .notes-area {
-    padding: 0 !important;
+    padding: 10px 14px 28px !important;
     height: auto !important;
     max-height: none !important;
     overflow-y: auto !important;
   }
 
   .app-layout.generated-notes-state.analysis-ready.history-collapsed:not(.source-viewer-open) .notes-area {
-    padding-left: 0 !important;
+    padding-left: 14px !important;
   }
 
   .app-layout.generated-notes-state:not(.source-viewer-open) .notes-header.compact-header {
-    padding: 6px 10px;
+    padding: 0;
+    margin-bottom: 8px;
   }
 
   .source-open .notes-card .notes-toolbar,
@@ -63,7 +64,7 @@
   }
 
   .app-layout.generated-notes-state:not(.source-viewer-open) .study-tools-card {
-    margin: 12px;
+    margin-top: 14px;
   }
 
   .source-viewer-panel {

@@ -110,6 +110,26 @@ const AI_PROVIDER_DESCRIPTIONS = {
   openai: "GPT uses the OpenAI/GPT backend configuration.",
   gemini: "Gemini uses the Gemini backend configuration with the same Synapse prompts."
 };
+const SUPPORTED_UPLOAD_EXTENSIONS = new Set([
+  ".pdf", ".txt", ".md", ".docx", ".pptx",
+  ".png", ".jpg", ".jpeg", ".webp",
+  ".mp3", ".m4a", ".wav", ".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv"
+]);
+
+function isSupportedUpload(file) {
+  const name = String(file?.name || "").toLowerCase();
+  const contentType = String(file?.type || "").toLowerCase();
+  const extension = name.includes(".") ? name.slice(name.lastIndexOf(".")) : "";
+  return SUPPORTED_UPLOAD_EXTENSIONS.has(extension)
+    || contentType === "application/pdf"
+    || contentType === "text/plain"
+    || contentType === "text/markdown"
+    || contentType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    || contentType === "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    || contentType.startsWith("image/")
+    || contentType.startsWith("audio/")
+    || contentType.startsWith("video/");
+}
 
 function normaliseAiGenerationDiagnostics(value) {
   if (!value || typeof value !== "object") return null;
@@ -691,10 +711,23 @@ function addFiles(files) {
     flashUploadState("error");
     return;
   }
-  uploadedFiles.push(...nextFiles);
+  const acceptedFiles = nextFiles.filter(isSupportedUpload);
+  const rejectedFiles = nextFiles.filter(file => !isSupportedUpload(file));
+  if (rejectedFiles.length) {
+    const rejectedNames = rejectedFiles.map(file => file.name).join(", ");
+    setUploadStatus(
+      "error",
+      `Unsupported file type${rejectedFiles.length === 1 ? "" : "s"}: ${rejectedNames}. Choose a PDF, slide, document, text, image, audio, or video file.`
+    );
+    flashUploadState("error");
+  }
+  if (!acceptedFiles.length) return;
+  uploadedFiles.push(...acceptedFiles);
   renderFilePreview();
-  setUploadStatus("success", `${nextFiles.length} file${nextFiles.length === 1 ? "" : "s"} ready. Review the list below, then click Analyze materials.`);
-  flashUploadState("success");
+  if (!rejectedFiles.length) {
+    setUploadStatus("success", `${acceptedFiles.length} file${acceptedFiles.length === 1 ? "" : "s"} ready. Review the list below, then click Analyze materials.`);
+    flashUploadState("success");
+  }
 }
 
 function renderFilePreview() {

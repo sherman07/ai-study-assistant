@@ -19,7 +19,7 @@ const timeline = read("frontend/src/legacy/controller_sections/03_rendertimeline
 const quiz = read("frontend/src/legacy/controller_sections/05_persistcurrentquiztohistory.js");
 const styles = read("frontend/styles/07-section.css");
 const reactShellAssetVersion = "ai-broadcast-v19";
-const legacyControllerAssetVersion = "study-tools-20260722-01";
+const legacyControllerAssetVersion = "study-tools-20260730-01";
 
 assert.ok(controller.includes('"04_masterygraph.js"'), "legacy controller should load the memory engine section");
 assert.ok(index.includes(reactShellAssetVersion), "index should bust cached React shell assets");

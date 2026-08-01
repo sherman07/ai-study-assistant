@@ -53,7 +53,7 @@ for (const token of [".generation-progress-meta", ".generation-progress-stage", 
   assert.ok(styles.includes(token), `progress UI should style ${token}`);
 }
 
-const progressAssetVersion = "study-tools-20260722-01";
+const progressAssetVersion = "study-tools-20260730-01";
 for (const [label, source] of Object.entries({ main, controller, loader, index })) {
   assert.ok(
     source.includes(progressAssetVersion),

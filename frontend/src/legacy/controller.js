@@ -63,7 +63,7 @@ import {
 } from "./markdownRenderer.js?v=study-tools-20260722-01";
 import { LegacyControllerLoader } from "./controllerLoader.js?v=study-tools-20260722-01";
 
-const CONTROLLER_VERSION = "study-tools-20260722-01";
+const CONTROLLER_VERSION = "study-tools-20260730-01";
 const CONTROLLER_DEFINITION_FILES = [
   "01_uploadedfiles.js",
   "02_openvisualmodal.js",

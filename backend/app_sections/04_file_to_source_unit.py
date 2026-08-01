@@ -1,6 +1,32 @@
 # -------------------------
 # Source-unit builders
 # -------------------------
+SUPPORTED_UPLOAD_EXTENSIONS = {
+    ".pdf", ".txt", ".md", ".docx", ".pptx",
+    ".png", ".jpg", ".jpeg", ".webp",
+    ".mp3", ".m4a", ".wav", ".mp4", ".webm", ".mov", ".m4v", ".avi", ".mkv",
+}
+
+
+def is_supported_upload_file(name: str, content_type: str) -> bool:
+    lower_name = str(name or "").lower()
+    lower_type = str(content_type or "").lower()
+    extension = Path(lower_name).suffix if lower_name else ""
+    return (
+        extension in SUPPORTED_UPLOAD_EXTENSIONS
+        or lower_type in {
+            "application/pdf",
+            "text/plain",
+            "text/markdown",
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        }
+        or lower_type.startswith("image/")
+        or lower_type.startswith("audio/")
+        or lower_type.startswith("video/")
+    )
+
+
 def file_to_source_unit(name: str, content_type: str, data: bytes) -> Tuple[List[dict], dict]:
     lower_name = (name or "").lower()
     parts: List[dict] = []

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowRight, CheckCircle2, Menu, Moon, Sun, X } from "lucide-react";
 import { CTASection } from "./components/sections/CTASection.jsx";
 import { ComparisonSection } from "./components/sections/ComparisonSection.jsx";
@@ -69,6 +69,8 @@ function scrollToId(id) {
 }
 
 function AuthModal({ open, onClose }) {
+  const closeButtonRef = useRef(null);
+
   useEffect(() => {
     if (!open) return undefined;
     const handleKeyDown = (event) => {
@@ -76,6 +78,7 @@ function AuthModal({ open, onClose }) {
     };
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", handleKeyDown);
+    window.requestAnimationFrame(() => closeButtonRef.current?.focus?.());
     return () => {
       document.body.style.overflow = "";
       document.removeEventListener("keydown", handleKeyDown);
@@ -86,7 +89,7 @@ function AuthModal({ open, onClose }) {
     <div className={`auth-modal ${open ? "active" : ""}`} id="authModal" role="dialog" aria-modal="true" aria-labelledby="authModalTitle" aria-hidden={!open}>
       <button type="button" className="auth-modal-overlay" aria-label="Close account options" onClick={onClose} />
       <div className="auth-modal-panel">
-        <button type="button" className="auth-modal-close" aria-label="Close account options" onClick={onClose}>
+        <button ref={closeButtonRef} type="button" className="auth-modal-close" aria-label="Close account options" onClick={onClose}>
           <X size={20} />
         </button>
         <img src="/logos/synapse.png" alt="Synapse" />
@@ -251,6 +254,7 @@ function Footer() {
 export function LandingPage() {
   const [authOpen, setAuthOpen] = useState(false);
   const [themePreference, setThemePreference] = useState(getInitialThemePreference);
+  const returnFocusRef = useRef(null);
 
   useEffect(() => {
     const theme = window.SynapseTheme;
@@ -265,8 +269,15 @@ export function LandingPage() {
     else setThemePreference(next);
   }
 
-  function handleGetStarted() {
+  function handleGetStarted(event) {
+    const trigger = event?.currentTarget;
+    if (trigger && typeof trigger.focus === "function") returnFocusRef.current = trigger;
     setAuthOpen(true);
+  }
+
+  function closeAuthModal() {
+    setAuthOpen(false);
+    window.requestAnimationFrame(() => returnFocusRef.current?.focus?.());
   }
 
   function handleViewDemo() {
@@ -290,7 +301,7 @@ export function LandingPage() {
         <CTASection onGetStarted={handleGetStarted} />
       </main>
       <Footer />
-      <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
+      <AuthModal open={authOpen} onClose={closeAuthModal} />
     </>
   );
 }

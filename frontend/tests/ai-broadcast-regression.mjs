@@ -44,7 +44,7 @@ const serverEnvExample = read("server/.env.example");
 const backendEnvExample = read("backend/.env.example");
 const geminiEnvExample = read("backend/.env.gemini.example");
 const broadcastAssetVersion = "ai-broadcast-v19";
-const legacyControllerAssetVersion = "study-tools-20260722-01";
+const legacyControllerAssetVersion = "study-tools-20260730-01";
 
 assert.ok(rootIndex.includes("frontend/landing.html"), "root index should keep the landing page as the public entry");
 assert.ok(appShim.includes("frontend/index.html"), "app shim should open the study workspace frontend");

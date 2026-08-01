@@ -151,11 +151,16 @@ async def analyze_materials(
 
         for uploaded in files:
             set_analysis_stage("file_read")
+            content_type = uploaded.content_type or mimetypes.guess_type(uploaded.filename or "")[0] or "application/octet-stream"
+            if not is_supported_upload_file(uploaded.filename or "", content_type):
+                return analysis_error_response(
+                    "Unsupported file type. Choose a PDF, slide, document, text, image, audio, or video file.",
+                    415,
+                )
             data = await read_upload_bytes(uploaded, MAX_UPLOAD_BYTES, uploaded.filename or "uploaded file")
             if not data:
                 continue
             set_analysis_stage("file_extract")
-            content_type = uploaded.content_type or mimetypes.guess_type(uploaded.filename or "")[0] or "application/octet-stream"
             parts, meta = await run_blocking(
                 file_to_source_unit,
                 uploaded.filename or "uploaded file",

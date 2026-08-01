@@ -51,6 +51,18 @@ class AuxiliaryEndpointErrorStatusTests(unittest.TestCase):
         self.assertIn("error", response.json())
 
 
+class UploadContractTests(unittest.TestCase):
+    def test_analyze_rejects_unsupported_file_before_model_work(self):
+        with patch("backend.app.require_text_ai", side_effect=AssertionError("model should not run")):
+            response = TestClient(app).post(
+                "/analyze",
+                files={"files": ("payload.exe", b"not a study source", "application/octet-stream")},
+            )
+
+        self.assertEqual(response.status_code, 415)
+        self.assertIn("Unsupported file type", response.json().get("error", ""))
+
+
 class ToolPromptIsolationTests(unittest.TestCase):
     def setUp(self):
         self.previous_stored_title = backend_app_module.stored_title

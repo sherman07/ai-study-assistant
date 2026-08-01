@@ -12,6 +12,7 @@
   ];
 
   let supabaseClient = null;
+  let supabaseClientPromise = null;
   let supabaseScriptPromise = null;
 
   function readConfig() {
@@ -426,22 +427,32 @@
   async function getSupabaseClient() {
     if (!isConfigured()) return null;
     if (supabaseClient) return supabaseClient;
-    const loaded = await loadSupabaseScript();
-    if (!loaded?.createClient) throw new Error("Supabase Auth library is unavailable.");
-    const config = readConfig();
-    supabaseClient = loaded.createClient(config.supabaseUrl, config.supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        persistSession: true,
-        storage: createSupabaseStorageAdapter()
-      }
-    });
-    supabaseClient.auth.onAuthStateChange((event, sessionPayload) => {
-      if (sessionPayload?.user) saveSession(publicSessionFromSupabase(sessionPayload));
-      else if (event === "SIGNED_OUT" || event === "USER_DELETED") saveSession(null);
-    });
-    return supabaseClient;
+    if (supabaseClientPromise) return supabaseClientPromise;
+
+    supabaseClientPromise = (async () => {
+      const loaded = await loadSupabaseScript();
+      if (!loaded?.createClient) throw new Error("Supabase Auth library is unavailable.");
+      const config = readConfig();
+      supabaseClient = loaded.createClient(config.supabaseUrl, config.supabaseAnonKey, {
+        auth: {
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          persistSession: true,
+          storage: createSupabaseStorageAdapter()
+        }
+      });
+      supabaseClient.auth.onAuthStateChange((event, sessionPayload) => {
+        if (sessionPayload?.user) saveSession(publicSessionFromSupabase(sessionPayload));
+        else if (event === "SIGNED_OUT" || event === "USER_DELETED") saveSession(null);
+      });
+      return supabaseClient;
+    })();
+
+    try {
+      return await supabaseClientPromise;
+    } finally {
+      supabaseClientPromise = null;
+    }
   }
 
   async function syncSessionFromProvider() {

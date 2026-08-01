@@ -13,22 +13,29 @@ function read(relativePath) {
 const constantsSource = read("frontend/src/react/constants.js");
 const uploadStageSource = read("frontend/src/react/components/UploadStage.js");
 const uploadControllerSource = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
+const accountSettingsSource = read("frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
 
 assert.ok(
   constantsSource.includes("AI_PROVIDER_OPTIONS"),
   "React constants should expose AI provider options"
 );
 assert.ok(
-  uploadStageSource.includes('id: "aiProvider"'),
-  "Upload stage should expose an AI provider control"
-);
-assert.ok(
   constantsSource.includes("GPT") && constantsSource.includes("Gemini"),
   "AI provider options should let users choose GPT or Gemini"
 );
 assert.ok(
-  uploadStageSource.includes("aiProviderButtons()"),
-  "Upload stage should render the AI provider option buttons"
+  uploadStageSource.includes('id: "aiProvider"')
+    && uploadStageSource.includes('type: "hidden"'),
+  "Upload stage should expose a hidden AI provider control for analyze payloads"
+);
+assert.ok(
+  !uploadStageSource.includes("aiProviderButtons()"),
+  "Upload stage must not restore the removed Generate AI button row"
+);
+assert.ok(
+  accountSettingsSource.includes('accountPreferenceSelect("provider"')
+    || accountSettingsSource.includes("Generate AI"),
+  "AI provider choice should live in Account Settings study defaults"
 );
 assert.ok(
   uploadControllerSource.includes('formData.append("ai_provider"'),

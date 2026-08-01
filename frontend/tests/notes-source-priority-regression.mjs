@@ -68,8 +68,8 @@ assert.match(
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-card\s*\{[\s\S]*?min-height:/,
-  "generated notes card should keep a visible minimum height above Study Tools"
+  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-card\s*\{[\s\S]*?height:\s*calc\(100dvh/,
+  "generated notes card should fill nearly the full viewport for reading"
 );
 assert.match(
   layoutCss,

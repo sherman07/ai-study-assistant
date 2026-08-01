@@ -1,4 +1,4 @@
-import { App } from "./react/App.js?v=notes-layout-fix-v1";
+import { App } from "./react/App.js?v=notes-fullscreen-v1";
 import { loadLegacyController } from "./legacy/loadLegacyController.js?v=settings-modal-pattern-20260720-06";
 import {
   activateLearningCompanionThread,

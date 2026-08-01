@@ -2086,7 +2086,7 @@ body.notes-source-split-resizing * {
   width: 100% !important;
   max-width: none;
   margin-left: 0 !important;
-  padding: 28px 20px 56px !important;
+  padding: 16px 16px 40px !important;
   box-sizing: border-box;
   height: auto;
   max-height: none;
@@ -2101,18 +2101,23 @@ body.notes-source-split-resizing * {
 }
 
 .app-layout.generated-notes-state.analysis-ready:not(.assistant-closed) .notes-area {
-  padding-right: 16px !important;
+  padding-right: 14px !important;
 }
 
 .app-layout.generated-notes-state .notes-header.compact-header {
-  margin-bottom: 16px;
-  gap: 12px;
+  margin-bottom: 10px;
+  gap: 10px;
   align-items: center;
 }
 
 .app-layout.generated-notes-state .compact-header h1 {
-  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  font-size: clamp(1.2rem, 2vw, 1.55rem);
   letter-spacing: -0.04em;
+}
+
+.app-layout.generated-notes-state .compact-header p {
+  font-size: 0.88rem;
+  line-height: 1.35;
 }
 
 .app-layout.generated-notes-state .analysis-stage,
@@ -2123,12 +2128,13 @@ body.notes-source-split-resizing * {
   max-width: none;
 }
 
-/* Notes card: readable pane with fixed toolbar; Study Tools stay in normal page flow below. */
+/* Notes card fills nearly the first screen; Study Tools stay below via page scroll. */
 .app-layout.generated-notes-state:not(.source-viewer-open) .notes-card {
   display: flex;
   flex-direction: column;
-  min-height: min(52dvh, 640px);
-  max-height: min(68dvh, 820px);
+  height: calc(100dvh - 132px);
+  min-height: calc(100dvh - 132px);
+  max-height: calc(100dvh - 112px);
   padding: 0;
   overflow: hidden;
   border-radius: 18px;
@@ -2139,7 +2145,7 @@ body.notes-source-split-resizing * {
   position: relative;
   z-index: 4;
   margin: 0;
-  padding: 16px 20px 14px;
+  padding: 14px 18px 12px;
   border-bottom: 1px solid rgba(197, 213, 242, 0.92);
   background: #ffffff;
   box-shadow: 0 8px 18px rgba(41, 76, 130, 0.05);
@@ -2147,7 +2153,7 @@ body.notes-source-split-resizing * {
 
 .app-layout.generated-notes-state:not(.source-viewer-open) .notes-scroll {
   flex: 1 1 auto;
-  min-height: 220px;
+  min-height: 0;
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;

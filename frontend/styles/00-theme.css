@@ -408,7 +408,7 @@ html[data-theme="dark"] .source-slide-text h4 {
     max-height: none;
     min-height: 100dvh;
     margin-left: 0 !important;
-    padding: 24px 16px 48px !important;
+    padding: 14px 14px 36px !important;
     overflow-x: clip;
     overflow-y: auto;
   }

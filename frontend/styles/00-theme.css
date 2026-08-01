@@ -404,12 +404,13 @@ html[data-theme="dark"] .source-slide-text h4 {
   .app-layout.generated-notes-state.analysis-ready:not(.source-viewer-open) .notes-area {
     width: 100% !important;
     max-width: none;
-    height: 100dvh;
-    max-height: 100dvh;
-    min-height: 0;
+    height: auto;
+    max-height: none;
+    min-height: 100dvh;
     margin-left: 0 !important;
-    padding: 10px 10px 12px !important;
-    overflow: hidden;
+    padding: 24px 16px 48px !important;
+    overflow-x: clip;
+    overflow-y: auto;
   }
 
   .app-layout.generated-notes-state.analysis-ready.history-collapsed .notes-area {

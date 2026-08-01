@@ -52,8 +52,13 @@ assert.match(
 );
 assert.match(
   layoutCss,
+  /\.app-layout\.generated-notes-state\.analysis-ready \.notes-area\s*\{[\s\S]*?overflow-y:\s*auto/,
+  "generated notes page should keep normal page scroll so Study Tools stay reachable below notes"
+);
+assert.doesNotMatch(
+  layoutCss,
   /\.app-layout\.generated-notes-state\.analysis-ready:not\(\.source-viewer-open\) \.notes-area\s*\{[\s\S]*?overflow:\s*hidden/,
-  "generated notes page should lock outer notes-area scroll so the toolbar cannot drift"
+  "generated notes must not lock the whole page with overflow hidden (that hid notes under Study Tools)"
 );
 
 assert.match(
@@ -63,8 +68,8 @@ assert.match(
 );
 assert.match(
   layoutCss,
-  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-card\s*\{[\s\S]*?overflow:\s*hidden/,
-  "generated notes card should own a definite internal scrollport"
+  /\.app-layout\.generated-notes-state:not\(\.source-viewer-open\) \.notes-card\s*\{[\s\S]*?min-height:/,
+  "generated notes card should keep a visible minimum height above Study Tools"
 );
 assert.match(
   layoutCss,

@@ -1,10 +1,10 @@
 import { Fragment, h, icon, legacyAction } from "../runtime.js";
-import { MobileNavigation } from "./MobileNavigation.js?v=notes-responsive-v2";
-import { HistoryNavigation } from "./HistoryNavigation.js?v=notes-responsive-v2";
-import { UploadStage } from "./UploadStage.js?v=notes-responsive-v2";
-import { CompanionWorkspace } from "./CompanionWorkspace.js?v=notes-responsive-v2";
-import { AnalysisStage } from "./AnalysisStage.js?v=notes-responsive-v2";
-import { AssistantPanel, OpenAssistantButton } from "./AssistantPanel.js?v=notes-responsive-v2";
+import { MobileNavigation } from "./MobileNavigation.js?v=credits-notes-v1";
+import { HistoryNavigation } from "./HistoryNavigation.js?v=credits-notes-v1";
+import { UploadStage } from "./UploadStage.js?v=credits-notes-v1";
+import { CompanionWorkspace } from "./CompanionWorkspace.js?v=credits-notes-v1";
+import { AnalysisStage } from "./AnalysisStage.js?v=credits-notes-v1";
+import { AssistantPanel, OpenAssistantButton } from "./AssistantPanel.js?v=credits-notes-v1";
 
 export function AppShell() {
   return h(

@@ -416,6 +416,22 @@ html[data-theme="dark"] .source-slide-text h4 {
   .app-layout.generated-notes-state.analysis-ready.history-collapsed:not(.source-viewer-open) .notes-area {
     padding-left: 52px !important;
   }
+
+  .app-layout.generated-notes-state.analysis-ready.source-viewer-open .notes-area {
+    width: 100% !important;
+    max-width: none;
+    height: auto;
+    max-height: none;
+    min-height: 100dvh;
+    margin-left: 0 !important;
+    padding: 12px 22px 32px !important;
+    overflow-x: clip;
+    overflow-y: auto;
+  }
+
+  .app-layout.generated-notes-state.analysis-ready.source-viewer-open.history-collapsed .notes-area {
+    padding-left: 52px !important;
+  }
 }
 /* Study tools and generated tables are shared by legacy renderers and React.
  * Keep their content on semantic surfaces so a renderer cannot reintroduce a

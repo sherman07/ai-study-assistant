@@ -1,5 +1,5 @@
 import { h, icon, legacyAction } from "../runtime.js";
-import { SummaryNavigation } from "./SummaryNavigation.js?v=notes-source-tall-v1";
+import { SummaryNavigation } from "./SummaryNavigation.js?v=notes-taller-v2";
 import {
   accountInitials,
   isControllerSession,

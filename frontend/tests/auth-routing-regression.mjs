@@ -90,11 +90,11 @@ for (const page of [signupPage, forgotPage, resetPage, verifyPage]) {
   assert.ok(page.includes("auth-client.js?v=signup-email-v1"), "Public pages must bypass cached pre-fix auth client code");
 }
 assert.ok(
-  /config\.js\?v=(?:legacy-boot-fix-v1|login-remember-v1|credits-model-v1|credits-live-v2|notes-source-tall-v1)/.test(workspacePage),
+  /config\.js\?v=(?:legacy-boot-fix-v1|login-remember-v1|credits-model-v1|credits-live-v2|notes-taller-v2)/.test(workspacePage),
   "Workspace must bypass cached runtime config"
 );
 assert.ok(
-  /auth-client\.js\?v=(?:signup-email-v1|credits-model-v1|credits-live-v2|notes-source-tall-v1)/.test(workspacePage),
+  /auth-client\.js\?v=(?:signup-email-v1|credits-model-v1|credits-live-v2|notes-taller-v2)/.test(workspacePage),
   "Workspace must load the production signup auth client"
 );
 assert.ok(loginPage.includes("config.js?v=login-remember-v1"), "Login should cache-bust the remember-me runtime config");
@@ -102,7 +102,7 @@ assert.ok(loginPage.includes("auth-client.js?v=signup-email-v1"), "Login should 
 assert.ok(loginPage.includes("landing-auth.js?v=admin-auth-loop-v1") || loginPage.includes("landing-auth.js?v=login-remember-v1"), "Login should cache-bust the landing auth script");
 assert.ok(loginPage.includes("landing-auth.css?v=login-remember-v1"), "Login should cache-bust remember-me styles");
 assert.ok(
-  /style\.css\?v=(?:mindmap-theta-v1|legacy-boot-fix-v1|mindmap-revert-v1|notes-responsive-v2|credits-live-v2|notes-source-tall-v1)/.test(workspacePage),
+  /style\.css\?v=(?:mindmap-theta-v1|legacy-boot-fix-v1|mindmap-revert-v1|notes-responsive-v2|credits-live-v2|notes-taller-v2)/.test(workspacePage),
   "Workspace should bypass cached pre-fix contrast styles"
 );
 assert.ok(forgotPage.includes("data-testid=\"reset-success\""), "Forgot password should expose a success state");

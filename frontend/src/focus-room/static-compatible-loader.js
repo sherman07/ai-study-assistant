@@ -47,7 +47,7 @@ window.addEventListener("unhandledrejection", event => {
 });
 
 // Keep the URL in a runtime string so Vite does not rewrite this to a stale hashed chunk.
-const FOCUS_ROOM_STATIC_URL = "../../assets/focus-room-app/focus-room-static.js?v=focus-room-static-v15";
+const FOCUS_ROOM_STATIC_URL = "../../assets/focus-room-app/focus-room-static.js?v=focus-room-static-v16";
 import(/* @vite-ignore */ FOCUS_ROOM_STATIC_URL)
   .then(verifyFocusRoomMounted)
   .catch(renderFocusRoomLoadError);

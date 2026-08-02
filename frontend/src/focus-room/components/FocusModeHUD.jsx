@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   FOCUS_MODE_REVEAL_MS,
-  focusModeAddedDuration,
   focusModeTaskProgress,
   focusModeTopic,
   focusShortcutAction,
@@ -9,8 +8,10 @@ import {
 } from "../focusMode.js";
 import { useFocusRoomStore } from "../hooks/useFocusRoomStore.js";
 import { formatTimerClock } from "../utils.js";
+import { Minimize2 } from "lucide-react";
 import { FocusModeControls } from "./FocusModeControls.jsx";
 import { FocusModePopover } from "./FocusModePopover.jsx";
+import { GlassButton } from "./GlassButton.jsx";
 import { SceneSelector } from "./SceneSelector.jsx";
 import { SoundControlPanel } from "./SoundControlPanel.jsx";
 
@@ -36,16 +37,16 @@ export function FocusModeHUD({ audioState, onExit }) {
   const timerDurationSeconds = useFocusRoomStore(state => state.timerDurationSeconds);
   const timerMode = useFocusRoomStore(state => state.timerMode);
   const timerState = useFocusRoomStore(state => state.timerState);
+  const timerStatus = useFocusRoomStore(state => state.timerStatus);
   const currentSession = useFocusRoomStore(state => state.currentSession);
   const audioPlaying = useFocusRoomStore(state => state.audioPlaying);
   const startTimer = useFocusRoomStore(state => state.startTimer);
   const pauseTimer = useFocusRoomStore(state => state.pauseTimer);
   const skipTimer = useFocusRoomStore(state => state.skipTimer);
-  const setSessionDuration = useFocusRoomStore(state => state.setSessionDuration);
   const toggleAudio = useFocusRoomStore(state => state.toggleAudio);
   const setWorkspaceNotes = useFocusRoomStore(state => state.setWorkspaceNotes);
   const toggleTask = useFocusRoomStore(state => state.toggleTask);
-  const [controlsVisible, setControlsVisible] = useState(true);
+  const [controlsVisible, setControlsVisible] = useState(false);
   const [controlsPinned, setControlsPinned] = useState(false);
   const [activePopover, setActivePopover] = useState("");
   const hudRef = useRef(null);
@@ -88,12 +89,6 @@ export function FocusModeHUD({ audioState, onExit }) {
     if (isRunning) pauseTimer();
     else startTimer();
   }, [isRunning, pauseTimer, startTimer]);
-
-  const addFiveMinutes = useCallback(() => {
-    if (timerMode === "countup") return;
-    const next = focusModeAddedDuration(totalDuration);
-    setSessionDuration(next.minutes, next.seconds);
-  }, [setSessionDuration, timerMode, totalDuration]);
 
   const openPopover = useCallback(id => {
     setActivePopover(id);
@@ -202,29 +197,26 @@ export function FocusModeHUD({ audioState, onExit }) {
   return (
     <aside
       ref={hudRef}
-      className={`focus-mode-hud liquid-glass ${controlsVisible ? "has-controls" : "is-quiet"} ${controlsPinned ? "is-pinned" : ""}`.trim()}
-      aria-label="Enhanced Focus Mode"
+      className={`compact-focus-mode-card enhanced-focus-mode-card ${controlsVisible ? "has-controls" : "is-quiet"} ${controlsPinned ? "is-pinned" : ""}`.trim()}
+      aria-label="Distraction-free focus timer"
       onPointerEnter={revealControls}
       onFocusCapture={revealControls}
     >
-      <div className="focus-mode-primary">
-        <div className="focus-mode-session-line">
-          <span>POMODORO #{currentSession?.pomodoroNumber || 1}</span>
-          <span className={`focus-mode-state ${isRunning ? "is-running" : ""}`}><i />{isRunning ? "In focus" : timerState === "paused" ? "Paused" : "Ready"}</span>
-        </div>
-        <p className="focus-mode-topic">{focusModeTopic(selectedMaterial)}</p>
-        <strong className="focus-mode-clock">{formatTimerClock(remaining)}</strong>
-        <div className="focus-mode-progress" aria-label={`${Math.round(progress)}% complete`}><span style={{ width: `${progress}%` }} /></div>
-        <p className="focus-mode-goal">{studyGoal || "A quiet block for meaningful progress"}</p>
-        <small>{taskProgress.total ? `${taskProgress.completed}/${taskProgress.total} tasks` : timerMode === "countup" ? "Count-up session" : `${pomodoroDuration} min session`}</small>
-      </div>
+      <div className="compact-focus-card-top"><span>POMODORO #{currentSession?.pomodoroNumber || 1}</span><GlassButton className="compact-exit-button" onClick={onExit} aria-label="Exit Focus Mode"><Minimize2 size={14} aria-hidden="true" /></GlassButton></div>
+      <span className="compact-focus-status"><i />{timerStatus === "paused" ? "Paused" : "In focus"}</span>
+      <strong>{formatTimerClock(remaining)}</strong>
+      <div className="compact-focus-progress" aria-label={`${Math.round(progress)}% complete`}><span style={{ width: `${progress}%` }} /></div>
+      <small>{pomodoroDuration} min session</small>
       <div className="focus-mode-reveal" aria-hidden={!controlsVisible}>
+        <div className="focus-mode-enhancement-context">
+          <strong>{focusModeTopic(selectedMaterial)}</strong>
+          <span>{studyGoal || "A quiet block for meaningful progress"}</span>
+          {taskProgress.total ? <small>{taskProgress.completed}/{taskProgress.total} tasks</small> : null}
+        </div>
         <FocusModeControls
           audioPlaying={audioPlaying}
-          canAddTime={timerMode !== "countup"}
           isRunning={isRunning}
           pinned={controlsPinned}
-          onAddFiveMinutes={addFiveMinutes}
           onExit={onExit}
           onOpen={openPopover}
           onSkip={skipTimer}

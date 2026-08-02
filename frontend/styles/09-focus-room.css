@@ -1378,6 +1378,124 @@ body.focus-room-standalone #focusRoomRoot {
   }
 }
 
+/* Original scene motion. Every cycle returns to an identical visual state;
+   hidden tabs and reduced-motion users receive a stable still image. */
+.react-focus-room .focus-background.has-scene-motion .focus-background-poster {
+  animation: focus-scene-camera var(--scene-camera-duration, 36s) ease-in-out infinite;
+  will-change: transform;
+}
+
+.react-focus-room .scene-motion-layer,
+.react-focus-room .scene-motion {
+  position: fixed;
+  inset: -4%;
+  pointer-events: none;
+}
+
+.react-focus-room .scene-motion-layer { z-index: 2; overflow: hidden; }
+
+.react-focus-room .scene-motion {
+  opacity: calc(var(--motion-intensity, .2) * .7);
+  animation-duration: var(--motion-duration, 24s);
+  animation-delay: var(--motion-delay, 0s);
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+  will-change: transform, opacity, background-position;
+}
+
+.react-focus-room .scene-motion-rain {
+  background-image: repeating-linear-gradient(102deg, transparent 0 17px, rgba(210, 226, 236, .22) 18px, transparent 19px 36px);
+  background-size: 72px 72px;
+  animation-name: focus-scene-rain;
+}
+
+.react-focus-room .scene-motion-snow {
+  background-image:
+    radial-gradient(circle, rgba(255, 255, 255, .72) 0 1px, transparent 1.7px),
+    radial-gradient(circle, rgba(255, 255, 255, .44) 0 1.4px, transparent 2px);
+  background-position: 0 0, 52px 74px;
+  background-size: 160px 160px, 210px 210px;
+  animation-name: focus-scene-snow;
+}
+
+.react-focus-room .scene-motion-mist {
+  background: linear-gradient(90deg, transparent 5%, rgba(220, 230, 232, .14) 40%, transparent 78%);
+  animation-name: focus-scene-mist;
+  animation-timing-function: ease-in-out;
+}
+
+.react-focus-room .scene-motion-foliage {
+  background: radial-gradient(ellipse at 18% 18%, rgba(14, 46, 24, .2), transparent 38%);
+  transform-origin: 12% 12%;
+  animation-name: focus-scene-foliage;
+  animation-timing-function: ease-in-out;
+}
+
+.react-focus-room .scene-motion-water {
+  top: 46%;
+  background: repeating-linear-gradient(178deg, transparent 0 14px, rgba(220, 241, 238, .1) 15px, transparent 17px 30px);
+  animation-name: focus-scene-water;
+  animation-timing-function: ease-in-out;
+}
+
+.react-focus-room .scene-motion-light {
+  background: radial-gradient(circle at 72% 24%, rgba(255, 226, 177, .38), transparent 34%);
+  mix-blend-mode: soft-light;
+  animation-name: focus-scene-light;
+  animation-timing-function: ease-in-out;
+}
+
+.react-focus-room .focus-background.is-motion-paused .focus-background-media,
+.react-focus-room .focus-background.is-motion-paused .scene-motion,
+.react-focus-room .scene-motion-layer.is-paused .scene-motion {
+  animation-play-state: paused !important;
+}
+
+@keyframes focus-scene-camera {
+  0%, 100% { transform: scale(1.035) translate3d(-.18%, 0, 0); }
+  50% { transform: scale(1.055) translate3d(.18%, -.12%, 0); }
+}
+
+@keyframes focus-scene-rain {
+  from { background-position: 0 0; }
+  to { background-position: 0 72px; }
+}
+
+@keyframes focus-scene-snow {
+  from { background-position: 0 0, 52px 74px; }
+  to { background-position: 160px 160px, 262px 284px; }
+}
+
+@keyframes focus-scene-mist {
+  0%, 100% { transform: translate3d(-2%, 0, 0); opacity: calc(var(--motion-intensity, .2) * .45); }
+  50% { transform: translate3d(2%, -.3%, 0); opacity: calc(var(--motion-intensity, .2) * .8); }
+}
+
+@keyframes focus-scene-foliage {
+  0%, 100% { transform: rotate(-.18deg) scale(1.01); }
+  50% { transform: rotate(.18deg) scale(1.018); }
+}
+
+@keyframes focus-scene-water {
+  0%, 100% { transform: translate3d(-.4%, 0, 0) skewX(-.15deg); opacity: calc(var(--motion-intensity, .2) * .35); }
+  50% { transform: translate3d(.4%, .16%, 0) skewX(.15deg); opacity: calc(var(--motion-intensity, .2) * .7); }
+}
+
+@keyframes focus-scene-light {
+  0%, 100% { opacity: calc(var(--motion-intensity, .2) * .45); transform: scale(1); }
+  50% { opacity: calc(var(--motion-intensity, .2) * .76); transform: scale(1.025); }
+}
+
+@media (max-width: 640px) {
+  .react-focus-room .scene-motion:nth-child(n + 4) { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .react-focus-room .focus-background-media,
+  .react-focus-room .scene-motion { animation: none !important; }
+  .react-focus-room .scene-motion-layer { display: none; }
+}
+
 /* Enhanced Focus Mode: the topic and timer stay present while secondary
    controls reveal only when the user shows intent. */
 .react-focus-room .focus-mode-hud {
@@ -1404,6 +1522,66 @@ body.focus-room-standalone #focusRoomRoot {
   width: 250px;
   grid-template-columns: 1fr 0fr;
   background: rgba(28, 23, 20, .66);
+}
+
+/* Enhancement layer: retain the original compact timer card as the stable
+   Focus Mode surface. Secondary tools float beside it and never resize it. */
+.react-focus-room .enhanced-focus-mode-card {
+  overflow: visible;
+  transition: background .24s ease, border-color .24s ease;
+}
+
+.react-focus-room .enhanced-focus-mode-card .focus-mode-reveal {
+  position: absolute;
+  z-index: 2;
+  left: calc(100% + 12px);
+  bottom: 0;
+  width: 244px;
+  padding: 10px;
+  border: 1px solid rgba(255, 248, 238, .24);
+  border-radius: 19px;
+  background: rgba(36, 31, 26, .58);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .14), 0 18px 50px rgba(0, 0, 0, .24);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+}
+
+.react-focus-room .focus-mode-enhancement-context {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 9px;
+  color: var(--room-soft);
+  font-size: 9px;
+}
+
+.react-focus-room .focus-mode-enhancement-context strong {
+  overflow: hidden;
+  color: var(--room-ink);
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-focus-room .focus-mode-enhancement-context span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-focus-room .enhanced-focus-mode-card.is-quiet .focus-mode-reveal {
+  opacity: 0;
+  transform: translateX(-8px);
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity .2s ease, transform .2s ease, visibility 0s linear .2s;
+}
+
+.react-focus-room .enhanced-focus-mode-card.has-controls .focus-mode-reveal,
+.react-focus-room .enhanced-focus-mode-card.is-pinned .focus-mode-reveal {
+  opacity: 1;
+  transform: translateX(0);
+  visibility: visible;
+  transition: opacity .2s ease, transform .2s ease, visibility 0s linear;
 }
 
 .react-focus-room .focus-mode-primary {
@@ -1492,6 +1670,8 @@ body.focus-room-standalone #focusRoomRoot {
 }
 
 .react-focus-room .focus-mode-reveal {
+  position: relative;
+  z-index: 2;
   min-width: 0;
   align-self: center;
   overflow: visible;
@@ -1586,6 +1766,7 @@ body.focus-room-standalone #focusRoomRoot {
 
 .react-focus-room .focus-mode-popover {
   position: absolute;
+  z-index: 4;
   left: 0;
   bottom: calc(100% + 12px);
   width: min(520px, calc(100vw - 64px));
@@ -1697,6 +1878,12 @@ body.focus-room-standalone #focusRoomRoot {
 .react-focus-room .focus-mode-shortcuts kbd { display: inline-block; min-width: 30px; padding: 4px 7px; border: 1px solid rgba(255, 248, 238, .22); border-radius: 7px; color: #fffaf3; background: rgba(255, 248, 238, .1); text-align: center; }
 
 @media (max-width: 640px) {
+  .react-focus-room .enhanced-focus-mode-card .focus-mode-reveal {
+    left: 0;
+    bottom: calc(100% + 10px);
+    width: min(342px, calc(100vw - 24px));
+  }
+
   .react-focus-room .focus-mode-hud,
   .react-focus-room .focus-mode-hud.is-quiet {
     left: 12px;

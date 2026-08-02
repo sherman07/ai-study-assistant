@@ -52,7 +52,7 @@ assert.ok(store.getState().currentSession);
 
 store.getState().startTimer();
 assert.equal(store.getState().timerStatus, "studying");
-assert.equal(store.getState().audioPlaying, true);
+assert.equal(store.getState().audioPlaying, false, "Starting a timer must not unmute room music");
 
 store.getState().pauseTimer();
 assert.equal(store.getState().timerStatus, "paused");

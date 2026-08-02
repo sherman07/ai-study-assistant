@@ -22,16 +22,6 @@ export function focusModeTopic(material) {
   return String(material?.materialTitle || "").trim() || "Focus Room";
 }
 
-export function focusModeAddedDuration(totalDurationSeconds, additionalSeconds = 300) {
-  const current = Math.max(0, Math.floor(Number(totalDurationSeconds) || 0));
-  const added = Math.max(0, Math.floor(Number(additionalSeconds) || 0));
-  const nextTotal = current + added;
-  return {
-    minutes: Math.floor(nextTotal / 60),
-    seconds: nextTotal % 60
-  };
-}
-
 export function shouldHideFocusControls({ pinned = false, popoverOpen = false, focusWithin = false } = {}) {
   return !pinned && !popoverOpen && !focusWithin;
 }

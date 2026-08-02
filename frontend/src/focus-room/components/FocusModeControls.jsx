@@ -1,5 +1,4 @@
 import {
-  AlarmClockPlus,
   CheckSquare2,
   CircleHelp,
   Image,
@@ -33,10 +32,8 @@ function FocusControl({ label, onClick, children, pressed, disabled = false, pri
 
 export function FocusModeControls({
   audioPlaying,
-  canAddTime,
   isRunning,
   pinned,
-  onAddFiveMinutes,
   onExit,
   onOpen,
   onSkip,
@@ -49,7 +46,6 @@ export function FocusModeControls({
       <FocusControl label={isRunning ? "Pause timer" : "Start timer"} onClick={onToggleTimer} primary>
         {isRunning ? <Pause size={17} aria-hidden="true" /> : <Play size={17} fill="currentColor" aria-hidden="true" />}
       </FocusControl>
-      <FocusControl label="Add five minutes" onClick={onAddFiveMinutes} disabled={!canAddTime}><AlarmClockPlus size={17} aria-hidden="true" /></FocusControl>
       <FocusControl label="Skip to next phase" onClick={onSkip}><SkipForward size={17} aria-hidden="true" /></FocusControl>
       <FocusControl label={audioPlaying ? "Mute room audio" : "Resume room audio"} onClick={onToggleAudio} pressed={audioPlaying}>
         {audioPlaying ? <Volume2 size={17} aria-hidden="true" /> : <VolumeX size={17} aria-hidden="true" />}

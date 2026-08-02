@@ -232,189 +232,86 @@ const FOCUS_ROOM_SCENES = [
   {
     id: "morning-window",
     name: "Morning Window",
-    kicker: "Bright focus",
+    kicker: "Morning · Nature",
     description: "Soft daylight, quiet desk, gentle outdoor calm.",
-    image: "./assets/focus-room/innook/morning-window.jpg",
-    video: "./assets/focus-room/innook/morning-window.mp4",
+    image: "./assets/focus-room/original/morning-window.jpg",
+    motionProfile: "morning-window",
     ambientSound: "Nature",
     musicType: "Piano"
   },
   {
-    id: "rainy-cafe",
-    name: "Rainy Cafe",
-    kicker: "Low hum",
-    description: "Window rain, warm lights, steady cafe ambience.",
-    image: "./assets/focus-room/rainy-cafe.webp",
-    ambientSound: "Cafe Rain",
-    musicType: "Lo-fi"
-  },
-  {
-    id: "library-night",
-    name: "Library Night",
-    kicker: "Quiet review",
-    description: "Desk lamp, bookshelves, late-night concentration.",
-    image: "./assets/focus-room/library-night.webp",
-    ambientSound: "White Noise",
-    musicType: "Minimal"
-  },
-  {
-    id: "ocean-study-room",
-    name: "Ocean Study Room",
-    kicker: "Open air",
-    description: "Blue horizon, slow waves, clean study energy.",
-    image: "./assets/focus-room/ocean-study-room.webp",
-    ambientSound: "Cafe Rain",
-    musicType: "Lo-fi"
-  },
-  {
-    id: "mountain-cabin",
-    name: "Mountain Cabin",
-    kicker: "Warm retreat",
-    description: "Timber, mountain air, and an unhurried study block.",
-    image: "./assets/focus-room/mountain-cabin.webp",
+    id: "cabin-twilight",
+    name: "Cabin Twilight",
+    kicker: "Twilight · Warmth",
+    description: "Blue-hour hills and gentle lamp light for a calm study block.",
+    image: "./assets/focus-room/original/cabin-twilight.jpg",
+    motionProfile: "cabin-twilight",
     ambientSound: "Wind",
     musicType: "Piano"
   },
   {
-    id: "minimal-desk",
-    name: "Minimal Desk",
-    kicker: "Clean reset",
-    description: "A clear desk, soft light, and room to think.",
-    image: "./assets/focus-room/minimal-desk.webp",
-    ambientSound: "White Noise",
-    musicType: "Deep Focus"
-  },
-  {
-    id: "innook-cabin-twilight",
-    name: "Cabin Twilight",
-    kicker: "Warm light · Ease",
-    description: "Warm cabin light and an unhurried focus block.",
-    image: "./assets/focus-room/innook/cabin-twilight.jpg",
-    ambientSound: "Nature",
-    musicType: "Piano",
-    galleryOnly: true
-  },
-  {
-    id: "innook-last-room",
+    id: "last-light-lounge",
     name: "Last Light Lounge",
-    kicker: "Wasteland · Glow",
-    description: "A quiet room with distant, low-lit calm.",
-    image: "./assets/focus-room/innook/last-room.jpg",
-    ambientSound: "White Noise",
+    kicker: "Rain · Last light",
+    description: "A quiet lounge with rain and the final light of day.",
+    image: "./assets/focus-room/original/last-light-lounge.jpg",
+    motionProfile: "last-light-lounge",
+    ambientSound: "Rain",
     musicType: "Minimal",
-    galleryOnly: true
   },
   {
-    id: "innook-garden-cafe",
-    name: "Garden Cafe",
-    kicker: "Greenery · Coffee",
+    id: "garden-cafe",
+    name: "Garden Café",
+    kicker: "Greenery · Café",
     description: "Soft café ambience among abundant greenery.",
-    image: "./assets/focus-room/innook/garden-cafe.jpg",
+    image: "./assets/focus-room/original/garden-cafe.jpg",
+    motionProfile: "garden-cafe",
     ambientSound: "Cafe Rain",
     musicType: "Lo-fi",
-    galleryOnly: true
   },
   {
-    id: "innook-sunset-classroom",
+    id: "sunset-classroom",
     name: "Sunset Classroom",
-    kicker: "Classroom · Dusk",
+    kicker: "Classroom · Sunset",
     description: "An empty classroom in the fading evening light.",
-    image: "./assets/focus-room/innook/sunset-classroom.jpg",
+    image: "./assets/focus-room/original/sunset-classroom.jpg",
+    motionProfile: "sunset-classroom",
     ambientSound: "Nature",
     musicType: "Piano",
-    galleryOnly: true
   },
   {
-    id: "innook-tokyo-night",
+    id: "tokyo-night",
     name: "Tokyo Night",
     kicker: "City · Night",
     description: "A city-night view for steady late study.",
-    image: "./assets/focus-room/innook/tokyo-night-view.jpg",
+    image: "./assets/focus-room/original/tokyo-night.jpg",
+    motionProfile: "tokyo-night",
     ambientSound: "White Noise",
     musicType: "Deep Focus",
-    galleryOnly: true
   },
   {
-    id: "innook-snow-window-cabin",
+    id: "snow-window-cabin",
     name: "Snow Window Cabin",
     kicker: "Snow · Cabin",
     description: "Snow beyond the window, warmth at the desk.",
-    image: "./assets/focus-room/innook/snow-window-cabin.jpg",
+    image: "./assets/focus-room/original/snow-window-cabin.jpg",
+    motionProfile: "snow-window-cabin",
     ambientSound: "Wind",
     musicType: "Minimal",
-    galleryOnly: true
   },
   {
-    id: "innook-bamboo-cabin",
+    id: "bamboo-cabin",
     name: "Bamboo Cabin",
     kicker: "Bamboo · Quiet",
     description: "A bamboo retreat made for quiet concentration.",
-    image: "./assets/focus-room/innook/bamboo-cabin.jpg",
+    image: "./assets/focus-room/original/bamboo-cabin.jpg",
+    motionProfile: "bamboo-cabin",
     ambientSound: "Nature",
     musicType: "Deep Focus",
-    galleryOnly: true
-  },
-  {
-    id: "innook-snow-peak-window",
-    name: "Alpine Window",
-    kicker: "Peaks · Calm",
-    description: "Cool alpine light through a quiet study window.",
-    image: "./assets/focus-room/innook/snow-peak-window.jpg",
-    ambientSound: "Wind",
-    musicType: "Piano",
-    galleryOnly: true
-  },
-  {
-    id: "innook-herbal-apothecary",
-    name: "Herbal Desk",
-    kicker: "Herbs · Wood",
-    description: "Warm wood shelves and a grounded herbal desk.",
-    image: "./assets/focus-room/innook/herbal-apothecary.jpg",
-    ambientSound: "Nature",
-    musicType: "Minimal",
-    galleryOnly: true
-  },
-  {
-    id: "innook-garden-study",
-    name: "Garden Study",
-    kicker: "Garden · Window",
-    description: "Garden light and a calm reading desk.",
-    image: "./assets/focus-room/innook/garden-study-window.jpg",
-    ambientSound: "Nature",
-    musicType: "Piano",
-    galleryOnly: true
-  },
-  {
-    id: "innook-summer-green",
-    name: "Summer Green Window",
-    kicker: "Shade · Bright",
-    description: "Bright summer greens for a fresh focus block.",
-    image: "./assets/focus-room/innook/summer-green-window.jpg",
-    ambientSound: "Nature",
-    musicType: "Lo-fi",
-    galleryOnly: true
-  },
-  {
-    id: "innook-forest-chimes",
-    name: "Forest Chimes",
-    kicker: "Forest · Breeze",
-    description: "Forest light and soft outdoor calm.",
-    image: "./assets/focus-room/innook/forest-window-chimes.jpg",
-    ambientSound: "Nature",
-    musicType: "Deep Focus",
-    galleryOnly: true
-  },
+  }
 ];
 
-const FOCUS_ROOM_GALLERY_SCENES = [
-  {
-    ...FOCUS_ROOM_SCENES[0],
-    name: "Morning Window",
-    kicker: "Morning · Plants",
-    description: "A bright morning desk beside a leafy window."
-  },
-  ...FOCUS_ROOM_SCENES.filter(scene => scene.galleryOnly)
-];
+const FOCUS_ROOM_GALLERY_SCENES = FOCUS_ROOM_SCENES;
 
 const FOCUS_ROOM_DURATIONS = [25, 45, 50, 90];
 

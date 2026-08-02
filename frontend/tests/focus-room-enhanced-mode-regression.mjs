@@ -11,7 +11,6 @@ assert.ok(focusMode, "Focus Mode must expose a testable interaction contract");
 
 const {
   FOCUS_MODE_REVEAL_MS,
-  focusModeAddedDuration,
   focusModeTaskProgress,
   focusModeTopic,
   focusShortcutAction,
@@ -41,10 +40,6 @@ assert.equal(focusShortcutAction({ key: "x", target: body }), "");
 assert.equal(focusShortcutAction({ key: "n", target: { tagName: "TEXTAREA" } }), "");
 assert.equal(FOCUS_MODE_REVEAL_MS, 2800);
 
-assert.deepEqual(focusModeAddedDuration(1500), { minutes: 30, seconds: 0 });
-assert.deepEqual(focusModeAddedDuration(1230), { minutes: 25, seconds: 30 });
-assert.deepEqual(focusModeAddedDuration(0), { minutes: 5, seconds: 0 });
-
 assert.equal(shouldHideFocusControls({ pinned: false, popoverOpen: false, focusWithin: false }), true);
 assert.equal(shouldHideFocusControls({ pinned: true, popoverOpen: false, focusWithin: false }), false);
 assert.equal(shouldHideFocusControls({ pinned: false, popoverOpen: true, focusWithin: false }), false);
@@ -58,5 +53,27 @@ assert.deepEqual(
   { completed: 1, total: 3 }
 );
 assert.deepEqual(focusModeTaskProgress([], []), { completed: 0, total: 0 });
+
+let sceneMotion = null;
+try {
+  sceneMotion = await import("../src/focus-room/sceneMotion.js");
+} catch {
+  // The wallpaper integration test should fail until motion profiles exist.
+}
+assert.ok(sceneMotion, "Original Focus Room scenes must expose motion profiles");
+const allowedLayerKinds = new Set(["camera", "light", "rain", "snow", "mist", "foliage", "water"]);
+const expectedMotionIds = [
+  "morning-window", "cabin-twilight", "last-light-lounge", "garden-cafe",
+  "sunset-classroom", "tokyo-night", "snow-window-cabin", "bamboo-cabin"
+];
+assert.deepEqual(Object.keys(sceneMotion.SCENE_MOTION_PROFILES), expectedMotionIds);
+for (const id of expectedMotionIds) {
+  const profile = sceneMotion.sceneMotionProfile(id);
+  assert.equal(profile.id, id);
+  assert.ok(profile.layers.length >= 2);
+  assert.ok(profile.layers.every(layer => allowedLayerKinds.has(layer.kind)));
+  assert.ok(profile.layers.every(layer => layer.duration >= 12 && layer.intensity > 0 && layer.intensity <= 1 && layer.density > 0 && layer.density <= 1));
+}
+assert.equal(sceneMotion.sceneMotionProfile("missing").id, "morning-window");
 
 console.log("focus room enhanced mode regression passed");

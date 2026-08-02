@@ -12,7 +12,7 @@
   <link rel="icon" type="image/png" href="/logos/synapse.png">
   <link rel="apple-touch-icon" href="/logos/synapse.png">
   <link rel="stylesheet" href="style.css?v=loading-history-v1">
-  <link rel="stylesheet" href="styles/09-focus-room.css?v=ui-english-v2">
+  <link rel="stylesheet" href="styles/09-focus-room.css?v=timer-controls-v3">
   <link rel="stylesheet" href="styles/00-theme.css?v=ui-english-v1">
   <link rel="stylesheet" href="styles/99-dark-mode.css?v=dark-mode-v6">
 </head>
@@ -24,7 +24,7 @@
   <script src="auth-client.js?v=public-auth-session-v4"></script>
   <script type="module">
     if (window.SYNAPSE_FOCUS_ROOM_ENABLED === true) {
-      import("./src/focus-room/static-compatible-loader.js?v=focus-room-loader-v16")
+      import("./src/focus-room/static-compatible-loader.js?v=focus-room-loader-v17")
         .catch(error => {
           console.error("Synapse Focus Room failed to start:", error);
           window.location.replace("index.html");

@@ -1914,6 +1914,10 @@ body.focus-room-standalone #focusRoomRoot {
   .react-focus-room .focus-mode-progress span {
     transition: none !important;
   }
+  .react-focus-room .compact-focus-mode-card,
+  .react-focus-room .compact-timer-controls {
+    transition: none !important;
+  }
 }
 
 /* Keep the Focus Mode affordance discoverable on touch layouts. */
@@ -2345,6 +2349,43 @@ body.focus-room-standalone #focusRoomRoot {
 .compact-focus-status i { width: 5px; height: 5px; display: block; border-radius: 50%; background: #c0d9b5; }
 .compact-focus-mode-card > strong { display: block; margin: 2px 0 8px; font-size: 30px; font-weight: 560; letter-spacing: .04em; font-variant-numeric: tabular-nums; color: #fff; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35); }
 .compact-focus-mode-card small { display: block; margin-top: 8px; color: var(--room-soft); font-size: 10px; }
+.react-focus-room .compact-focus-mode-card {
+  transition: padding .22s ease, background .22s ease, border-color .22s ease;
+}
+.react-focus-room .compact-timer-controls {
+  display: grid;
+  grid-template-columns: repeat(3, 34px);
+  justify-content: start;
+  gap: 7px;
+  max-height: 0;
+  margin-top: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-5px);
+  pointer-events: none;
+  transition: max-height .22s ease, margin-top .22s ease, opacity .18s ease, transform .22s ease, visibility 0s linear .22s;
+}
+.react-focus-room .compact-focus-mode-card.has-timer-controls .compact-timer-controls {
+  max-height: 36px;
+  margin-top: 11px;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+  transition: max-height .22s ease, margin-top .22s ease, opacity .18s ease, transform .22s ease, visibility 0s linear;
+}
+.react-focus-room .compact-timer-control.glass-button {
+  width: 34px;
+  min-width: 34px;
+  height: 34px;
+  min-height: 34px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+}
+.react-focus-room .compact-timer-control-primary.glass-button { color: #2c2119; }
 .focus-setup-view { padding: max(22px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) max(30px, env(safe-area-inset-bottom)) max(24px, env(safe-area-inset-left)); }
 .focus-setup-stage { width: min(928px, 100%); min-height: calc(100svh - 52px); margin: 0 auto; padding-top: 11px; }
 .focus-setup-heading { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }

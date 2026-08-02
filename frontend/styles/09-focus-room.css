@@ -1031,6 +1031,90 @@ body.focus-room-standalone #focusRoomRoot {
   }
 }
 
+.react-focus-room .innook-audio-preset.is-active,
+.react-focus-room .innook-audio-preset[aria-pressed="true"] {
+  color: #241c16;
+  border-color: rgba(255, 245, 226, .9);
+  background: #f0d7b1;
+  box-shadow: 0 0 0 3px rgba(240, 215, 177, .12), 0 10px 24px rgba(0, 0, 0, .24);
+}
+
+.react-focus-room .innook-audio-preset-status {
+  position: absolute;
+  top: 72px;
+  right: calc(100% + 12px);
+  width: max-content;
+  max-width: 150px;
+  padding: 6px 9px;
+  border: 1px solid rgba(244, 231, 211, .22);
+  border-radius: 999px;
+  color: rgba(255, 250, 240, .84);
+  background: rgba(20, 17, 15, .66);
+  font-size: 9px;
+  letter-spacing: .04em;
+  pointer-events: none;
+  backdrop-filter: blur(14px);
+}
+
+.react-focus-room .sound-preset-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.react-focus-room .sound-preset-list button {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+  border: 1px solid rgba(255, 248, 238, .16);
+  border-radius: 12px;
+  color: rgba(255, 248, 238, .72);
+  background: rgba(255, 248, 238, .06);
+  text-align: left;
+  cursor: pointer;
+}
+
+.react-focus-room .sound-preset-list button:hover,
+.react-focus-room .sound-preset-list button:focus-visible,
+.react-focus-room .sound-preset-list button.is-active {
+  border-color: rgba(241, 217, 181, .66);
+  color: #fffaf3;
+  background: rgba(241, 217, 181, .16);
+  outline: none;
+}
+
+.react-focus-room .sound-preset-list strong {
+  overflow: hidden;
+  font-size: 11px;
+  font-weight: 620;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.react-focus-room .sound-preset-list small {
+  display: -webkit-box;
+  overflow: hidden;
+  color: rgba(255, 248, 238, .54);
+  font-size: 8px;
+  line-height: 1.35;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+@media (max-width: 820px) {
+  .react-focus-room .innook-audio-preset-status {
+    position: static;
+    order: 6;
+    max-width: 120px;
+  }
+}
+
+@media (max-width: 480px) {
+  .react-focus-room .sound-preset-list { grid-template-columns: 1fr; }
+}
+
 @media (max-width: 980px) {
   .focus-setup-stage,
   .history-stage {

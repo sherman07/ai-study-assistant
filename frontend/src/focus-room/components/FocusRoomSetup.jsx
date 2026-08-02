@@ -1,32 +1,38 @@
 import { ArrowLeft, ArrowRight, Coffee, History, Music2, Piano, Radio, Target, Waves } from "lucide-react";
-import { FOCUS_ROOM_DURATIONS } from "../data.js";
+import {
+  FOCUS_ROOM_AUDIO_PRESETS,
+  FOCUS_ROOM_DURATIONS,
+  focusRoomAudioPresetForConfig
+} from "../data.js";
 import { useFocusRoomStore } from "../hooks/useFocusRoomStore.js";
 import { SceneSelector } from "./SceneSelector.jsx";
 import { useState } from "react";
 
-const MUSIC_MOODS = [
-  { label: "Piano", icon: Piano, musicType: "Piano", ambientSound: "Nature" },
-  { label: "Lo-fi", icon: Music2, musicType: "Lo-fi", ambientSound: "Cafe Rain" },
-  { label: "Nature", icon: Waves, musicType: "Deep Focus", ambientSound: "Nature" },
-  { label: "Ambient", icon: Coffee, musicType: "Minimal", ambientSound: "White Noise" },
-  { label: "Deep Focus", icon: Radio, musicType: "Deep Focus", ambientSound: "White Noise" }
-];
+const PRESET_ICONS = {
+  "soft-piano": Piano,
+  "lofi-cafe": Music2,
+  "nature-flow": Waves,
+  "warm-ambience": Coffee,
+  "deep-focus": Radio
+};
 
 export function FocusRoomSetup() {
   const pomodoroDuration = useFocusRoomStore(state => state.pomodoroDuration);
   const timerMode = useFocusRoomStore(state => state.timerMode);
   const studyGoal = useFocusRoomStore(state => state.studyGoal);
+  const musicType = useFocusRoomStore(state => state.musicType);
+  const ambientSound = useFocusRoomStore(state => state.ambientSound);
   const setPomodoroDuration = useFocusRoomStore(state => state.setPomodoroDuration);
   const setTimerMode = useFocusRoomStore(state => state.setTimerMode);
   const setStudyGoal = useFocusRoomStore(state => state.setStudyGoal);
-  const setSound = useFocusRoomStore(state => state.setSound);
+  const applyAudioPreset = useFocusRoomStore(state => state.applyAudioPreset);
   const openLanding = useFocusRoomStore(state => state.openLanding);
   const startSession = useFocusRoomStore(state => state.startSession);
   const [goalEditorOpen, setGoalEditorOpen] = useState(false);
+  const activePreset = focusRoomAudioPresetForConfig({ musicType, ambientSound });
 
-  const selectMood = mood => {
-    setSound("musicType", mood.musicType);
-    setSound("ambientSound", mood.ambientSound);
+  const selectPreset = preset => {
+    applyAudioPreset(preset.id);
   };
 
   const selectDuration = minutes => {
@@ -55,10 +61,12 @@ export function FocusRoomSetup() {
 
         <aside className="innook-control-rail" aria-label="Study settings">
           <div className="innook-rail-group" aria-label="Music atmosphere">
-            {MUSIC_MOODS.map(mood => {
-              const Icon = mood.icon;
-              return <button key={mood.label} type="button" className="innook-rail-icon" onClick={() => selectMood(mood)} aria-label={`Use ${mood.label} atmosphere`} title={mood.label}><Icon size={16} aria-hidden="true" /></button>;
+            {FOCUS_ROOM_AUDIO_PRESETS.map(preset => {
+              const Icon = PRESET_ICONS[preset.id] || Radio;
+              const active = activePreset?.id === preset.id;
+              return <button key={preset.id} type="button" className={`innook-rail-icon innook-audio-preset ${active ? "is-active" : ""}`.trim()} onClick={() => selectPreset(preset)} aria-label={`Use ${preset.label}: ${preset.description}`} aria-pressed={active} title={`${preset.label} — ${preset.description}`}><Icon size={16} aria-hidden="true" /></button>;
             })}
+            <span className="innook-audio-preset-status" aria-live="polite">{activePreset?.label || "Custom mix"}</span>
           </div>
           <div className="innook-rail-divider" />
           <div className="innook-duration-list" aria-label="Focus duration">

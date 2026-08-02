@@ -3,10 +3,19 @@ import {
   ensureCreditState,
   resetCreditsForPlan
 } from "../billing/credits.js";
-import { dailyCreditsForPlan } from "../billing/plans.js";
+import { dailyCreditsForPlan, reconcileBillingState } from "../billing/plans.js";
 import { firstSupabaseRow, supabaseRequest } from "../supabase/rest.js";
 import { stableUserId } from "../utils/ids.js";
 import { cleanString, jsonValue, nullableString } from "../utils/validators.js";
+
+/** Credit keys that Auth sync / login upserts must never wipe. */
+const CREDIT_METADATA_KEYS = [
+  "credits",
+  "daily_credits",
+  "boost_credits",
+  "daily_refreshed_on",
+  "welcome_granted"
+];
 
 function normalizeIdentity(identity = {}) {
   const provider = cleanString(identity.auth_provider || identity.authProvider || "anonymous", 60) || "anonymous";
@@ -24,6 +33,23 @@ function normalizeIdentity(identity = {}) {
     role: cleanString(identity.role || "student", 80) || "student",
     metadata_json: identity.metadata || {}
   };
+}
+
+/**
+ * Merge Auth identity metadata onto an existing public.users row without
+ * destroying billing credit balances stored in metadata_json.
+ */
+function mergeUserMetadata(existingMetadata = {}, incomingMetadata = {}) {
+  const merged = {
+    ...(existingMetadata || {}),
+    ...(incomingMetadata || {})
+  };
+  for (const key of CREDIT_METADATA_KEYS) {
+    if (Object.prototype.hasOwnProperty.call(existingMetadata || {}, key)) {
+      merged[key] = existingMetadata[key];
+    }
+  }
+  return merged;
 }
 
 function attachCreditFields(user, creditState) {
@@ -50,6 +76,11 @@ function metadataNeedsCreditSync(metadata = {}, creditState) {
 function mapUser(row = {}) {
   const metadata = jsonValue(row.metadata_json, {});
   const plan = row.plan || "free";
+  const reconciled = reconcileBillingState({
+    plan,
+    subscriptionStatus: row.subscription_status || "inactive",
+    currentPeriodEnd: row.current_period_end || null
+  });
   const baseUser = {
     id: row.id,
     authProvider: row.auth_provider,
@@ -61,12 +92,14 @@ function mapUser(row = {}) {
     platformRole: row.platform_role || "user",
     stripeCustomerId: row.stripe_customer_id || "",
     stripeSubscriptionId: row.stripe_subscription_id || "",
-    plan,
-    subscriptionStatus: row.subscription_status || "inactive",
-    currentPeriodEnd: row.current_period_end || null,
+    plan: reconciled.plan,
+    subscriptionStatus: reconciled.subscriptionStatus,
+    currentPeriodEnd: reconciled.currentPeriodEnd,
     metadata,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    billingRepaired: reconciled.repaired,
+    billingRepairs: reconciled.repairs
   };
   return attachCreditFields(baseUser, ensureCreditState(baseUser));
 }
@@ -112,6 +145,9 @@ function supabaseUserPatch(patch = {}, existingUser = null) {
   if (patch.email !== undefined) next.email = nullableString(patch.email, 255);
   if (patch.displayName !== undefined || patch.display_name !== undefined) {
     next.display_name = nullableString(patch.displayName || patch.display_name, 255);
+  }
+  if (patch.authMode !== undefined || patch.auth_mode !== undefined) {
+    next.auth_mode = nullableString(patch.authMode || patch.auth_mode, 80);
   }
   if (patch.role !== undefined) {
     next.role = cleanString(patch.role, 80) || "student";
@@ -203,7 +239,58 @@ async function persistRefreshedCredits(user) {
   return writeCreditState(user.id, user.creditState, user.metadata || {}) || user;
 }
 
+async function persistReconciledBilling(user, rawRow = null) {
+  if (!user?.id || !user.billingRepaired) return user;
+  const body = {
+    plan: user.plan,
+    subscription_status: user.subscriptionStatus,
+    current_period_end: user.currentPeriodEnd || null
+  };
+  if (rawRow) {
+    const rawStatus = cleanString(rawRow.subscription_status, 80) || "inactive";
+    const rawPeriod = rawRow.current_period_end || null;
+    const statusChanged = rawStatus !== user.subscriptionStatus;
+    const periodChanged = String(rawPeriod || "") !== String(user.currentPeriodEnd || "");
+    const planChanged = cleanString(rawRow.plan, 80) !== user.plan;
+    if (!statusChanged && !periodChanged && !planChanged) return user;
+  }
+  const payload = await supabaseRequest("PATCH", "users", {
+    query: { id: `eq.${cleanString(user.id, 80)}` },
+    body,
+    prefer: "return=representation"
+  });
+  const row = firstSupabaseRow(payload);
+  return row ? mapUser(row) : user;
+}
+
+async function hydrateUserRow(row) {
+  if (!row) return null;
+  const mapped = mapUser(row);
+  const withBilling = await persistReconciledBilling(mapped, row);
+  return persistRefreshedCredits(withBilling);
+}
+
 async function supabaseUpsertUser(identity = {}) {
+  const normalized = normalizeIdentity(identity);
+  const existing = await supabaseSelectSingle({
+    auth_provider: `eq.${normalized.auth_provider}`,
+    auth_subject: `eq.${normalized.auth_subject}`
+  });
+
+  if (existing) {
+    // Update identity fields only. Never replace metadata_json wholesale —
+    // Auth sync sends metadata without credit keys and would reset balances.
+    const mergedMetadata = mergeUserMetadata(existing.metadata || {}, normalized.metadata_json || {});
+    const patch = {
+      email: normalized.email,
+      displayName: normalized.display_name,
+      auth_mode: normalized.auth_mode,
+      metadata: mergedMetadata
+    };
+    const updated = await supabasePatchUser(existing.id, patch);
+    return updated || existing;
+  }
+
   const payload = await supabaseRequest("POST", "users", {
     query: { on_conflict: "auth_provider,auth_subject" },
     body: [supabaseUserRow(identity)],
@@ -211,7 +298,7 @@ async function supabaseUpsertUser(identity = {}) {
   });
   const row = firstSupabaseRow(payload);
   if (!row) return null;
-  return persistRefreshedCredits(mapUser(row));
+  return hydrateUserRow(row);
 }
 
 async function supabasePatchUser(userId, patch = {}) {
@@ -232,25 +319,60 @@ async function supabasePatchUser(userId, patch = {}) {
 }
 
 async function supabaseGetUserById(userId) {
-  const user = await supabaseSelectSingle({ id: `eq.${cleanString(userId, 80)}` });
-  return user ? persistRefreshedCredits(user) : null;
+  const payload = await supabaseRequest("GET", "users", {
+    query: {
+      select: "*",
+      limit: 1,
+      id: `eq.${cleanString(userId, 80)}`
+    }
+  });
+  return hydrateUserRow(firstSupabaseRow(payload));
 }
 
 async function supabaseGetUserByStripeCustomerId(customerId) {
-  const user = await supabaseSelectSingle({ stripe_customer_id: `eq.${cleanString(customerId, 255)}` });
-  return user ? persistRefreshedCredits(user) : null;
+  const payload = await supabaseRequest("GET", "users", {
+    query: {
+      select: "*",
+      limit: 1,
+      stripe_customer_id: `eq.${cleanString(customerId, 255)}`
+    }
+  });
+  return hydrateUserRow(firstSupabaseRow(payload));
 }
 
 async function supabaseGetUserByStripeSubscriptionId(subscriptionId) {
-  const user = await supabaseSelectSingle({ stripe_subscription_id: `eq.${cleanString(subscriptionId, 255)}` });
-  return user ? persistRefreshedCredits(user) : null;
+  const payload = await supabaseRequest("GET", "users", {
+    query: {
+      select: "*",
+      limit: 1,
+      stripe_subscription_id: `eq.${cleanString(subscriptionId, 255)}`
+    }
+  });
+  return hydrateUserRow(firstSupabaseRow(payload));
 }
 
 async function supabaseGetUserByEmail(email) {
   const normalized = nullableString(email, 255)?.toLowerCase();
   if (!normalized) return null;
-  const user = await supabaseSelectSingle({ email: `eq.${normalized}` });
-  return user ? persistRefreshedCredits(user) : null;
+  const payload = await supabaseRequest("GET", "users", {
+    query: {
+      select: "*",
+      limit: 1,
+      email: `eq.${normalized}`
+    }
+  });
+  return hydrateUserRow(firstSupabaseRow(payload));
+}
+
+async function mapAndMaybeRepair(row) {
+  const mapped = mapUser(row);
+  if (!mapped.billingRepaired) return mapped;
+  try {
+    return await persistReconciledBilling(mapped, row);
+  } catch (error) {
+    console.warn("Could not persist reconciled billing for", mapped.id, error?.message || error);
+    return mapped;
+  }
 }
 
 async function supabaseListControllers(limit = 100) {
@@ -263,7 +385,8 @@ async function supabaseListControllers(limit = 100) {
       limit: safeLimit
     }
   });
-  return (Array.isArray(payload) ? payload : []).map(row => mapUser(row));
+  const rows = Array.isArray(payload) ? payload : [];
+  return Promise.all(rows.map(mapAndMaybeRepair));
 }
 
 async function supabaseSearchUsersByEmail(query, limit = 20) {
@@ -278,7 +401,8 @@ async function supabaseSearchUsersByEmail(query, limit = 20) {
       limit: safeLimit
     }
   });
-  return (Array.isArray(payload) ? payload : []).map(row => mapUser(row));
+  const rows = Array.isArray(payload) ? payload : [];
+  return Promise.all(rows.map(mapAndMaybeRepair));
 }
 
 async function supabaseListUsers({ query = "", limit = 100, offset = 0 } = {}) {
@@ -295,7 +419,8 @@ async function supabaseListUsers({ query = "", limit = 100, offset = 0 } = {}) {
     requestQuery.or = `(email.ilike.*${needle}*,display_name.ilike.*${needle}*)`;
   }
   const payload = await supabaseRequest("GET", "users", { query: requestQuery });
-  return (Array.isArray(payload) ? payload : []).map(row => mapUser(row));
+  const rows = Array.isArray(payload) ? payload : [];
+  return Promise.all(rows.map(mapAndMaybeRepair));
 }
 
 async function upsertUser(identity = {}) {
@@ -336,6 +461,7 @@ async function applyCreditState(userId, creditState) {
 }
 
 export {
+  CREDIT_METADATA_KEYS,
   applyCreditState,
   getUserByEmail,
   getUserById,
@@ -344,6 +470,7 @@ export {
   listControllers,
   listUsers,
   mapUser,
+  mergeUserMetadata,
   normalizeIdentity,
   patchUser,
   searchUsersByEmail,

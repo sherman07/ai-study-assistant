@@ -56,7 +56,11 @@
             ? ` <small>(${admin.escapeHtml(String(user.dailyCredits ?? "—"))}d / ${admin.escapeHtml(String(user.boostCredits ?? "—"))}b)</small>`
             : ""
         }</td>
-        <td>${admin.escapeHtml(user.subscriptionStatus || "inactive")}</td>
+        <td>${admin.escapeHtml(
+          user.plan === "free" && (user.subscriptionStatus || "inactive") === "inactive"
+            ? "—"
+            : (user.subscriptionStatus || "inactive")
+        )}</td>
         <td>${admin.escapeHtml(user.platformRole || "user")}</td>
         <td>
           <button type="button" class="admin-edit-btn" data-edit-user="${admin.escapeHtml(user.id)}">Edit</button>

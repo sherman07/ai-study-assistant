@@ -202,6 +202,52 @@ function isActiveProStatus(status) {
   return PRO_ACTIVE_STATUSES.has(normalizeSubscriptionStatus(status));
 }
 
+function defaultProPeriodEnd(plan, now = new Date()) {
+  const end = new Date(now);
+  if (normalizePlan(plan) === "pro_yearly") end.setFullYear(end.getFullYear() + 1);
+  else end.setMonth(end.getMonth() + 1);
+  return end.toISOString();
+}
+
+/**
+ * Keep plan / subscription_status / period end consistent for entitlements and
+ * admin reads. Pro plans must not remain stuck on the schema default
+ * `inactive` (which would deny Pro features despite a paid plan row).
+ * Free plans normalize an accidental `active`/`trialing` status to `inactive`.
+ */
+function reconcileBillingState(user = {}, now = new Date()) {
+  const plan = normalizePlan(user.plan || user.billingPlan || "free");
+  let subscriptionStatus = normalizeSubscriptionStatus(
+    user.subscriptionStatus || user.subscription_status
+  );
+  let currentPeriodEnd = user.currentPeriodEnd || user.current_period_end || null;
+  const repairs = [];
+
+  if (plan === "free") {
+    if (isActiveProStatus(subscriptionStatus)) {
+      subscriptionStatus = "inactive";
+      repairs.push("free_active_status");
+    }
+  } else if (plan.startsWith("pro_")) {
+    if (subscriptionStatus === "inactive") {
+      subscriptionStatus = "active";
+      repairs.push("pro_inactive_status");
+    }
+    if (!currentPeriodEnd && isActiveProStatus(subscriptionStatus)) {
+      currentPeriodEnd = defaultProPeriodEnd(plan, now);
+      repairs.push("pro_missing_period_end");
+    }
+  }
+
+  return {
+    plan,
+    subscriptionStatus,
+    currentPeriodEnd,
+    repaired: repairs.length > 0,
+    repairs
+  };
+}
+
 function subscriptionAccessPlan(plan, status) {
   const normalizedStatus = normalizeSubscriptionStatus(status);
   if (PRO_INACTIVE_STATUSES.has(normalizedStatus)) return "free";
@@ -209,20 +255,22 @@ function subscriptionAccessPlan(plan, status) {
 }
 
 function hasActivePro(user = {}, now = new Date()) {
-  const plan = normalizePlan(user.plan);
+  const reconciled = reconcileBillingState(user, now);
+  const plan = reconciled.plan;
   if (!plan.startsWith("pro_")) return false;
-  if (!isActiveProStatus(user.subscriptionStatus || user.subscription_status)) return false;
-  if (!user.currentPeriodEnd && !user.current_period_end) return true;
-  const periodEnd = new Date(user.currentPeriodEnd || user.current_period_end);
+  if (!isActiveProStatus(reconciled.subscriptionStatus)) return false;
+  if (!reconciled.currentPeriodEnd) return true;
+  const periodEnd = new Date(reconciled.currentPeriodEnd);
   return Number.isFinite(periodEnd.getTime()) && periodEnd > now;
 }
 
 function userEntitlements(user = {}) {
-  const pro = hasActivePro(user);
+  const reconciled = reconcileBillingState(user);
+  const pro = hasActivePro({ ...user, ...reconciled });
   return {
-    plan: normalizePlan(user.plan),
-    subscriptionStatus: normalizeSubscriptionStatus(user.subscriptionStatus || user.subscription_status),
-    currentPeriodEnd: user.currentPeriodEnd || user.current_period_end || null,
+    plan: reconciled.plan,
+    subscriptionStatus: reconciled.subscriptionStatus,
+    currentPeriodEnd: reconciled.currentPeriodEnd,
     isPro: pro,
     features: {
       basicStudy: true,
@@ -245,10 +293,12 @@ export {
   checkoutPlanByPrice,
   creditsForPlan,
   dailyCreditsForPlan,
+  defaultProPeriodEnd,
   hasActivePro,
   isActiveProStatus,
   normalizePlan,
   normalizeSubscriptionStatus,
+  reconcileBillingState,
   resolveUserCredits,
   subscriptionAccessPlan,
   userEntitlements,

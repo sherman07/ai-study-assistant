@@ -37,7 +37,7 @@ const config = {
     "SYNAPSE_DATA_CORS_ORIGINS",
     "http://127.0.0.1:5175,http://localhost:5175"
   ),
-  allowLocalDemoAuth: envBool("ALLOW_LOCAL_DEMO_AUTH", true),
+  allowLocalDemoAuth: envBool("ALLOW_LOCAL_DEMO_AUTH", false),
   internalApiToken: envString("SYNAPSE_INTERNAL_API_TOKEN"),
   supabaseUrl: envString("SUPABASE_URL"),
   supabaseAnonKey: envString("SUPABASE_ANON_KEY"),

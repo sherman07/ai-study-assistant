@@ -808,7 +808,7 @@ export const useFocusRoomStore = create((set, get) => {
         view: "session",
         route: "session",
         ...timerStateFields("running", now),
-        audioPlaying: true,
+        audioPlaying: state.audioPlaying,
         summaryRecord: null,
         elapsedSeconds,
         startedAt: !state.startedAt || shouldRestart ? new Date(now).toISOString() : state.startedAt,

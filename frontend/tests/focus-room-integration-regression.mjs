@@ -74,6 +74,8 @@ const focusRoomController = read("frontend/src/focus-room/controller.js");
 const focusRoomQueryClient = read("frontend/src/focus-room/queryClient.js");
 const focusRoomStore = read("frontend/src/focus-room/hooks/useFocusRoomStore.js");
 const focusRoomPage = read("frontend/src/focus-room/components/FocusRoomPage.jsx");
+const focusModeHud = read("frontend/src/focus-room/components/FocusModeHUD.jsx");
+const focusModeControls = read("frontend/src/focus-room/components/FocusModeControls.jsx");
 const topFocusNav = read("frontend/src/focus-room/components/TopFocusNav.jsx");
 const bottomControlDock = read("frontend/src/focus-room/components/BottomControlDock.jsx");
 const focusTimerCard = read("frontend/src/focus-room/components/TimerCard.jsx");
@@ -182,8 +184,24 @@ assert.ok(
   "Standalone Focus Room page should not boot the loader unconditionally while disabled"
 );
 assert.ok(
-  focusRoomHtml.includes("styles/09-focus-room.css?v=focus-room-glass-v24"),
-  "Focus Room HTML should cache-bust the CSS after portal stacking fixes"
+  focusRoomHtml.includes("styles/09-focus-room.css?v=focus-room-glass-v27"),
+  "Focus Room HTML should cache-bust enhanced Focus Mode and scene-motion styles"
+);
+assert.ok(
+  focusRoomPage.includes('className="focus-mode-exit-hit-area"'),
+  "Enhanced Focus Mode should retain the original visible exit affordance"
+);
+assert.ok(
+  focusModeHud.includes("compact-focus-mode-card enhanced-focus-mode-card"),
+  "Enhanced Focus Mode should build on the original compact timer card instead of replacing its UI"
+);
+assert.ok(
+  focusModeHud.includes("compact-focus-card-top") && focusModeHud.includes("compact-focus-status") && focusModeHud.includes("compact-focus-progress"),
+  "Enhanced Focus Mode should retain the original compact timer markup"
+);
+assert.ok(
+  !focusModeControls.includes("Add five minutes") && !focusModeControls.includes("AlarmClockPlus"),
+  "Focus Mode should not add a duration-changing control"
 );
 assert.ok(
   focusRoomHtml.includes("static-compatible-loader.js?v=focus-room-loader-v13"),
@@ -193,8 +211,8 @@ assert.ok(focusRoomHtml.includes("styles/09-focus-room.css"), "Standalone Focus 
 assert.ok(!focusRoomHtml.includes("react@18"), "Standalone Focus Room should rely on Vite/npm React, not CDN React");
 assert.ok(focusRoomStaticLoader.includes("focus-room-static.js"), "Focus Room static loader should import the prebuilt static bundle");
 assert.ok(
-  focusRoomStaticLoader.includes("focus-room-static.js?v=focus-room-static-v13"),
-  "Focus Room loader should cache-bust the static bundle after portal stacking fixes"
+  focusRoomStaticLoader.includes("focus-room-static.js?v=focus-room-static-v16"),
+  "Focus Room loader should cache-bust the enhanced Focus Room bundle"
 );
 assert.ok(
   !focusRoomStaticLoader.includes("./standalone.js"),

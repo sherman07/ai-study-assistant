@@ -16,10 +16,15 @@ globalThis.localStorage = {
 const data = await import("../src/focus-room/data.js");
 
 assert.equal(data.FOCUS_ROOM_SESSION_KEY, "synapse.focusRoom.sessions.v1");
-assert.equal(data.FOCUS_ROOM_SCENES.length, 13);
+assert.equal(data.FOCUS_ROOM_SCENES.length, 8);
 assert.ok(data.FOCUS_ROOM_SCENES.every(scene => scene.id && scene.name && scene.image), "each scene should have an image-backed identity");
 assert.equal(data.FOCUS_ROOM_GALLERY_SCENES.length, 8, "the Innook-style setup gallery should have a complete two-row scene set");
-assert.equal(data.FOCUS_ROOM_GALLERY_SCENES[0].name, "清晨窗边");
+assert.deepEqual(
+  data.FOCUS_ROOM_GALLERY_SCENES.map(scene => scene.name),
+  ["Morning Window", "Cabin Twilight", "Last Light Lounge", "Garden Café", "Sunset Classroom", "Tokyo Night", "Snow Window Cabin", "Bamboo Cabin"]
+);
+assert.ok(data.FOCUS_ROOM_GALLERY_SCENES.every(scene => scene.image.includes("/original/")), "all selectable scenes must use original Synapse artwork");
+assert.ok(data.FOCUS_ROOM_GALLERY_SCENES.every(scene => scene.motionProfile), "all selectable scenes must have a motion profile");
 
 globalThis.getSynapseFocusRoomMaterials = () => [];
 globalThis.getSynapseFocusRoomCurrentMaterial = () => null;

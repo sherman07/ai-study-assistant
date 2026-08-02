@@ -150,7 +150,7 @@ export function FocusRoomPage() {
             exit={{ opacity: 0, y: -8 }}
             transition={spring}
           >
-            {!focusMode ? <TopFocusNav onWorkspace={showWorkspace} onOpenTrail={() => setUtilityPanel("trail")} onOpenCompanion={() => setUtilityPanel("companion")} onOpenSettings={() => setUtilityPanel("settings")} onExit={() => setExitDialog(true)} /> : null}
+            {!focusMode ? <TopFocusNav onWorkspace={showWorkspace} onOpenTrail={() => setUtilityPanel("trail")} onOpenCompanion={() => setUtilityPanel("companion")} onOpenSettings={() => setUtilityPanel("settings")} onExit={() => setExitDialog(true)} /> : <button type="button" className="focus-mode-exit-hit-area" onClick={() => setFocusMode(false)}>Exit Focus Mode</button>}
             <section className={`focus-session-stage ${focusMode ? "is-focus-mode" : ""}`.trim()}>
               <div className="focus-session-grid">
                 <PomodoroTimer />

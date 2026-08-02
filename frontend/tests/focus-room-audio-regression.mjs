@@ -55,7 +55,7 @@ useFocusRoomStore.getState().applyAudioPreset("missing-preset");
 assert.equal(useFocusRoomStore.getState().musicType, "Deep Focus");
 assert.equal(useFocusRoomStore.getState().ambientSound, "White Noise");
 
-const rainyCafe = data.FOCUS_ROOM_SCENES.find(scene => scene.id === "rainy-cafe");
+const rainyCafe = data.FOCUS_ROOM_SCENES.find(scene => scene.id === "garden-cafe");
 assert.equal(rainyCafe.ambientSound, "Cafe Rain");
 const rainyCafeProfile = data.getFocusRoomAudioProfile(rainyCafe);
 assert.equal(rainyCafeProfile.musicTrack.label, "Lo-fi");

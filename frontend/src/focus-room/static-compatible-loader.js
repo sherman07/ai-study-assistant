@@ -46,6 +46,6 @@ window.addEventListener("unhandledrejection", event => {
   window.setTimeout(() => renderFocusRoomLoadError(event.reason), 0);
 });
 
-import(/* @vite-ignore */ "../../assets/focus-room-app/focus-room-static.js?v=focus-room-static-v13")
+import(/* @vite-ignore */ "../../assets/focus-room-app/focus-room-static.js?v=focus-room-static-v16")
   .then(verifyFocusRoomMounted)
   .catch(renderFocusRoomLoadError);

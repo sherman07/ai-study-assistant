@@ -2,7 +2,9 @@ import * as Slider from "@radix-ui/react-slider";
 import { Volume2, Waves } from "lucide-react";
 import {
   FOCUS_ROOM_AMBIENT_SOUNDS,
+  FOCUS_ROOM_AUDIO_PRESETS,
   FOCUS_ROOM_MUSIC_TRACKS,
+  focusRoomAudioPresetForConfig,
   getFocusRoomAudioProfile
 } from "../data.js";
 import { useFocusRoomStore } from "../hooks/useFocusRoomStore.js";
@@ -39,12 +41,29 @@ export function SoundControlPanel({ audioState }) {
   const ambientVolume = useFocusRoomStore(state => state.ambientVolume);
   const audioPlaying = useFocusRoomStore(state => state.audioPlaying);
   const setSound = useFocusRoomStore(state => state.setSound);
+  const applyAudioPreset = useFocusRoomStore(state => state.applyAudioPreset);
   const toggleAudio = useFocusRoomStore(state => state.toggleAudio);
   const profile = getFocusRoomAudioProfile({ musicType, ambientSound, musicVolume, ambientVolume });
+  const activePreset = focusRoomAudioPresetForConfig({ musicType, ambientSound });
   const ambientTitle = profile.ambientLayers.map(layer => layer.title).filter(Boolean).join(" + ");
 
   return (
     <div className="sound-panel">
+      <div className="sound-preset-list" aria-label="Focus audio presets">
+        {FOCUS_ROOM_AUDIO_PRESETS.map(preset => (
+          <button
+            key={preset.id}
+            type="button"
+            className={activePreset?.id === preset.id ? "is-active" : ""}
+            aria-pressed={activePreset?.id === preset.id}
+            title={preset.description}
+            onClick={() => applyAudioPreset(preset.id)}
+          >
+            <strong>{preset.label}</strong>
+            <small>{preset.description}</small>
+          </button>
+        ))}
+      </div>
       <label className="focus-field">
         Music selector
         <select value={musicType} onChange={event => setSound("musicType", event.target.value)}>

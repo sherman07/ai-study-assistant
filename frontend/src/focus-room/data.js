@@ -75,6 +75,57 @@ const FOCUS_ROOM_MUSIC_TRACKS = [
   }
 ];
 
+const FOCUS_ROOM_AUDIO_PRESETS = Object.freeze([
+  {
+    id: "soft-piano",
+    label: "Soft Piano",
+    musicType: "Piano",
+    ambientSound: "Nature",
+    description: "Gentle keys and light outdoor calm for reading."
+  },
+  {
+    id: "lofi-cafe",
+    label: "Lo-fi Café",
+    musicType: "Lo-fi",
+    ambientSound: "Cafe Rain",
+    description: "A steady beat and café rain for writing and exercises."
+  },
+  {
+    id: "nature-flow",
+    label: "Nature Flow",
+    musicType: "Deep Focus",
+    ambientSound: "Nature",
+    description: "Restrained music with forest ambience for calm concentration."
+  },
+  {
+    id: "warm-ambience",
+    label: "Warm Ambience",
+    musicType: "Minimal",
+    ambientSound: "Rain",
+    description: "Minimal texture and soft rain for evening study."
+  },
+  {
+    id: "deep-focus",
+    label: "Deep Focus",
+    musicType: "Deep Focus",
+    ambientSound: "White Noise",
+    description: "A stable focus bed for difficult problem solving."
+  }
+]);
+
+function focusRoomAudioPreset(id = "") {
+  const value = String(id || "");
+  return FOCUS_ROOM_AUDIO_PRESETS.find(preset => preset.id === value)
+    || FOCUS_ROOM_AUDIO_PRESETS[FOCUS_ROOM_AUDIO_PRESETS.length - 1];
+}
+
+function focusRoomAudioPresetForConfig(source = {}) {
+  return FOCUS_ROOM_AUDIO_PRESETS.find(preset => (
+    preset.musicType === String(source?.musicType || "")
+    && preset.ambientSound === String(source?.ambientSound || "")
+  )) || null;
+}
+
 const AMBIENT_LAYERS = {
   nature: {
     id: "nature-forest",
@@ -1047,6 +1098,7 @@ export {
   FOCUS_ROOM_ACTIVE_SESSION_KEY,
   FOCUS_ROOM_DRAFT_KEY,
   FOCUS_ROOM_AMBIENT_SOUNDS,
+  FOCUS_ROOM_AUDIO_PRESETS,
   FOCUS_ROOM_DURATIONS,
   FOCUS_ROOM_GALLERY_SCENES,
   FOCUS_ROOM_MUSIC_TRACKS,
@@ -1071,6 +1123,8 @@ export {
   saveFocusRoomActiveSession,
   saveFocusRoomSession,
   focusRoomLegacyTimerStatus,
+  focusRoomAudioPreset,
+  focusRoomAudioPresetForConfig,
   normalizeFocusRoomTimerSnapshot,
   normalizeFocusRoomTimerState,
   writeFocusRoomActiveSession,

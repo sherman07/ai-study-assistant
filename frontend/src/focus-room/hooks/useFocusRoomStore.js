@@ -2,6 +2,7 @@ import { create } from "zustand/react";
 import {
   clearFocusRoomActiveSession,
   FOCUS_ROOM_SCENES,
+  focusRoomAudioPreset,
   formatFocusRoomDuration,
   getFocusRoomMaterial,
   focusRoomLegacyTimerStatus,
@@ -825,6 +826,18 @@ export const useFocusRoomStore = create((set, get) => {
           const channel = String(key).slice("audioChannel:".length);
           next = { audioChannels: { ...state.audioChannels, [channel]: clampVolume(value, state.audioChannels?.[channel] ?? 0) } };
         }
+        persistDraftFromState({ ...state, ...next });
+        return next;
+      });
+    },
+
+    applyAudioPreset(presetId) {
+      set(state => {
+        const preset = focusRoomAudioPreset(presetId);
+        const next = {
+          musicType: preset.musicType,
+          ambientSound: preset.ambientSound
+        };
         persistDraftFromState({ ...state, ...next });
         return next;
       });

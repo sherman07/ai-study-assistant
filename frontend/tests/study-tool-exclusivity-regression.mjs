@@ -56,14 +56,22 @@ assert.doesNotMatch(
   "renderMindMap must not re-select the Mind Map button after another tool is selected"
 );
 assert.equal(
-  (studyToolsSource.match(/className: "tool-switch-btn active"/g) || []).length,
+  (studyToolsSource.match(/active:\s*true/g) || []).length,
   1,
-  "StudyTools should provide one initial active tool button"
+  "StudyTools should declare exactly one initially active tool"
 );
-assert.equal(
-  (studyToolsSource.match(/id: "toolPanelMindMap", className: "tool-panel active"/g) || []).length,
-  1,
-  "StudyTools should provide one initial active tool panel"
+assert.ok(
+  studyToolsSource.includes('buttonId: "toolBtnMindMap"') && studyToolsSource.includes("active: true"),
+  "StudyTools should mark Mind Map as the initial active tool button"
+);
+assert.ok(
+  studyToolsSource.includes('panelId: "toolPanelMindMap"') &&
+    /className:\s*`tool-panel\$\{tool\.active \? " active" : ""\}`/.test(studyToolsSource),
+  "StudyTools should render tool panels with a dynamic active class"
+);
+assert.ok(
+  /className:\s*`tool-switch-btn\$\{tool\.active \? " active" : ""\}`/.test(studyToolsSource),
+  "StudyTools should render tool buttons with a dynamic active class"
 );
 
 const legacySources = fs.readdirSync(legacyControllerRoot)

@@ -31,9 +31,9 @@ for (const [tool, source] of [
   assert.match(source, /actionLabel:/, `${tool} has an explicit generate action label`);
 }
 
-const mindMapBlock = studyTools.match(/id: "toolPanelMindMap"[\s\S]*?id: "toolPanelBroadcast"/)?.[0] || "";
-assert.ok(mindMapBlock, "Mind Map panel remains present");
-assert.doesNotMatch(mindMapBlock, /data-study-tool-generate/, "Mind Map remains the only tool without a generate CTA");
+const mindMapTool = studyTools.match(/id:\s*"mindmap"[\s\S]*?id:\s*"flashcards"/)?.[0] || "";
+assert.ok(mindMapTool, "Mind Map panel remains present in the StudyTools catalogue");
+assert.doesNotMatch(mindMapTool, /data-study-tool-generate/, "Mind Map remains the only tool without a generate CTA");
 assert.match(studyTools, /data-study-tool-generate.*broadcast/, "Broadcast initial state has a generate CTA");
 assert.match(mastery, /function generateExamReadiness\(/, "Exam Readiness has an explicit generation action");
 

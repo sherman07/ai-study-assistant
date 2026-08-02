@@ -10,7 +10,7 @@ import { TopFocusNav } from "./TopFocusNav.jsx";
 import { BottomControlDock } from "./BottomControlDock.jsx";
 import { SessionSummaryModal } from "./SessionSummaryModal.jsx";
 import { FocusRoomDrawers } from "./FocusRoomDrawers.jsx";
-import { CompactFocusTimer } from "./CompactFocusTimer.jsx";
+import { FocusModeHUD } from "./FocusModeHUD.jsx";
 import { GlassButton } from "./GlassButton.jsx";
 import { useAudioSettings } from "../hooks/useAudioSettings.js";
 import { useFocusRoomStore } from "../hooks/useFocusRoomStore.js";
@@ -88,10 +88,8 @@ export function FocusRoomPage() {
   useEffect(() => {
     const onKeyDown = event => {
       if (event.key !== "Escape") return;
-      if (focusMode) {
-        event.preventDefault();
-        setFocusMode(false);
-      } else if (utilityPanel) {
+      if (focusMode) return;
+      if (utilityPanel) {
         setUtilityPanel("");
       } else if (exitDialog) {
         setExitDialog(false);
@@ -152,13 +150,13 @@ export function FocusRoomPage() {
             exit={{ opacity: 0, y: -8 }}
             transition={spring}
           >
-            {!focusMode ? <TopFocusNav onWorkspace={showWorkspace} onOpenTrail={() => setUtilityPanel("trail")} onOpenCompanion={() => setUtilityPanel("companion")} onOpenSettings={() => setUtilityPanel("settings")} onExit={() => setExitDialog(true)} /> : <button type="button" className="focus-mode-exit-hit-area" onClick={() => setFocusMode(false)}>Exit Focus Mode</button>}
+            {!focusMode ? <TopFocusNav onWorkspace={showWorkspace} onOpenTrail={() => setUtilityPanel("trail")} onOpenCompanion={() => setUtilityPanel("companion")} onOpenSettings={() => setUtilityPanel("settings")} onExit={() => setExitDialog(true)} /> : null}
             <section className={`focus-session-stage ${focusMode ? "is-focus-mode" : ""}`.trim()}>
               <div className="focus-session-grid">
                 <PomodoroTimer />
               </div>
             </section>
-            {!focusMode ? <BottomControlDock audioState={audioState} onFocusMode={() => setFocusMode(true)} /> : <CompactFocusTimer onExit={() => setFocusMode(false)} />}
+            {!focusMode ? <BottomControlDock audioState={audioState} onFocusMode={() => setFocusMode(true)} /> : <FocusModeHUD audioState={audioState} onExit={() => setFocusMode(false)} />}
             {!focusMode ? <FocusRoomDrawers audioState={audioState} utilityPanel={utilityPanel} onClose={() => setUtilityPanel("")} onWorkspace={showWorkspace} /> : null}
             <SessionSummaryModal />
             <FocusRoomExitDialog open={exitDialog} onClose={() => setExitDialog(false)} onConfirm={finishSession} />

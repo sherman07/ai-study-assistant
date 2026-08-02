@@ -11,9 +11,12 @@ assert.ok(focusMode, "Focus Mode must expose a testable interaction contract");
 
 const {
   FOCUS_MODE_REVEAL_MS,
+  focusModeAddedDuration,
+  focusModeTaskProgress,
   focusModeTopic,
   focusShortcutAction,
-  isEditableFocusTarget
+  isEditableFocusTarget,
+  shouldHideFocusControls
 } = focusMode;
 
 assert.equal(focusModeTopic({ materialTitle: "Vector Calculus" }), "Vector Calculus");
@@ -37,5 +40,23 @@ assert.equal(focusShortcutAction({ key: "Escape", target: body }), "escape");
 assert.equal(focusShortcutAction({ key: "x", target: body }), "");
 assert.equal(focusShortcutAction({ key: "n", target: { tagName: "TEXTAREA" } }), "");
 assert.equal(FOCUS_MODE_REVEAL_MS, 2800);
+
+assert.deepEqual(focusModeAddedDuration(1500), { minutes: 30, seconds: 0 });
+assert.deepEqual(focusModeAddedDuration(1230), { minutes: 25, seconds: 30 });
+assert.deepEqual(focusModeAddedDuration(0), { minutes: 5, seconds: 0 });
+
+assert.equal(shouldHideFocusControls({ pinned: false, popoverOpen: false, focusWithin: false }), true);
+assert.equal(shouldHideFocusControls({ pinned: true, popoverOpen: false, focusWithin: false }), false);
+assert.equal(shouldHideFocusControls({ pinned: false, popoverOpen: true, focusWithin: false }), false);
+assert.equal(shouldHideFocusControls({ pinned: false, popoverOpen: false, focusWithin: true }), false);
+
+assert.deepEqual(
+  focusModeTaskProgress(
+    [{ task: "Read notes" }, { task: "Practice examples" }, { task: "Review errors" }],
+    ["Practice examples"]
+  ),
+  { completed: 1, total: 3 }
+);
+assert.deepEqual(focusModeTaskProgress([], []), { completed: 0, total: 0 });
 
 console.log("focus room enhanced mode regression passed");

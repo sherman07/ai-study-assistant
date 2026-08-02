@@ -21,3 +21,26 @@ export function focusShortcutAction(event = {}) {
 export function focusModeTopic(material) {
   return String(material?.materialTitle || "").trim() || "Focus Room";
 }
+
+export function focusModeAddedDuration(totalDurationSeconds, additionalSeconds = 300) {
+  const current = Math.max(0, Math.floor(Number(totalDurationSeconds) || 0));
+  const added = Math.max(0, Math.floor(Number(additionalSeconds) || 0));
+  const nextTotal = current + added;
+  return {
+    minutes: Math.floor(nextTotal / 60),
+    seconds: nextTotal % 60
+  };
+}
+
+export function shouldHideFocusControls({ pinned = false, popoverOpen = false, focusWithin = false } = {}) {
+  return !pinned && !popoverOpen && !focusWithin;
+}
+
+export function focusModeTaskProgress(studyPlan, completedTasks) {
+  const plan = Array.isArray(studyPlan) ? studyPlan : [];
+  const completed = new Set(Array.isArray(completedTasks) ? completedTasks : []);
+  return {
+    completed: plan.filter(item => completed.has(String(item?.task || ""))).length,
+    total: plan.length
+  };
+}

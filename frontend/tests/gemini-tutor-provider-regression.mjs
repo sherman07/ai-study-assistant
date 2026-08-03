@@ -41,6 +41,12 @@ assert.ok(uploadFrontend.includes("refreshBackendAiStatus"), "frontend should pr
 assert.ok(uploadFrontend.includes("geminiConfigured"), "frontend should track whether Gemini is configured");
 assert.ok(app.includes("chat_model_for_active_provider"), "app must export chat model helper into runtime globals");
 assert.ok(app.includes("gemini_request_is_configured"), "app must export Gemini readiness helper");
-assert.ok(/mindmap-revert-v1|notes-taller-v2|notes-responsive-v2|credits-live-v2/.test(index), "workspace assets should cache-bust after Gemini/web research fix");
+assert.ok(
+  index.includes("notes-taller-v2")
+    || index.includes("study-tools-guards-v1")
+    || index.includes("legacy-boot-fix-v1")
+    || index.includes("a11y-skip-v1"),
+  "workspace assets should cache-bust after Gemini/web research fix"
+);
 
 console.log("gemini-tutor-provider-regression: passed");

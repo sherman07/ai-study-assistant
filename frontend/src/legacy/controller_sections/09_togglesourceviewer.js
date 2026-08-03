@@ -1349,6 +1349,27 @@ function saveHistoryEntry(payload) {
 }
 
 let historySyncPromise = null;
+let historySyncDegraded = false;
+let historySyncDegradedMessage = "";
+
+function setHistorySyncDegraded(active, message = "") {
+  historySyncDegraded = Boolean(active);
+  historySyncDegradedMessage = active
+    ? String(message || "Cloud history is temporarily unavailable. Notes on this device still work.")
+    : "";
+  try {
+    if (typeof window !== "undefined") {
+      window.__synapseHistorySyncDegraded = historySyncDegraded;
+      window.__synapseHistorySyncDegradedMessage = historySyncDegradedMessage;
+    }
+  } catch {
+    // Ignore restricted window access in tests.
+  }
+}
+
+function isHistorySyncDegraded() {
+  return Boolean(historySyncDegraded);
+}
 
 function historyIdentityKeys(item = {}) {
   const keys = [];
@@ -1445,8 +1466,17 @@ async function syncHistoryWithDataApi(limit = 50) {
     let remoteItems = [];
     try {
       remoteItems = await fetchGeneratedContentFromDataApi(limit);
+      setHistorySyncDegraded(false);
     } catch (error) {
+      const degraded = Boolean(error?.degraded) || Number(error?.status) === 503;
+      setHistorySyncDegraded(
+        degraded,
+        degraded
+          ? "Cloud history is temporarily unavailable. Notes saved on this device still appear here."
+          : ""
+      );
       console.warn("Could not sync generated note history from the data API:", error);
+      renderHistory();
       return getHistory();
     }
 
@@ -1542,6 +1572,7 @@ function renderHistoryItemsHTML(items, jobs = [], broadcastJobs = [], filter = "
     return `
       <div class="history-empty-state">
         <p class="history-empty">No notes or companion chats yet.</p>
+        ${isHistorySyncDegraded() ? `<p class="history-empty-degraded" role="status">${escapeHTML(historySyncDegradedMessage)}</p>` : ""}
         <button class="history-empty-cta" type="button" onclick="setLearningExperienceMode('materials')">
           Upload material to start
         </button>

@@ -378,12 +378,10 @@ function cancelGenerationJob(jobId) {
   const id = String(jobId || "");
   const controller = runtimeGenerationJobControllers.get(id);
   if (controller) controller.abort();
+  // Keep in-memory and IndexedDB retry payloads so Cancel → Retry can restart
+  // without forcing the student to re-upload the same files.
   runtimeGenerationJobContexts.delete(id);
   runtimeGenerationJobControllers.delete(id);
-  runtimeGenerationJobRetryPayloads.delete(id);
-  if (typeof clearUploadRetryPayload === "function") {
-    Promise.resolve(clearUploadRetryPayload(id)).catch(() => {});
-  }
   if (typeof refundGenerationJobCredits === "function") {
     Promise.resolve(refundGenerationJobCredits(id, "cancelled")).catch(() => {});
   }
@@ -391,7 +389,7 @@ function cancelGenerationJob(jobId) {
     jobId: id,
     status: "cancelled",
     progress: 0,
-    message: "Generation cancelled",
+    message: "Generation cancelled. You can retry with the same files.",
     error: ""
   });
   processGenerationJobQueue();

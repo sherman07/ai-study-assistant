@@ -1340,7 +1340,19 @@ async function confirmAccountDeletion() {
 
 async function buildClientFingerprint(rawSource, sourceLinks = []) {
   const language = preferredLanguage ? preferredLanguage.value : "auto";
-  const hashParts = [`language:${language}`, `source:${String(rawSource || "").trim()}`];
+  const detail = detailLevel ? detailLevel.value : "auto";
+  const mode = promptMode ? promptMode.value : "professor_mode";
+  const noteLengthSelect = document.getElementById("noteLength");
+  const noteLength = noteLengthSelect ? noteLengthSelect.value : "standard_notes";
+  const provider = aiProvider ? normaliseAiProvider(aiProvider.value) : "";
+  const hashParts = [
+    `language:${language}`,
+    `detail:${detail}`,
+    `prompt:${mode}`,
+    `noteLength:${noteLength}`,
+    `provider:${provider}`,
+    `source:${String(rawSource || "").trim()}`
+  ];
   uniqueSourceLinks(sourceLinks).forEach(link => {
     hashParts.push(`link:${link}`);
   });

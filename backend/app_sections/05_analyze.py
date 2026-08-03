@@ -185,7 +185,15 @@ async def analyze_materials(
         try:
             parsed_links = json.loads(links) if links else []
         except Exception:
-            parsed_links = []
+            return analysis_error_response(
+                "The links field must be a valid JSON array of URLs.",
+                400,
+            )
+        if links and not isinstance(parsed_links, list):
+            return analysis_error_response(
+                "The links field must be a JSON array of URLs.",
+                400,
+            )
 
         has_file_sources = any(
             str(unit.get("source_identity") or "").startswith("file:")
@@ -263,6 +271,22 @@ async def analyze_materials(
                 "Synapse could not access readable captions for this YouTube source "
                 f"({labels}). To protect note quality, it will not generate study notes from a title or player alone. "
                 "Choose a video with captions, upload a transcript, or paste the relevant transcript text.",
+                422,
+            )
+
+        inaccessible_sources = [
+            unit for unit in source_units
+            if str(unit.get("source_identity") or "").startswith("inaccessible:")
+        ]
+        if inaccessible_sources and len(inaccessible_sources) == len(source_units):
+            labels = ", ".join(
+                unit.get("title_candidate") or unit.get("display_name") or "webpage"
+                for unit in inaccessible_sources
+            )
+            return analysis_error_response(
+                "Synapse could not access this webpage source "
+                f"({labels}). To protect note quality, it will not generate study notes from an access failure alone. "
+                "Check the URL, try again later, or upload / paste the readable source text.",
                 422,
             )
 

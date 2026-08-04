@@ -12,7 +12,7 @@ export function loadLegacyController() {
   const existingController = document.querySelector("script[data-synapse-controller]");
   if (existingController) return existingController;
 
-  const version = "settings-modal-pattern-20260720-06";
+  const version = "history-hydrate-v1";
   const controllerScript = document.createElement("script");
   controllerScript.type = "module";
   // This must remain a browser-served module URL. Vite turns import.meta-relative

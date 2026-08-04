@@ -2152,7 +2152,7 @@ async def generate_visual_image_guide(data: dict):
         title = clean_quiz_string(data.get("title"), stored_title or "Study Material")
         context = quiz_summary_context(data)
         if not context:
-            return {"error": "No generated notes are available for visual image guide generation yet."}
+            return analysis_error_response("No generated notes are available for visual image guide generation yet.", 400)
 
         requested_language = data.get("preferred_language", "auto")
         preferred_language = (
@@ -2630,7 +2630,7 @@ async def generate_visual_guide(data: dict):
         source_context = visual_guide_source_context(data)
         figure_context = visual_guide_figure_context(data)
         if not context:
-            return {"error": "No generated notes are available for visual guide generation yet."}
+            return analysis_error_response("No generated notes are available for visual guide generation yet.", 400)
         requested_language = data.get("preferred_language", "auto")
         preferred_language = (
             resolve_generation_language_key("auto", context)

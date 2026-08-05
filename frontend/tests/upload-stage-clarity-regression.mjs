@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -35,5 +36,24 @@ for (const contract of [
   'role="status"',
   'aria-live="polite"',
 ]) assert.ok(html.includes(contract), `missing rendered contract: ${contract}`);
+
+const css = fs.readFileSync(path.join(root, "frontend/styles/01-section.css"), "utf8");
+
+for (const selector of [
+  ".upload-page-header",
+  ".upload-page-copy h1",
+  ".upload-source-workspace",
+  ".upload-source-section",
+  ".drop-zone:focus-visible",
+  "@media (max-width: 850px)",
+]) assert.ok(css.includes(selector), `missing upload style: ${selector}`);
+
+assert.ok(css.includes("min-height: 220px"), "desktop drop zone should be compact");
+assert.equal(css.includes(".upload-guidance {"), false, "retired step styling should be removed");
+assert.match(
+  css,
+  /@media \(max-width: 850px\)[\s\S]*?\.upload-stage\s*\{[\s\S]*?gap: 16px;/,
+  "upload workspace should tighten into the mobile layout"
+);
 
 console.log("upload stage clarity regression passed");

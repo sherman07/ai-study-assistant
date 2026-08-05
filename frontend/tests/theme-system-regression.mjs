@@ -7,15 +7,27 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const script = fs.readFileSync(path.join(root, "frontend/theme-bootstrap.js"), "utf8");
 
-function createHarness({ systemDark = false } = {}) {
+function createHarness({ systemDark = false, focusRoomStandalone = false } = {}) {
   const store = new Map();
   const rootElement = { dataset: {}, style: {} };
+  const bodyClasses = new Set(focusRoomStandalone ? ["focus-room-standalone"] : []);
   const body = {
     classList: {
-      toggle() {},
-      contains() { return false; },
-      add() {},
-      remove() {}
+      contains(name) {
+        return bodyClasses.has(name);
+      },
+      toggle(name, force) {
+        if (force === true) bodyClasses.add(name);
+        else if (force === false) bodyClasses.delete(name);
+        else if (bodyClasses.has(name)) bodyClasses.delete(name);
+        else bodyClasses.add(name);
+      },
+      add(name) {
+        bodyClasses.add(name);
+      },
+      remove(name) {
+        bodyClasses.delete(name);
+      }
     }
   };
   const meta = { content: "" };
@@ -46,6 +58,18 @@ const harness = createHarness();
 assert.equal(harness.window.SynapseTheme.getPreference(), "system", "System is the safe default preference");
 assert.equal(harness.rootElement.dataset.theme, "light", "System resolves to light when the OS is light");
 assert.equal(harness.rootElement.dataset.themePreference, "system", "Root stores the user preference separately from the resolved theme");
+
+const focusRoomHarness = createHarness({ focusRoomStandalone: true });
+assert.equal(
+  focusRoomHarness.rootElement.dataset.theme,
+  "dark",
+  "Focus Room standalone documents stay dark even when the OS preference is light"
+);
+assert.equal(
+  focusRoomHarness.rootElement.dataset.themePreference,
+  "system",
+  "Focus Room still records the account preference separately from the forced dark resolve"
+);
 
 harness.window.SynapseTheme.setPreference("dark");
 assert.equal(harness.rootElement.dataset.theme, "dark", "Explicit dark applies to the root HTML element");

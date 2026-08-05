@@ -44,7 +44,7 @@ const serverEnvExample = read("server/.env.example");
 const backendEnvExample = read("backend/.env.example");
 const geminiEnvExample = read("backend/.env.gemini.example");
 const broadcastAssetVersion = "notes-taller-v2";
-const legacyControllerAssetVersion = "settings-modal-pattern-20260720-06";
+const legacyControllerAssetVersion = "study-tools-guards-v1";
 
 assert.ok(rootIndex.includes("frontend/landing.html"), "root index should keep the landing page as the public entry");
 assert.ok(appShim.includes("frontend/index.html"), "app shim should open the study workspace frontend");

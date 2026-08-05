@@ -2152,7 +2152,7 @@ async def generate_visual_image_guide(data: dict):
         title = clean_quiz_string(data.get("title"), stored_title or "Study Material")
         context = quiz_summary_context(data)
         if not context:
-            return {"error": "No generated notes are available for visual image guide generation yet."}
+            return analysis_error_response("No generated notes are available for visual image guide generation yet.", 400)
 
         requested_language = data.get("preferred_language", "auto")
         preferred_language = (
@@ -2297,7 +2297,7 @@ async def generate_visual_image_guide(data: dict):
             "created": parsed.get("created"),
         }
     except Exception as error:
-        return {"error": str(error)}
+        return analysis_error_response(str(error), analysis_exception_status(error))
 
 
 def fetch_image_data_url(url: str, max_bytes: int = 320_000) -> str:
@@ -2623,14 +2623,14 @@ def normalise_visual_guide(parsed: dict, title: str, context: str, sources: List
 @app.post("/visual-guide/generate")
 async def generate_visual_guide(data: dict):
     try:
-        require_text_ai()
         data = data or {}
         title = clean_quiz_string(data.get("title"), stored_title or "Study Material")
         context = quiz_summary_context(data)
         source_context = visual_guide_source_context(data)
         figure_context = visual_guide_figure_context(data)
         if not context:
-            return {"error": "No generated notes are available for visual guide generation yet."}
+            return analysis_error_response("No generated notes are available for visual guide generation yet.", 400)
+        require_text_ai()
         requested_language = data.get("preferred_language", "auto")
         preferred_language = (
             resolve_generation_language_key("auto", context)
@@ -2743,7 +2743,7 @@ Available source figures:
         )
         return guide
     except Exception as error:
-        return {"error": str(error)}
+        return analysis_error_response(str(error), analysis_exception_status(error))
 
 
 # -----------------------------------------------------------------------------

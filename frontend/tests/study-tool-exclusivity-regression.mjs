@@ -1,15 +1,19 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
 
 const switchToolSource = read("frontend/src/legacy/controller_sections/02_openvisualmodal.js");
 const mindMapSource = read("frontend/src/legacy/controller_sections/06_deleteflashcarddeck.js");
-const studyToolsSource = read("frontend/src/react/components/StudyTools.js");
 const legacyControllerRoot = path.join(repoRoot, "frontend/src/legacy/controller_sections");
+
+globalThis.React = await import("react");
+const { renderToStaticMarkup } = await import("react-dom/server");
+const { StudyTools } = await import(pathToFileURL(path.join(repoRoot, "frontend/src/react/components/StudyTools.js")));
+const studyToolsHtml = renderToStaticMarkup(React.createElement(StudyTools));
 
 const toolMappings = {
   mindmap: ["toolBtnMindMap", "toolPanelMindMap"],
@@ -56,12 +60,12 @@ assert.doesNotMatch(
   "renderMindMap must not re-select the Mind Map button after another tool is selected"
 );
 assert.equal(
-  (studyToolsSource.match(/className: "tool-switch-btn active"/g) || []).length,
+  (studyToolsHtml.match(/class="tool-switch-btn active"/g) || []).length,
   1,
   "StudyTools should provide one initial active tool button"
 );
 assert.equal(
-  (studyToolsSource.match(/id: "toolPanelMindMap", className: "tool-panel active"/g) || []).length,
+  (studyToolsHtml.match(/class="tool-panel active"/g) || []).length,
   1,
   "StudyTools should provide one initial active tool panel"
 );

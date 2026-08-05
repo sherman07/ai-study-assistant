@@ -14,11 +14,10 @@ const styles = read("frontend/styles/07-section.css");
 const styleRoot = read("frontend/style.css");
 
 assert.ok(studyTools.includes("Exam Readiness"), "Study Tools should expose Exam Readiness as a first-class tool");
-assert.ok(studyTools.includes('id: "toolBtnTimeline"'), "Study Path button should be present in the React shell");
-assert.ok(studyTools.includes('id: "toolBtnQuiz"'), "Quiz button should be present in the React shell");
+assert.ok(studyTools.includes('buttonId: "toolBtnTimeline"'), "Study Path button should be present in the React shell");
+assert.ok(studyTools.includes('buttonId: "toolBtnQuiz"'), "Quiz button should be present in the React shell");
 assert.ok(!studyTools.includes("tool-switch-btn disabled"), "Study Tools should not render disabled placeholder buttons");
-assert.ok(studyTools.includes('legacyTargetAction("switchTool", "timeline")'), "Study Path should switch to the timeline tool");
-assert.ok(studyTools.includes('legacyTargetAction("switchTool", "quiz")'), "Quiz should switch to the quiz tool");
+assert.ok(studyTools.includes('legacyTargetAction("switchTool", tool.id)'), "Study tool buttons should switch to their configured tool");
 
 assert.ok(masteryGraph.includes("function renderExamReadinessSummary("), "Exam Readiness should render a compact readiness summary");
 assert.ok(masteryGraph.includes("recommended next action"), "Exam Readiness should explain the next action");

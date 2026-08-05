@@ -77,3 +77,5 @@ No upload-redesign-specific runtime failure was observed. The local preview repo
 - Production Vite build
 
 All passed.
+
+The portable frontend suite now skips Puppeteer probes that require an optional Linux Chrome environment; those probes remain available through `pnpm run test:frontend:chrome`. Live upload-page Chrome coverage for this change was completed through the connected desktop browser.

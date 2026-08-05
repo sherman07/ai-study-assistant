@@ -13,6 +13,7 @@ function read(relativePath) {
 const constantsSource = read("frontend/src/react/constants.js");
 const uploadStageSource = read("frontend/src/react/components/UploadStage.js");
 const uploadControllerSource = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
+const accountSettingsSource = read("frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
 
 assert.ok(
   constantsSource.includes("AI_PROVIDER_OPTIONS"),
@@ -27,8 +28,12 @@ assert.ok(
   "AI provider options should let users choose GPT or Gemini"
 );
 assert.ok(
-  uploadStageSource.includes("aiProviderButtons()"),
-  "Upload stage should render the AI provider option buttons"
+  !uploadStageSource.includes("aiProviderButtons()"),
+  "Upload stage should keep provider configuration out of the source workflow"
+);
+assert.ok(
+  accountSettingsSource.includes('accountPreferenceSelect("provider"'),
+  "Account study defaults should render the AI provider selector"
 );
 assert.ok(
   uploadControllerSource.includes('formData.append("ai_provider"'),

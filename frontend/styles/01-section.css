@@ -2732,6 +2732,9 @@ body.notes-source-split-resizing * {
 
 .history-empty-state {
   display: grid;
+  align-self: start;
+  align-content: start;
+  grid-auto-rows: max-content;
   gap: 10px;
   padding: 8px 6px 12px;
 }

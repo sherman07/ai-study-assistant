@@ -55,5 +55,10 @@ assert.match(
   /@media \(max-width: 850px\)[\s\S]*?\.upload-stage\s*\{[\s\S]*?gap: 16px;/,
   "upload workspace should tighten into the mobile layout"
 );
+assert.match(
+  css,
+  /\.history-empty-state\s*\{[\s\S]*?align-self: start;[\s\S]*?align-content: start;/,
+  "the empty history action should keep its intrinsic height"
+);
 
 console.log("upload stage clarity regression passed");

@@ -24,35 +24,18 @@ export function UploadStage() {
     "section",
     { id: "uploadStage", className: "upload-stage" },
     h(
-      "div",
-      { className: "hero-copy text-center" },
-      h("div", { className: "brand-pill mx-auto mb-4" }, icon("bi-stars"), "AI Academic Tutor"),
+      "header",
+      { className: "upload-page-header" },
       h(
         "div",
-        { className: "workspace-surface-badge workspace-surface-badge--materials mx-auto", "data-workspace-kind": "materials" },
-        icon("bi-collection"),
-        h("span", null, "Materials")
-      ),
-      h("h1", null, "Study Smarter"),
-      h("p", null, "Your private tutor for readings, notes, images, and links.")
-    ),
-    h(
-      "div",
-      { className: "companion-launch-row" },
-      h(
-        "button",
-        {
-          type: "button",
-          className: "btn btn-outline-primary companion-launch-btn",
-          onClick: legacyAction("setLearningExperienceMode", "companion"),
-        },
-        icon("bi-chat-heart", "me-2"),
-        "Start with AI tutor"
+        { className: "upload-page-copy" },
+        h("h1", null, "Add study materials"),
+        h("p", null, "Upload files, add links, or paste notes. Synapse will turn them into a connected study workspace.")
       )
     ),
     h(
       "section",
-      { className: "premium-upload-card" },
+      { className: "premium-upload-card upload-source-workspace" },
       h(
         "div",
         {
@@ -60,7 +43,7 @@ export function UploadStage() {
           className: "drop-zone",
           tabIndex: 0,
           role: "button",
-          "aria-label": "Upload area — drop files or click to browse",
+          "aria-label": "Upload area. Drop files or click to browse",
         },
         h("input", {
           id: "assetUpload",
@@ -70,15 +53,8 @@ export function UploadStage() {
           accept: ".pdf,.txt,.md,.docx,.pptx,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.webm,image/*,audio/*,video/*,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation",
         }),
         h("div", { className: "upload-icon-wrap" }, icon("bi-cloud-arrow-up")),
-        h("h2", null, "Upload your study material"),
-        h("p", null, "Drop PDFs, slides, images, audio, video, notes, or documents here. Add links below if your source is online."),
-        h(
-          "div",
-          { className: "upload-guidance", "aria-label": "Upload steps" },
-          h("span", null, icon("bi-1-circle"), "Choose"),
-          h("span", null, icon("bi-2-circle"), "Confirm"),
-          h("span", null, icon("bi-3-circle"), "Analyze")
-        ),
+        h("h2", null, "Drop files here"),
+        h("p", null, "PDFs, slides, documents, images, audio, and video are supported."),
         h(
           "button",
           {
@@ -99,7 +75,7 @@ export function UploadStage() {
       h("div", { id: "filePreview", className: "file-preview d-none" }),
       h(
         "div",
-        { className: "source-box" },
+        { className: "source-box upload-source-section" },
         h("label", { htmlFor: "linkInput", className: "form-label" }, "Add online sources"),
         h(
           "div",
@@ -163,7 +139,7 @@ export function UploadStage() {
       ),
       h(
         "div",
-        { className: "language-box" },
+        { className: "language-box upload-source-section" },
         h("label", { htmlFor: "preferredLanguage", className: "form-label" }, "Preferred output language"),
         h(
           "p",
@@ -181,7 +157,7 @@ export function UploadStage() {
       h("input", { type: "hidden", id: "aiProvider", value: "", readOnly: true }),
       h(
         "div",
-        { className: "language-box prompt-mode-box" },
+        { className: "language-box prompt-mode-box upload-source-section" },
         h("label", { htmlFor: "promptMode", className: "form-label" }, "Prompt mode"),
         h(
           "p",
@@ -206,7 +182,7 @@ export function UploadStage() {
       ),
       h(
         "div",
-        { id: "noteLengthField", className: "language-box prompt-mode-box note-length-box" },
+        { id: "noteLengthField", className: "language-box prompt-mode-box note-length-box upload-source-section" },
         h("label", { htmlFor: "noteLength", className: "form-label" }, "AI study depth"),
         h(
           "p",

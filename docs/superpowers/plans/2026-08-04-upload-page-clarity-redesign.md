@@ -6,7 +6,7 @@
 
 **Architecture:** Keep `UploadStage` as the single React owner of the upload form and change only its presentation hierarchy. Use narrowly scoped CSS in the existing upload section and semantic theme tokens; do not add state, dependencies, backend changes, or new controller actions.
 
-**Tech Stack:** React rendered through the project's `h()` runtime, native CSS, Bootstrap Icons, Node source-regression tests, Vite production build, Chrome UI verification.
+**Tech Stack:** React rendered through the project's `h()` runtime, ReactDOM server-rendered DOM contract tests, native CSS, Bootstrap Icons, Vite production build, Chrome UI verification.
 
 ## Global Constraints
 
@@ -41,36 +41,35 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const source = fs.readFileSync(path.join(root, "frontend/src/react/components/UploadStage.js"), "utf8");
+globalThis.React = await import("react");
+const { renderToStaticMarkup } = await import("react-dom/server");
+const { UploadStage } = await import(path.join(root, "frontend/src/react/components/UploadStage.js"));
+const html = renderToStaticMarkup(React.createElement(UploadStage));
 
-assert.ok(source.includes('className: "upload-page-header"'));
-assert.ok(source.includes('className: "upload-page-copy"'));
-assert.ok(source.includes('"Add study materials"'));
-assert.ok(source.includes('"Upload files, add links, or paste notes. Synapse will turn them into a connected study workspace."'));
-assert.ok(source.includes('"Drop files here"'));
-assert.ok(source.includes('"Select files"'));
+assert.match(html, /<header class="upload-page-header">/);
+assert.match(html, /<div class="upload-page-copy"><h1>Add study materials<\/h1>/);
+assert.ok(html.includes("Upload files, add links, or paste notes. Synapse will turn them into a connected study workspace."));
+assert.ok(html.includes("Drop files here"));
+assert.ok(html.includes("Select files"));
 
 for (const retired of ["AI Academic Tutor", "Study Smarter", "Start with AI tutor", "Choose", "Confirm"]) {
-  assert.equal(source.includes(`"${retired}"`), false, `${retired} should not compete with upload`);
+  assert.equal(html.includes(retired), false, `${retired} should not compete with upload`);
 }
 
 for (const contract of [
-  'id: "dropZone"',
-  'id: "assetUpload"',
-  'id: "uploadStatus"',
-  'id: "filePreview"',
-  'id: "linkInput"',
-  'id: "sourceInput"',
-  'id: "preferredLanguage"',
-  'id: "promptMode"',
-  'id: "noteLength"',
-  'id: "generateBtn"',
-  'legacyAction("openFilePicker")',
-  'legacyAction("addLinksFromInput")',
-  'legacyAction("analyzeMaterials")',
-  'role: "status"',
-  '"aria-live": "polite"',
-]) assert.ok(source.includes(contract), `missing preserved contract: ${contract}`);
+  'id="dropZone"',
+  'id="assetUpload"',
+  'id="uploadStatus"',
+  'id="filePreview"',
+  'id="linkInput"',
+  'id="sourceInput"',
+  'id="preferredLanguage"',
+  'id="promptMode"',
+  'id="noteLength"',
+  'id="generateBtn"',
+  'role="status"',
+  'aria-live="polite"',
+]) assert.ok(html.includes(contract), `missing rendered contract: ${contract}`);
 
 console.log("upload stage clarity regression passed");
 ```

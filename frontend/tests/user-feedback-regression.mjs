@@ -22,7 +22,8 @@ assert.match(modeController, /syncLearningExperienceModeStatus\(mode\)/, "mode c
 assert.match(layoutCss, /\.learning-rail-new-chat:hover[\s\S]*transform: translateY\(-1px\)/, "New chat needs visible hover feedback");
 
 assert.match(uploadStage, /id: "uploadStatus"/, "upload UI needs a live status surface");
-assert.match(uploadStage, /upload-guidance/, "upload UI must explain the upload steps");
+assert.match(uploadStage, /h\("h2", null, "Drop files here"\)/, "upload UI must state the primary action directly");
+assert.doesNotMatch(uploadStage, /upload-guidance/, "upload UI should not repeat decorative step labels");
 assert.match(uploadController, /setUploadStatus\("success"/, "successful file selection must be announced");
 assert.match(uploadController, /flashUploadState\("error"/, "failed file selection must be animated and announced");
 

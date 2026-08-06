@@ -15,7 +15,7 @@ const boot = read("frontend/src/legacy/controller_sections/99_boot.js");
 const main = read("frontend/src/main.js");
 
 assert.match(analysisStage, /data-workspace-kind": "materials"/, "generated notes must show Materials kind");
-assert.match(uploadStage, /data-workspace-kind": "materials"/, "materials home must show Materials kind");
+assert.doesNotMatch(uploadStage, /data-workspace-kind": "materials"/, "materials home should rely on the active navigation state instead of a duplicate badge");
 assert.match(companionWorkspace, /data-workspace-kind": "companion"/, "companion workspace must show Companion kind");
 assert.match(companionWorkspace, /syncCompanionThreadToHistory/, "companion chats must sync into recent learning");
 assert.match(companionWorkspace, /startNewLearningCompanionThread/, "new chat must archive instead of wiping history");

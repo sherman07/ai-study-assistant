@@ -448,9 +448,14 @@
     border-radius: 24px;
   }
 
+  .premium-upload-card.upload-source-workspace {
+    padding: 14px;
+    border-radius: 16px;
+  }
+
   .drop-zone {
-    min-height: 260px;
-    padding: 24px 18px;
+    min-height: 210px;
+    padding: 26px 18px;
   }
 
   .compact-header h1 {
@@ -1051,6 +1056,11 @@ html[data-theme="dark"] .drop-zone.drag-over {
 html[data-theme="dark"] .drop-zone h2,
 html[data-theme="dark"] .companion-workspace-card h1 {
   color: #f4f4f5;
+}
+
+html[data-theme="dark"] .upload-source-workspace > .upload-source-section {
+  border-top-color: #373737;
+  background: transparent;
 }
 
 /* Upload configuration used fixed light surfaces before the account theme existed.

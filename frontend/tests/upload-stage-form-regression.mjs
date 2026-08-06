@@ -28,7 +28,7 @@ assert.ok(
   "Upload file picker should include the official PPTX MIME type"
 );
 assert.ok(
-  uploadStageSource.includes("Drop PDFs, slides, images, audio, video, notes, or documents here."),
+  uploadStageSource.includes("PDFs, slides, documents, images, audio, and video are supported."),
   "Upload helper copy should match the supported source types"
 );
 assert.ok(
@@ -100,7 +100,7 @@ assert.ok(
   "Focus Room tokens should be scoped to Focus Room surfaces"
 );
 assert.ok(
-  uploadStageSource.includes('id: "noteLengthField", className: "language-box prompt-mode-box note-length-box"'),
+  uploadStageSource.includes('id: "noteLengthField", className: "language-box prompt-mode-box note-length-box upload-source-section"'),
   "Upload stage should keep the note-length field visible in the main form"
 );
 assert.ok(

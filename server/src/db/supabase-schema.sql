@@ -57,6 +57,25 @@ update public.users
 set platform_role = 'controller'
 where lower(trim(email)) = 'shermanzheng8@gmail.com';
 
+-- Keep Pro billing rows consistent with entitlements (schema default is inactive).
+update public.users
+set
+  subscription_status = 'active',
+  current_period_end = coalesce(
+    current_period_end,
+    case
+      when plan = 'pro_yearly' then timezone('utc', now()) + interval '1 year'
+      else timezone('utc', now()) + interval '1 month'
+    end
+  )
+where plan like 'pro_%'
+  and lower(coalesce(subscription_status, 'inactive')) = 'inactive';
+
+update public.users
+set subscription_status = 'inactive'
+where plan = 'free'
+  and lower(coalesce(subscription_status, '')) in ('active', 'trialing');
+
 create table if not exists public.platform_settings (
   key text primary key,
   value_json jsonb not null default '{}'::jsonb,

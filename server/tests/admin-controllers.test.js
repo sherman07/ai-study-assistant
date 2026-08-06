@@ -45,4 +45,19 @@ test("publicAdminUser keeps explicit credit overrides", () => {
   assert.equal(user.platformRole, "user");
   assert.equal(user.credits, 120);
   assert.equal(user.plan, "free");
+  assert.equal(user.subscriptionStatus, "inactive");
+});
+
+test("publicAdminUser marks bootstrap email as controller even when DB role is user", () => {
+  const user = publicAdminUser({
+    id: "u3",
+    email: "ShermanZheng8@gmail.com",
+    platformRole: "user",
+    plan: "pro_yearly",
+    subscriptionStatus: "active",
+    credits: 1000
+  });
+  assert.equal(user.platformRole, "controller");
+  assert.equal(user.plan, "pro_yearly");
+  assert.equal(user.subscriptionStatus, "active");
 });

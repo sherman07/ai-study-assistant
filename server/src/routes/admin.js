@@ -167,10 +167,12 @@ router.get("/users/search", asyncRoute(async (req, res) => {
   const users = await searchUsersByEmail(query, 20);
   res.json({
     ok: true,
-    users: users.map(user => ({
-      ...publicAdminUser(user),
-      platformRole: normalizePlatformRole(user.platformRole)
-    }))
+    users: users.map((user) => {
+      const publicUser = publicAdminUser(user);
+      return isBootstrapControllerEmail(user.email)
+        ? { ...publicUser, bootstrap: true }
+        : publicUser;
+    })
   });
 }));
 
@@ -195,13 +197,28 @@ router.get("/users", asyncRoute(async (req, res) => {
   }
 
   const users = await listUsers({ query, limit, offset });
-  const marked = users.map((user) => {
-    const publicUser = publicAdminUser(user);
-    if (isBootstrapControllerEmail(user.email)) {
-      return { ...publicUser, bootstrap: true };
+  const marked = [];
+  for (const user of users) {
+    let next = user;
+    // Persist bootstrap controller role if Auth sync created the row as `user`.
+    if (isBootstrapControllerEmail(user.email) && normalizePlatformRole(user.platformRole) !== "controller") {
+      try {
+        next = (await patchUser(user.id, { platformRole: "controller" })) || {
+          ...user,
+          platformRole: "controller"
+        };
+      } catch (error) {
+        console.warn("Could not persist bootstrap controller role during list:", error?.message || error);
+        next = { ...user, platformRole: "controller" };
+      }
     }
-    return publicUser;
-  });
+    const publicUser = publicAdminUser(next);
+    marked.push(
+      isBootstrapControllerEmail(next.email)
+        ? { ...publicUser, bootstrap: true }
+        : publicUser
+    );
+  }
   res.json({
     ok: true,
     count: marked.length,

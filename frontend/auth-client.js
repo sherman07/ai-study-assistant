@@ -544,10 +544,19 @@
     const durable = browserStorage("localStorage");
     const temporary = browserStorage("sessionStorage");
     const payload = JSON.stringify(session);
+    const durableSession = { ...session };
+    if (!getRememberMePreference()) {
+      delete durableSession.accessToken;
+      delete durableSession.access_token;
+      delete durableSession.refreshToken;
+      delete durableSession.refresh_token;
+    }
+    const durablePayload = JSON.stringify(durableSession);
     try {
       // Always keep a durable copy for the workspace account menu. Remember-me
-      // still controls where Supabase auth tokens live.
-      durable?.setItem(SESSION_KEY, payload);
+      // still controls where Supabase auth tokens live. When it is disabled,
+      // the durable copy must not retain a bearer token.
+      durable?.setItem(SESSION_KEY, durablePayload);
       if (preferred === temporary) temporary?.setItem(SESSION_KEY, payload);
       else temporary?.removeItem(SESSION_KEY);
     } catch {}

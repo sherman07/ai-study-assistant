@@ -7,14 +7,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
+import { prepareChromeProbe } from "./chrome-probe-guard.mjs";
 
-const require = createRequire(import.meta.url);
-const puppeteer = require("puppeteer-core");
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const distRoot = path.join(root, "dist");
+const probe = prepareChromeProbe("generated-class-functionality-regression");
+if (!probe.ok) {
+  console.log(probe.reason);
+  process.exit(0);
+}
+const { puppeteer, executablePath, distRoot, root } = probe;
 const artifactDir = "/opt/cursor/artifacts";
 fs.mkdirSync(artifactDir, { recursive: true });
 
@@ -166,19 +166,6 @@ function isSiteBlue(rgb) {
 }
 
 async function main() {
-  const chromeCandidates = [
-    process.env.PUPPETEER_EXECUTABLE_PATH,
-    "/usr/bin/google-chrome",
-    "/usr/bin/chromium",
-    "/usr/bin/chromium-browser"
-  ].filter(Boolean);
-
-  let executablePath = chromeCandidates.find(candidate => fs.existsSync(candidate));
-  if (!executablePath) {
-    console.log("generated-class-functionality-regression: skipped (no Chrome binary)");
-    return;
-  }
-
   if (!fs.existsSync(path.join(distRoot, "frontend/index.html"))) {
     console.log("generated-class-functionality-regression: building frontend dist first");
     const { spawnSync } = await import("node:child_process");

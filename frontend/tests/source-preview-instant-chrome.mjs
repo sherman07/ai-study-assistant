@@ -5,15 +5,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
+import { prepareChromeProbe } from "./chrome-probe-guard.mjs";
 
-const require = createRequire(import.meta.url);
-const puppeteer = require("puppeteer-core");
-
-const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const distRoot = path.join(root, "dist");
+const probe = prepareChromeProbe("source-preview-instant-chrome");
+if (!probe.ok) {
+  console.log(probe.reason);
+  process.exit(0);
+}
+const { puppeteer, executablePath, distRoot, root } = probe;
 const artifactDir = "/opt/cursor/artifacts";
 fs.mkdirSync(artifactDir, { recursive: true });
 
@@ -75,12 +75,6 @@ function startStaticServer() {
 }
 
 async function main() {
-  const chrome = ["/usr/bin/google-chrome", "/usr/local/bin/google-chrome", "/usr/bin/chromium"].find(p => fs.existsSync(p));
-  if (!chrome) {
-    console.log("source-preview-instant-chrome: skipped (no Chrome)");
-    return;
-  }
-
   const build = spawnSync("npm", ["run", "build"], { cwd: root, encoding: "utf8", timeout: 180000 });
   if (build.status !== 0) throw new Error(build.stderr || build.stdout);
 
@@ -88,7 +82,7 @@ async function main() {
 
   const { server, port } = await startStaticServer();
   const browser = await puppeteer.launch({
-    executablePath: chrome,
+    executablePath,
     headless: "new",
     args: ["--no-sandbox", "--disable-setuid-sandbox", "--window-size=1440,960"]
   });

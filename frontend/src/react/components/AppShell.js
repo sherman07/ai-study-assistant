@@ -10,6 +10,11 @@ export function AppShell() {
   return h(
     Fragment,
     null,
+    h(
+      "a",
+      { className: "skip-link", href: "#mainNotes" },
+      "Skip to study content"
+    ),
     h(MobileNavigation),
     h(
       "div",
@@ -26,7 +31,7 @@ export function AppShell() {
         },
         h(
           "main",
-          { id: "mainNotes", className: "notes-area" },
+          { id: "mainNotes", className: "notes-area", tabIndex: -1 },
           h(
             "div",
             { className: "learning-experience-shell" },

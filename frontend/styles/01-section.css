@@ -59,6 +59,29 @@
 
 html, body { min-height: 100%; }
 
+/* Workspace skip link: off-screen until keyboard focus, then above chrome. */
+.skip-link {
+  position: fixed;
+  left: 18px;
+  top: 14px;
+  z-index: 4000;
+  transform: translateY(-140%);
+  border-radius: var(--radius-sm, 12px);
+  background: var(--text, #0f172a);
+  color: #ffffff;
+  padding: 10px 14px;
+  text-decoration: none;
+  font-weight: 800;
+  transition: transform 180ms ease;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 3px solid var(--color-focus-ring, rgba(74, 124, 255, 0.5));
+  outline-offset: 3px;
+}
+
 body {
   margin: 0;
   background: var(--bg);

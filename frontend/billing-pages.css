@@ -38,6 +38,28 @@ a {
   min-height: 100vh;
 }
 
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: 12px;
+  z-index: 3000;
+  transform: translateY(-140%);
+  background: var(--text);
+  color: #ffffff;
+  padding: 10px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  font-weight: 800;
+  transition: transform 0.2s ease;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 3px solid rgba(74, 124, 255, 0.45);
+  outline-offset: 3px;
+}
+
 .billing-nav {
   height: 78px;
   display: flex;

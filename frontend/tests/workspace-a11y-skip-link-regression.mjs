@@ -57,6 +57,14 @@ assert.match(
 assert.match(landing, /className="skip-link"/, "landing must keep its skip link");
 assert.match(landing, /id="main-content"/, "landing must keep a main-content target");
 
+const pricing = read("frontend/pricing.html");
+assert.match(pricing, /class="skip-link"/, "pricing must expose a skip link");
+assert.match(
+  pricing,
+  /id="main-content"[^>]*tabindex="-1"/i,
+  "pricing must expose a focusable main-content landmark"
+);
+
 for (const [name, html] of [
   ["login", login],
   ["signup", signup],

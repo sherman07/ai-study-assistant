@@ -39,11 +39,15 @@ def learning_companion_research_request(message: str, subject_title: str) -> Tup
 
 
 @app.post("/learning-companion/respond")
-async def learning_companion_respond(data: dict):
+async def learning_companion_respond(data: dict, request: Request):
     provider_token = None
     try:
         requested_provider = str((data or {}).get("ai_provider") or "").strip()
-        provider_token = set_request_text_provider(requested_provider)
+        authorization = request.headers.get("authorization") or request.headers.get("Authorization") or ""
+        provider_token, _resolution = select_request_text_provider(
+            requested_provider,
+            authorization=authorization,
+        )
         subject = data.get("subject") if isinstance(data.get("subject"), dict) else {}
         title = normalise_space(str(subject.get("title") or ""))
         intention = normalise_space(str(subject.get("intention") or "")).lower()

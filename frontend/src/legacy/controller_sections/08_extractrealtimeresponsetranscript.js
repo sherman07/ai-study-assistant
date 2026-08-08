@@ -686,6 +686,9 @@ function applyAccountStudyPreference(key, value) {
     else {
       try { window.localStorage.setItem("synapse.ai.provider.v1", value); } catch {}
     }
+    // Re-read after setAiProvider may have clamped Free users to DeepSeek.
+    const enforced = document.getElementById("aiProvider")?.value;
+    if (enforced !== undefined) value = enforced;
   }
 }
 
@@ -1049,11 +1052,25 @@ function accountPreferenceOptions(controlId, fallback) {
 }
 
 function accountPreferenceSelect(key, label, description, options, value) {
+  const normalisedOptions = (options || []).map(entry => {
+    if (Array.isArray(entry)) {
+      return {
+        value: entry[0],
+        label: entry[1],
+        disabled: Boolean(entry[2])
+      };
+    }
+    return {
+      value: entry?.value ?? "",
+      label: entry?.label ?? String(entry?.value ?? ""),
+      disabled: Boolean(entry?.disabled)
+    };
+  });
   return `
     <label class="account-setting-field">
       <span><strong>${escapeHTML(label)}</strong><small>${escapeHTML(description)}</small></span>
       <select onchange="setAccountPreference('${escapeAttr(key)}', this.value)">
-        ${options.map(([optionValue, optionLabel]) => `<option value="${escapeAttr(optionValue)}" ${optionValue === value ? "selected" : ""}>${escapeHTML(optionLabel)}</option>`).join("")}
+        ${normalisedOptions.map(option => `<option value="${escapeAttr(option.value)}" ${option.value === value ? "selected" : ""} ${option.disabled ? "disabled" : ""}>${escapeHTML(option.label)}</option>`).join("")}
       </select>
     </label>
   `;
@@ -1072,6 +1089,21 @@ function accountSettingsContent(section, session) {
     if (savedProvider === undefined || savedProvider === null) {
       savedProvider = document.getElementById("aiProvider")?.value || "";
     }
+    const access = window.__synapseProviderAccess;
+    const providerOptions = typeof access?.providerSettingsOptions === "function"
+      ? access.providerSettingsOptions()
+      : [
+          { value: "", label: "Backend default", disabled: false },
+          { value: "openai", label: "GPT", disabled: false },
+          { value: "gemini", label: "Gemini", disabled: false },
+          { value: "deepseek", label: "DeepSeek", disabled: false }
+        ];
+    const providerDescription = typeof access?.providerSettingsDescription === "function"
+      ? access.providerSettingsDescription()
+      : "Choose Backend default, GPT, Gemini, or DeepSeek for note generation.";
+    if (typeof access?.enforceProviderPreference === "function") {
+      savedProvider = access.enforceProviderPreference(savedProvider).value;
+    }
     return `
       <section class="account-settings-section" aria-labelledby="settings-study-title">
         <p class="account-settings-kicker">Study defaults</p>
@@ -1079,7 +1111,7 @@ function accountSettingsContent(section, session) {
         <p class="account-section-copy">These defaults apply to new analyses. Prompt mode and study depth still appear on the upload screen; Generate AI is only changed here.</p>
         <div class="account-settings-fields">
           ${accountPreferenceSelect("language", "Output language", "Notes, explanations, quizzes, and flashcards.", languageOptions, preferences.language || document.getElementById("preferredLanguage")?.value || "auto")}
-          ${accountPreferenceSelect("provider", "Generate AI", "Choose Backend default, GPT, Gemini, or DeepSeek for note generation.", [["", "Backend default"], ["openai", "GPT"], ["gemini", "Gemini"], ["deepseek", "DeepSeek"]], savedProvider)}
+          ${accountPreferenceSelect("provider", "Generate AI", providerDescription, providerOptions, savedProvider)}
           ${accountPreferenceSelect("promptMode", "Response style", "How Synapse explains your material.", promptOptions, preferences.promptMode || document.getElementById("promptMode")?.value || "professor_mode")}
           ${accountPreferenceSelect("studyDepth", "Study depth", "The default level of detail for new notes.", depthOptions, preferences.studyDepth || document.getElementById("noteLength")?.value || "standard_notes")}
         </div>

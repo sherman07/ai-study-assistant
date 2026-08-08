@@ -1,5 +1,10 @@
 import { config } from "../config.js";
 import { cleanString } from "../utils/validators.js";
+import {
+  FREE_DEFAULT_PROVIDER,
+  allowedProvidersForPlan,
+  resolveProviderForPlan
+} from "./providerAccess.js";
 
 const PRO_ACTIVE_STATUSES = new Set(["active", "trialing"]);
 const PRO_INACTIVE_STATUSES = new Set([
@@ -219,6 +224,7 @@ function hasActivePro(user = {}, now = new Date()) {
 
 function userEntitlements(user = {}) {
   const pro = hasActivePro(user);
+  const allowedAiProviders = allowedProvidersForPlan({ isPro: pro });
   return {
     plan: normalizePlan(user.plan),
     subscriptionStatus: normalizeSubscriptionStatus(user.subscriptionStatus || user.subscription_status),
@@ -231,9 +237,38 @@ function userEntitlements(user = {}) {
       advancedAnalytics: pro,
       priorityProcessing: pro,
       unlimitedUploads: pro,
-      boostCredits: true
+      boostCredits: true,
+      multiAiProviders: pro,
+      allowedAiProviders,
+      defaultAiProvider: pro ? "" : FREE_DEFAULT_PROVIDER,
+      gptProvider: pro,
+      geminiProvider: pro,
+      deepseekProvider: true
     }
   };
+}
+
+function assertAiProviderAllowed(user = {}, requestedProvider = "") {
+  const entitlements = userEntitlements(user);
+  const resolution = resolveProviderForPlan(requestedProvider, {
+    isPro: entitlements.isPro,
+    backendDefault: FREE_DEFAULT_PROVIDER
+  });
+  // Deny only explicit Pro-only requests (GPT/Gemini/unknown). Empty → DeepSeek for Free.
+  const requested = resolution.requested;
+  const explicitProOnly =
+    !entitlements.isPro
+    && Boolean(requested)
+    && requested !== FREE_DEFAULT_PROVIDER;
+  if (explicitProOnly) {
+    return {
+      ok: false,
+      error: resolution.reason || "Free plan can only use DeepSeek. Upgrade to Pro to unlock GPT and Gemini.",
+      entitlements,
+      resolution
+    };
+  }
+  return { ok: true, entitlements, resolution };
 }
 
 export {
@@ -252,5 +287,6 @@ export {
   resolveUserCredits,
   subscriptionAccessPlan,
   userEntitlements,
+  assertAiProviderAllowed,
   welcomeCreditsForPlan
 };

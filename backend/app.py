@@ -138,6 +138,7 @@ from core.config import (
     require_openai_api,
     require_text_ai,
     reset_request_text_provider,
+    select_request_text_provider,
     set_request_text_provider,
     text_generation_client,
     title_model_for_active_provider,

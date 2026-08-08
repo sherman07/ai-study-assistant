@@ -11,6 +11,12 @@ import {
   startNewLearningCompanionThread,
   titleFromCompanionThread,
 } from "./legacy/learningCompanionChatStore.js?v=ai-learning-companion-v2";
+import {
+  enforceProviderPreference,
+  providerSettingsDescription,
+  providerSettingsOptions,
+  sessionIsPro
+} from "./legacy/presenters/providerAccessPresenter.js";
 
 const root = document.getElementById("root");
 
@@ -28,6 +34,34 @@ if (!window.React || !window.ReactDOM) {
   ].join("");
   throw new Error("React runtime was not loaded before Synapse booted.");
 }
+
+window.__synapseProviderAccess = {
+  enforceProviderPreference,
+  providerSettingsDescription,
+  providerSettingsOptions,
+  sessionIsPro
+};
+
+function reclampStoredAiProviderForSession() {
+  try {
+    const stored = window.localStorage?.getItem("synapse.ai.provider.v1") || "";
+    const enforced = enforceProviderPreference(stored);
+    const next = enforced?.value ?? enforced?.provider ?? "deepseek";
+    if (typeof window.setAiProvider === "function") {
+      window.setAiProvider(next);
+      return;
+    }
+    window.localStorage?.setItem("synapse.ai.provider.v1", next);
+    const providerInput = document.getElementById("aiProvider");
+    if (providerInput) providerInput.value = next;
+  } catch {
+    // Ignore storage / DOM issues during early boot.
+  }
+}
+
+window.addEventListener("synapse-auth-changed", () => {
+  reclampStoredAiProviderForSession();
+});
 
 window.__synapseCompanionChat = {
   activate(id) {

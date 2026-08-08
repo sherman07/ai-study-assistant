@@ -1154,6 +1154,7 @@ The lecture uses Jacobson v. Massachusetts to illustrate necessity and proportio
         with (
             patch.object(core_config, "AI_TEXT_PROVIDER", "openai"),
             patch.object(core_config, "GEMINI_FOCUSED_MODEL", "gemini-focused"),
+            patch.object(core_config, "gemini_request_is_configured", return_value=True),
             patch.dict("os.environ", {"OPENAI_FOCUSED_MODEL": "openai-focused"}),
         ):
             self.assertEqual(core_config.active_text_provider(), "openai")

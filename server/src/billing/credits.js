@@ -317,10 +317,20 @@ function estimateCredits(user = {}, actionId, { now = new Date(), isPro = null }
   const featureAllowed = action.requiresPro
     ? Boolean(entitlements.features?.deepStudy || entitlements.features?.proStudy || pro)
     : true;
+  const voiceAllowed = action.id !== "voice_session" || entitlements.features?.voiceTutor !== false;
   const maxCharge = action.max;
   const canAfford = state.totalCredits >= maxCharge;
   const source = balanceSourceLabel(state, Math.min(maxCharge, state.totalCredits || maxCharge));
   const lowerCost = action.lowerCostOption ? creditAction(action.lowerCostOption) : null;
+
+  let blockedReason = null;
+  if (action.requiresPro && !featureAllowed) {
+    blockedReason = "Deep Study and other Pro learning features require an active Pro plan (or a controller grant).";
+  } else if (!voiceAllowed) {
+    blockedReason = "Voice tutor is disabled for this account.";
+  } else if (!canAfford) {
+    blockedReason = "Not enough credits for the maximum estimated charge.";
+  }
 
   return {
     ok: true,
@@ -338,9 +348,7 @@ function estimateCredits(user = {}, actionId, { now = new Date(), isPro = null }
     balance: state,
     willUse: source,
     canAfford,
-    blockedReason: action.requiresPro && !featureAllowed
-      ? "Deep Study and other Pro learning features require an active Pro plan (or a controller grant)."
-      : (!canAfford ? "Not enough credits for the maximum estimated charge." : null),
+    blockedReason,
     lowerCostOption: lowerCost
       ? {
           id: lowerCost.id,

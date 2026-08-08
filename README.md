@@ -165,7 +165,7 @@ DeepSeek is already connected through the real local file
 DEEPSEEK_API_KEY=your-deepseek-api-key
 DEEPSEEK_MODEL=deepseek-v4-flash
 DEEPSEEK_THINKING_MODE=disabled
-DEEPSEEK_MAX_OUTPUT_TOKENS=1800
+DEEPSEEK_MAX_OUTPUT_TOKENS=650
 ```
 
 DeepSeek is routed independently through its OpenAI-compatible endpoint. To

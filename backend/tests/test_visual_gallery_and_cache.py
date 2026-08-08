@@ -363,7 +363,7 @@ class ApiShapeTests(unittest.TestCase):
         completions = FakeCompletions()
         deepseek_client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
         with (
-            patch.object(backend_app_module, "DEEPSEEK_MAX_OUTPUT_TOKENS", 1800),
+            patch.object(backend_app_module, "DEEPSEEK_MAX_OUTPUT_TOKENS", 650),
             patch.object(backend_app_module, "text_generation_client", return_value=deepseek_client),
             patch.object(backend_app_module, "active_text_provider", return_value="deepseek"),
         ):
@@ -373,7 +373,7 @@ class ApiShapeTests(unittest.TestCase):
                 max_tokens=8000,
             )
 
-        self.assertEqual(completions.calls[0]["max_tokens"], 1800)
+        self.assertEqual(completions.calls[0]["max_tokens"], 650)
 
     def test_missing_deepseek_client_reports_deepseek_configuration(self):
         with (

@@ -178,7 +178,7 @@ if DEEPSEEK_THINKING_MODE not in {"enabled", "disabled"}:
 # DeepSeek V4 can take too long for Render's synchronous request window when
 # given the large GPT-oriented output budget. Keep its normal response bounded;
 # deployments may raise this deliberately after validating their host limits.
-DEEPSEEK_MAX_OUTPUT_TOKENS = max(256, env_int("DEEPSEEK_MAX_OUTPUT_TOKENS", 1800))
+DEEPSEEK_MAX_OUTPUT_TOKENS = max(256, env_int("DEEPSEEK_MAX_OUTPUT_TOKENS", 650))
 deepseek_client = (
     OpenAI(
         api_key=DEEPSEEK_API_KEY,

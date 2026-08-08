@@ -426,6 +426,36 @@ def set_request_text_provider(provider: str):
     return REQUEST_AI_TEXT_PROVIDER.set(selected)
 
 
+def select_request_text_provider(
+    provider: str = "",
+    *,
+    is_pro: bool | None = None,
+    authorization: str = "",
+):
+    """
+    Plan-aware provider selection.
+    Free / unknown callers are clamped to DeepSeek; Pro may use GPT, Gemini, or DeepSeek.
+    """
+    from backend.application.provider_selection import (
+        fetch_is_pro_from_data_api,
+        resolve_request_provider,
+    )
+
+    pro = bool(is_pro) if isinstance(is_pro, bool) else fetch_is_pro_from_data_api(
+        authorization,
+        base_url=SYNAPSE_DATA_API_INTERNAL_URL,
+        timeout_seconds=min(3.0, SYNAPSE_DATA_API_TIMEOUT_SECONDS),
+    )
+    resolution = resolve_request_provider(
+        provider,
+        is_pro=pro,
+        backend_default=AI_TEXT_PROVIDER,
+        strict=False,
+    )
+    token = set_request_text_provider(resolution["provider"])
+    return token, resolution
+
+
 def reset_request_text_provider(token) -> None:
     REQUEST_AI_TEXT_PROVIDER.reset(token)
 

@@ -18,7 +18,8 @@ import {
   checkoutPlanByPrice,
   hasActivePro,
   subscriptionAccessPlan,
-  userEntitlements
+  userEntitlements,
+  assertAiProviderAllowed
 } from "../billing/plans.js";
 import { missingStripeConfig, stripe, stripeConfigured, stripeWebhookConfigured } from "../billing/stripe.js";
 import { requireUser } from "../middleware/auth.js";
@@ -280,6 +281,16 @@ router.get("/credits", requireUser, (req, res) => {
 
 router.post("/credits/estimate", requireUser, asyncRoute(async (req, res) => {
   const actionId = req.body?.action_id || req.body?.actionId || req.body?.action;
+  const aiProvider = req.body?.ai_provider || req.body?.aiProvider || req.body?.provider || "";
+  const providerGate = assertAiProviderAllowed(req.user, aiProvider);
+  if (!providerGate.ok) {
+    return res.status(402).json({
+      ok: false,
+      error: providerGate.error,
+      entitlements: providerGate.entitlements,
+      provider: providerGate.resolution
+    });
+  }
   const estimate = estimateCredits(req.user, actionId, {
     isPro: hasActivePro(req.user)
   });
@@ -289,6 +300,8 @@ router.post("/credits/estimate", requireUser, asyncRoute(async (req, res) => {
   res.json({
     ok: true,
     ...estimate,
+    provider: providerGate.resolution,
+    entitlements: providerGate.entitlements,
     credits: publicCreditBalance(req.user)
   });
 }));
@@ -296,6 +309,16 @@ router.post("/credits/estimate", requireUser, asyncRoute(async (req, res) => {
 router.post("/credits/spend", requireUser, asyncRoute(async (req, res) => {
   const actionId = req.body?.action_id || req.body?.actionId || req.body?.action;
   const requestedAmount = req.body?.amount ?? req.body?.credits;
+  const aiProvider = req.body?.ai_provider || req.body?.aiProvider || req.body?.provider || "";
+  const providerGate = assertAiProviderAllowed(req.user, aiProvider);
+  if (!providerGate.ok) {
+    return res.status(402).json({
+      ok: false,
+      error: providerGate.error,
+      entitlements: providerGate.entitlements,
+      provider: providerGate.resolution
+    });
+  }
   let charge = Number(requestedAmount);
 
   if (actionId) {
@@ -328,6 +351,7 @@ router.post("/credits/spend", requireUser, asyncRoute(async (req, res) => {
     dailyUsed: result.dailyUsed,
     boostUsed: result.boostUsed,
     actionId: actionId || null,
+    provider: providerGate.resolution,
     credits: publicCreditBalance(updated || { ...req.user, creditState: result.balance }),
     user: updated
   });

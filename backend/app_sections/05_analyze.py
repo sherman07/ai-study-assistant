@@ -108,7 +108,32 @@ async def analyze_materials(
 ):
     global stored_summary, stored_sections, stored_connections, stored_mind_map, stored_title, stored_source_identity
 
-    provider_token = set_request_text_provider(ai_provider)
+    provider_token = None
+    provider_resolution = {}
+    authorization = ""
+    try:
+        authorization = request.headers.get("authorization") or request.headers.get("Authorization") or ""
+    except Exception:
+        authorization = ""
+    try:
+        provider_token, provider_resolution = select_request_text_provider(
+            ai_provider,
+            authorization=authorization,
+        )
+    except Exception:
+        # Fail closed to DeepSeek so Free users never inherit GPT/Gemini on helper errors.
+        try:
+            provider_token = set_request_text_provider("deepseek")
+            provider_resolution = {
+                "requested": ai_provider,
+                "provider": "deepseek",
+                "clamped": True,
+                "is_pro": False,
+                "reason": "Provider plan gate unavailable; defaulted to DeepSeek.",
+            }
+        except Exception:
+            provider_token = set_request_text_provider(ai_provider)
+            provider_resolution = {}
     trace_token = begin_ai_call_trace() if "begin_ai_call_trace" in globals() else None
     analysis_started_at = time.monotonic()
     analysis_stage = "initializing"
@@ -118,8 +143,10 @@ async def analyze_materials(
         selected_ai_provider = active_text_provider()
         skipped_optional_stages: List[str] = []
         logger.info(
-            "analysis_event=received provider=%s file_count=%d link_payload_chars=%d free_text_chars=%d",
+            "analysis_event=received provider=%s requested=%s clamped=%s file_count=%d link_payload_chars=%d free_text_chars=%d",
             selected_ai_provider,
+            provider_resolution.get("requested") if isinstance(provider_resolution, dict) else ai_provider,
+            bool(provider_resolution.get("clamped")) if isinstance(provider_resolution, dict) else False,
             len(files),
             len(links or ""),
             len(free_text or ""),
@@ -1260,10 +1287,19 @@ async def voice_tutor_respond(
     preferred_language: str = Form(default="auto"),
     source_identity: str = Form(default=""),
     ai_provider: str = Form(default=""),
+    request: Request = None,
 ):
     provider_token = None
     try:
-        provider_token = set_request_text_provider(ai_provider)
+        authorization = ""
+        try:
+            authorization = request.headers.get("authorization") or request.headers.get("Authorization") or ""
+        except Exception:
+            authorization = ""
+        provider_token, _resolution = select_request_text_provider(
+            ai_provider,
+            authorization=authorization,
+        )
         require_text_ai()
         chat_model = chat_model_for_active_provider() if "chat_model_for_active_provider" in globals() else CHAT_MODEL
         parsed_history = normalise_voice_tutor_history(parse_json_list(history))

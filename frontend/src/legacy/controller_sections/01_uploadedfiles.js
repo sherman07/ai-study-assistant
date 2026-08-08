@@ -441,7 +441,15 @@ function normaliseAiProvider(value) {
 }
 
 function setAiProvider(value) {
-  const provider = normaliseAiProvider(value);
+  let provider = normaliseAiProvider(value);
+  const access = window.__synapseProviderAccess;
+  if (access && typeof access.enforceProviderPreference === "function") {
+    const enforced = access.enforceProviderPreference(provider);
+    provider = normaliseAiProvider(enforced?.value ?? enforced?.provider ?? provider);
+    if (enforced?.clamped && enforced?.reason) {
+      console.info(enforced.reason);
+    }
+  }
   const providerInput = document.getElementById("aiProvider");
   if (providerInput) providerInput.value = provider;
   safeSetLocalStorage(AI_PROVIDER_STORAGE_KEY, provider);

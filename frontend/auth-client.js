@@ -460,6 +460,7 @@
       isController,
       plan: displayPlan(planId),
       billingPlan: planId,
+      isPro: planId.startsWith("pro_") && ["active", "trialing"].includes(String(user.subscriptionStatus || session.subscriptionStatus || "inactive").toLowerCase()),
       subscriptionStatus: user.subscriptionStatus || session.subscriptionStatus || "inactive",
       currentPeriodEnd: user.currentPeriodEnd || session.currentPeriodEnd || null,
       credits: totalCredits,
@@ -1185,22 +1186,26 @@
     return data;
   }
 
-  async function estimateCredits(actionId) {
+  async function estimateCredits(actionId, { aiProvider } = {}) {
     const response = await dataApiFetch("/api/billing/credits/estimate", {
       method: "POST",
-      body: JSON.stringify({ action_id: actionId })
+      body: JSON.stringify({
+        action_id: actionId,
+        ai_provider: aiProvider || (typeof localStorage !== "undefined" ? localStorage.getItem("synapse.ai.provider.v1") : "") || ""
+      })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.error) throw new Error(data.error || "Could not estimate credits.");
     return data;
   }
 
-  async function spendCredits({ actionId, amount } = {}) {
+  async function spendCredits({ actionId, amount, aiProvider } = {}) {
     const response = await dataApiFetch("/api/billing/credits/spend", {
       method: "POST",
       body: JSON.stringify({
         action_id: actionId,
-        amount
+        amount,
+        ai_provider: aiProvider || (typeof localStorage !== "undefined" ? localStorage.getItem("synapse.ai.provider.v1") : "") || ""
       })
     });
     const data = await response.json().catch(() => ({}));

@@ -29,12 +29,16 @@ async def source_preview(file: UploadFile = File(...)):
 
 
 @app.post("/ask")
-async def ask_question(data: dict):
+async def ask_question(data: dict, request: Request):
     provider_token = None
     requested_provider = ""
     try:
         requested_provider = str((data or {}).get("ai_provider") or "").strip()
-        provider_token = set_request_text_provider(requested_provider)
+        authorization = request.headers.get("authorization") or request.headers.get("Authorization") or ""
+        provider_token, _resolution = select_request_text_provider(
+            requested_provider,
+            authorization=authorization,
+        )
         require_text_ai()
         selected_provider = active_text_provider()
         chat_model = chat_model_for_active_provider()

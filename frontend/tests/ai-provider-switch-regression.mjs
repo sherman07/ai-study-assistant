@@ -20,8 +20,12 @@ assert.ok(
   "React constants should expose AI provider options"
 );
 assert.ok(
-  constantsSource.includes("GPT") && constantsSource.includes("Gemini"),
-  "AI provider options should let users choose GPT or Gemini"
+  constantsSource.includes("GPT") && constantsSource.includes("Gemini") && constantsSource.includes("DeepSeek"),
+  "AI provider options should list GPT, Gemini, and DeepSeek"
+);
+assert.ok(
+  constantsSource.includes("Free and Pro") || constantsSource.includes("Free plan"),
+  "AI provider option copy should explain Free vs Pro access"
 );
 assert.ok(
   uploadStageSource.includes('id: "aiProvider"')

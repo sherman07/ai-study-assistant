@@ -401,7 +401,7 @@ def generate_openai_tts_bytes(script: str, instructions: str) -> Tuple[bytes, Li
 
 
 @app.post("/broadcast/generate")
-async def generate_broadcast_mode(data: dict):
+async def generate_broadcast_mode(data: dict, request: Request):
     provider_token = None
     try:
         payload = data or {}
@@ -409,7 +409,12 @@ async def generate_broadcast_mode(data: dict):
         context = build_broadcast_context(payload)
         if len(context) < 300:
             return analysis_error_response("No generated Synapse content is available for Broadcast Mode yet.", 400)
-        provider_token = set_request_text_provider("openai")
+        authorization = request.headers.get("authorization") or request.headers.get("Authorization") or ""
+        # Prefer OpenAI for broadcast quality when the plan allows it; free plans clamp to DeepSeek.
+        provider_token, _resolution = select_request_text_provider(
+            "openai",
+            authorization=authorization,
+        )
         require_text_ai()
         tone = normalise_broadcast_tone(payload.get("tone") or payload.get("style"))
         tone_label = BROADCAST_TONE_LABELS[tone]

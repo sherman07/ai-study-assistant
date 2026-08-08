@@ -937,6 +937,10 @@ def generate_chat(
     active_client = text_generation_client()
     provider = active_text_provider() if "active_text_provider" in globals() else AI_TEXT_PROVIDER
     model_name = model or (chat_model_for_active_provider() if "chat_model_for_active_provider" in globals() else CHAT_MODEL)
+    if provider == "deepseek":
+        # Avoid handing DeepSeek V4 the much larger GPT-oriented generation
+        # allowance: on synchronous hosts it can exceed the gateway window.
+        max_tokens = min(max(1, int(max_tokens)), DEEPSEEK_MAX_OUTPUT_TOKENS)
     if active_client is None:
         _record_ai_call_event({
             "stage": "chat",

@@ -35,6 +35,9 @@ services:
         value: deepseek-v4-flash
       - key: DEEPSEEK_THINKING_MODE
         value: disabled
+      # Keep synchronous DeepSeek note generation inside Render's request window.
+      - key: DEEPSEEK_MAX_OUTPUT_TOKENS
+        value: "1800"
       - key: ENABLE_TUTOR_WEB_RESEARCH
         value: "true"
       - key: SYNAPSE_PUBLIC_BACKEND_URL

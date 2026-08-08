@@ -11,6 +11,7 @@ import {
   startNewLearningCompanionThread,
   titleFromCompanionThread,
 } from "./legacy/learningCompanionChatStore.js?v=ai-learning-companion-v2";
+import { normalizeFocusRoomWorkspaceTarget } from "./focus-room/model/workspaceReturnTarget.js";
 
 const root = document.getElementById("root");
 
@@ -28,6 +29,8 @@ if (!window.React || !window.ReactDOM) {
   ].join("");
   throw new Error("React runtime was not loaded before Synapse booted.");
 }
+
+window.__synapseNormalizeFocusRoomWorkspaceTarget = normalizeFocusRoomWorkspaceTarget;
 
 window.__synapseCompanionChat = {
   activate(id) {

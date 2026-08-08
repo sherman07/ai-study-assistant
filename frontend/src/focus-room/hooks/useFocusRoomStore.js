@@ -46,6 +46,7 @@ import {
   normalizeFocusTopics,
   promoteNextFocusTopic
 } from "../focusTopics.js";
+import { applySceneSelection } from "../presenters/scenePresenter.js";
 
 const DEFAULT_AUDIO_CHANNELS = Object.freeze({
   "white-noise": 0, "pink-noise": 0, "brown-noise": 0, "light-rain": 24, "heavy-rain": 0,
@@ -676,14 +677,9 @@ export const useFocusRoomStore = create((set, get) => {
     },
 
     selectScene(sceneId) {
-      const nextScene = sceneById(sceneId);
-      if (!nextScene) return;
       set(state => {
-        const next = {
-          selectedScene: nextScene.id,
-          musicType: nextScene.musicType || state.musicType,
-          ambientSound: nextScene.ambientSound || state.ambientSound
-        };
+        const next = applySceneSelection(sceneId, state);
+        if (!next) return {};
         const merged = { ...state, ...next };
         persistDraftFromState(merged);
         return next;

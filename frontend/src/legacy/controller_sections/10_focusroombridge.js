@@ -9,6 +9,10 @@ function isSynapseFocusRoomEnabled() {
 }
 
 function normalizeFocusRoomWorkspaceTarget(target = {}) {
+  // Prefer the MVP model when the React runtime has registered it.
+  if (typeof window.__synapseNormalizeFocusRoomWorkspaceTarget === "function") {
+    return window.__synapseNormalizeFocusRoomWorkspaceTarget(target);
+  }
   const objectTarget = target && typeof target === "object" && !Array.isArray(target) ? target : {};
   return {
     materialId: String(objectTarget.materialId || "").trim(),

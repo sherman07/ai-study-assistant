@@ -5,9 +5,10 @@ Synapse is an AI-powered study website and workspace that turns PDFs, lecture sl
 ## Project Structure
 
 - `frontend/` - static public website, auth prototype pages, and the study workspace shell.
-- `frontend/src/` - React shell plus the existing legacy controller modules.
-- `backend/` - FastAPI backend for analysis, tutoring, quizzes, flashcards, source previews, contact enquiries, and generated assets.
-- `server/` - Express data API backed by Supabase for user and study data.
+- `frontend/src/` - React shell, Focus Room MVP modules (`model`/`presenters`), and legacy controller adapters.
+- `backend/` - FastAPI AI backend (`domain/` pure rules, `application/` use-cases, `core/` infra, `app_sections/` HTTP adapters).
+- `server/` - Express data API (`routes` → `services` → `repositories` → Supabase).
+- `docs/architecture/` - MVP layering and Focus Room scene connection map.
 - `logos/` and `frontend/logos/` - Synapse logo assets for local root serving and static frontend publishing.
 - `scripts/validate_static_site.mjs` - launch-readiness validation for static HTML.
 - `deploy/` - production runtime notes and service templates.

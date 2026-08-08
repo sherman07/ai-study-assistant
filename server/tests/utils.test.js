@@ -312,6 +312,7 @@ test("Render AI backend skips PDF page rendering on the free instance", () => {
 
 test("stripe billing routes verify webhooks and keep secrets server-side", () => {
   const routeSource = fs.readFileSync(path.join(serverRoot, "src/routes/billing.js"), "utf8");
+  const billingServiceSource = fs.readFileSync(path.join(serverRoot, "src/services/billingService.js"), "utf8");
   const schemaSource = fs.readFileSync(path.join(serverRoot, "src/db/supabase-schema.sql"), "utf8");
   const configSource = fs.readFileSync(path.join(serverRoot, "src/config.js"), "utf8");
   const generatedContentRoute = fs.readFileSync(path.join(serverRoot, "src/routes/generatedContent.js"), "utf8");
@@ -345,10 +346,11 @@ test("stripe billing routes verify webhooks and keep secrets server-side", () =>
   assert.ok(routeSource.includes("/credits/refund"), "billing route should expose credit refunds");
   assert.ok(routeSource.includes("billingPortal.sessions.create"), "billing route should create Stripe Customer Portal sessions");
   assert.ok(routeSource.includes("webhooks.constructEvent"), "webhook route must verify Stripe signatures");
-  assert.ok(routeSource.includes("checkout.session.completed"), "webhook route should handle completed Checkout");
-  assert.ok(routeSource.includes("customer.subscription.updated"), "webhook route should handle subscription updates");
-  assert.ok(routeSource.includes("customer.subscription.deleted"), "webhook route should handle subscription cancellation");
-  assert.ok(routeSource.includes("invoice.payment_failed"), "webhook route should handle failed invoice payments");
+  assert.ok(routeSource.includes("handleStripeWebhookEvent"), "webhook route should delegate event handling to the billing service");
+  assert.ok(billingServiceSource.includes("checkout.session.completed"), "billing service should handle completed Checkout");
+  assert.ok(billingServiceSource.includes("customer.subscription.updated"), "billing service should handle subscription updates");
+  assert.ok(billingServiceSource.includes("customer.subscription.deleted"), "billing service should handle subscription cancellation");
+  assert.ok(billingServiceSource.includes("invoice.payment_failed"), "billing service should handle failed invoice payments");
   assert.ok(generatedContentRoute.includes("requireProWhenRequested"), "Pro-marked generated content writes should be gated server-side");
 });
 

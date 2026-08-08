@@ -125,6 +125,8 @@ from core.config import (
     gemini_vertex_openai_base_url,
     has_openai,
     has_text_ai,
+    analysis_model_for_active_provider,
+    mindmap_model_for_active_provider,
     model_for_depth,
     active_text_provider,
     chat_model_for_active_provider,
@@ -137,6 +139,7 @@ from core.config import (
     reset_request_text_provider,
     set_request_text_provider,
     text_generation_client,
+    title_model_for_active_provider,
 )
 from core.database import synapse_database
 from core.request_limits import read_upload_bytes

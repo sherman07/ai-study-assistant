@@ -379,6 +379,30 @@ def chat_model_for_active_provider() -> str:
     return OPENAI_CHAT_MODEL_NAME
 
 
+def analysis_model_for_active_provider() -> str:
+    if active_text_provider() == "gemini":
+        return GEMINI_ANALYSIS_MODEL
+    if active_text_provider() == "deepseek":
+        return DEEPSEEK_ANALYSIS_MODEL
+    return OPENAI_ANALYSIS_MODEL_NAME
+
+
+def mindmap_model_for_active_provider() -> str:
+    if active_text_provider() == "gemini":
+        return GEMINI_MINDMAP_MODEL
+    if active_text_provider() == "deepseek":
+        return DEEPSEEK_MINDMAP_MODEL
+    return OPENAI_MINDMAP_MODEL_NAME
+
+
+def title_model_for_active_provider() -> str:
+    if active_text_provider() == "gemini":
+        return GEMINI_TITLE_MODEL
+    if active_text_provider() == "deepseek":
+        return DEEPSEEK_TITLE_MODEL
+    return OPENAI_TITLE_MODEL_NAME
+
+
 def fallback_model_for_active_provider() -> str:
     """Compatibility helper; automatic model fallback is disabled."""
     return chat_model_for_active_provider()

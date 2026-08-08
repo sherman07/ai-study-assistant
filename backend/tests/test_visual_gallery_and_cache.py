@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import importlib
 import json
 import re
 import tempfile
@@ -346,6 +347,68 @@ class ApiShapeTests(unittest.TestCase):
 
         self.assertEqual(response, "DeepSeek response")
         self.assertEqual(completions.calls[0]["extra_body"], {"thinking": {"type": "disabled"}})
+
+    def test_missing_deepseek_client_reports_deepseek_configuration(self):
+        with (
+            patch.object(backend_app_module, "text_generation_client", return_value=None),
+            patch.object(backend_app_module, "active_text_provider", return_value="deepseek"),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "DEEPSEEK_API_KEY.*not configured"):
+                backend_app_module.generate_chat([
+                    {"role": "user", "content": "Explain photosynthesis."},
+                ])
+
+    def test_deepseek_mind_map_uses_a_deepseek_model(self):
+        class FakeCompletions:
+            def __init__(self):
+                self.calls = []
+
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                return SimpleNamespace(
+                    choices=[SimpleNamespace(message=SimpleNamespace(content='{"center":"Enzymes","branches":[]}'))],
+                    usage=SimpleNamespace(prompt_tokens=1, completion_tokens=2, total_tokens=3),
+                )
+
+        completions = FakeCompletions()
+        deepseek_client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+        runtime_config = importlib.import_module(backend_app_module.mindmap_model_for_active_provider.__module__)
+        with (
+            patch.object(backend_app_module, "MINDMAP_MODEL", "gpt-5.4-mini"),
+            patch.object(backend_app_module, "text_generation_client", return_value=deepseek_client),
+            patch.object(runtime_config, "active_text_provider", return_value="deepseek"),
+        ):
+            backend_app_module.generate_ai_mind_map(
+                "Enzymes",
+                {"Overview": "Enzymes lower activation energy."},
+            )
+
+        self.assertEqual(completions.calls[0]["model"], "deepseek-v4-flash")
+
+    def test_deepseek_default_chat_model_is_provider_scoped(self):
+        class FakeCompletions:
+            def __init__(self):
+                self.calls = []
+
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                return SimpleNamespace(
+                    choices=[SimpleNamespace(message=SimpleNamespace(content="DeepSeek response"))],
+                    usage=SimpleNamespace(prompt_tokens=1, completion_tokens=2, total_tokens=3),
+                )
+
+        completions = FakeCompletions()
+        deepseek_client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+        runtime_config = importlib.import_module(backend_app_module.chat_model_for_active_provider.__module__)
+        with (
+            patch.object(backend_app_module, "text_generation_client", return_value=deepseek_client),
+            patch.object(runtime_config, "active_text_provider", return_value="deepseek"),
+        ):
+            backend_app_module.generate_chat([
+                {"role": "user", "content": "Explain enzymes."},
+            ], max_tokens=120)
+
+        self.assertEqual(completions.calls[0]["model"], "deepseek-v4-flash")
 
     def test_gemini_adc_client_uses_vertex_openai_endpoint_and_token(self):
         class FakeCredentials:

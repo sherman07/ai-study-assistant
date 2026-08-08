@@ -812,7 +812,8 @@ def _v21_record_usage(response, model_name: str, purpose: str = "chat") -> None:
 
 def _v21_selected_model(primary_model: str) -> str:
     """Return only the selected provider's requested model; retries stay local."""
-    return normalise_space(primary_model or CHAT_MODEL) or CHAT_MODEL
+    provider_model = chat_model_for_active_provider() if "chat_model_for_active_provider" in globals() else CHAT_MODEL
+    return normalise_space(primary_model or provider_model) or provider_model
 
 
 def _v21_is_payload_compatibility_error(message: str) -> bool:
@@ -927,7 +928,7 @@ def ai_call_trace_payload(trace: Optional[List[dict]], provider: str, source: st
 # Override existing helper. Keeps backwards compatibility with old calls.
 def generate_chat(
     messages: List[dict],
-    model: str = CHAT_MODEL,
+    model: str = "",
     temperature: float = 0,
     max_tokens: int = 4500,
     request_timeout: Optional[float] = None,
@@ -935,11 +936,12 @@ def generate_chat(
 ) -> str:
     active_client = text_generation_client()
     provider = active_text_provider() if "active_text_provider" in globals() else AI_TEXT_PROVIDER
+    model_name = model or (chat_model_for_active_provider() if "chat_model_for_active_provider" in globals() else CHAT_MODEL)
     if active_client is None:
         _record_ai_call_event({
             "stage": "chat",
             "provider": provider,
-            "model": model or CHAT_MODEL,
+            "model": model_name,
             "status": "configuration_error",
             "api_request_attempted": False,
             "error_type": "RuntimeError",
@@ -949,9 +951,10 @@ def generate_chat(
             if GEMINI_AUTH_MODE == "adc":
                 raise RuntimeError("Gemini ADC is not configured. Add GEMINI_PROJECT_ID to backend/.env.gemini, run gcloud auth application-default login, then restart the backend.")
             raise RuntimeError("GEMINI_API_KEY is not configured. Add it to backend/.env.gemini and restart the backend.")
+        if provider == "deepseek":
+            raise RuntimeError("DEEPSEEK_API_KEY is not configured. Add it to the deployment environment and restart the backend.")
         raise RuntimeError("OPENAI_API_KEY is not configured. Add it to backend/.env and restart the backend.")
 
-    model_name = model or CHAT_MODEL
     optimised_messages = _v21_optimise_messages(messages)
     request_options = {}
     if request_timeout is not None:

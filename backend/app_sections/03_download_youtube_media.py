@@ -856,7 +856,7 @@ Notes:
         raw = generate_chat([
             {"role": "system", "content": "You create accurate, compact, visual study mind maps as strict JSON. Never use markdown bold or raw LaTeX in mind map labels. Never translate the brand name Synapse."},
             {"role": "user", "content": prompt},
-        ], model=MINDMAP_MODEL, temperature=0, max_tokens=5600, request_timeout=request_timeout)
+        ], model=mindmap_model_for_active_provider(), temperature=0, max_tokens=5600, request_timeout=request_timeout)
         parsed = extract_json_object(raw)
         return normalise_ai_mind_map(parsed or {}, fallback, depth)
     except Exception:
@@ -897,7 +897,7 @@ def make_notes_title(summary: str, source_title_candidates: List[str], request_t
                     f"Summary excerpt:\n{truncate_text(summary, 6000)}"
                 ),
             },
-        ], model=TITLE_MODEL, temperature=0, max_tokens=80, request_timeout=request_timeout)
+        ], model=title_model_for_active_provider(), temperature=0, max_tokens=80, request_timeout=request_timeout)
         candidate = normalise_space(raw).strip(" #`'\".:;-")
         if len(candidate) >= 8:
             return candidate[:72]

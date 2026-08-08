@@ -172,6 +172,9 @@ gemini_client = (
 )
 DEEPSEEK_API_KEY = (os.getenv("DEEPSEEK_API_KEY") or "").strip()
 DEEPSEEK_OPENAI_BASE_URL = env_str("DEEPSEEK_OPENAI_BASE_URL", "https://api.deepseek.com")
+DEEPSEEK_THINKING_MODE = env_str("DEEPSEEK_THINKING_MODE", "disabled").lower()
+if DEEPSEEK_THINKING_MODE not in {"enabled", "disabled"}:
+    DEEPSEEK_THINKING_MODE = "disabled"
 deepseek_client = (
     OpenAI(
         api_key=DEEPSEEK_API_KEY,

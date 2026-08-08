@@ -962,6 +962,12 @@ def generate_chat(
             request_options = {}
     if provider_options:
         request_options["extra_body"] = provider_options
+    elif provider == "deepseek":
+        # DeepSeek V4 defaults to thinking mode, which can consume an entire
+        # bounded study-generation budget before producing visible content.
+        # Non-thinking is the dependable default for Synapse's normal request
+        # path; deployments can explicitly opt in with DEEPSEEK_THINKING_MODE.
+        request_options["extra_body"] = {"thinking": {"type": DEEPSEEK_THINKING_MODE}}
 
     # Some newer models may reject temperature or prefer max_completion_tokens.
     # Try several compatible payload shapes, preserving the previous robustness.

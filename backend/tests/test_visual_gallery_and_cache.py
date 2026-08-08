@@ -320,6 +320,33 @@ class ApiShapeTests(unittest.TestCase):
         self.assertEqual(trace[0]["model"], "gemini-2.5-flash")
         self.assertEqual(trace[0]["total_tokens"], 3)
 
+    def test_deepseek_generation_disables_thinking_by_default(self):
+        class FakeCompletions:
+            def __init__(self):
+                self.calls = []
+
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                return SimpleNamespace(
+                    choices=[SimpleNamespace(message=SimpleNamespace(content="DeepSeek response"))],
+                    usage=SimpleNamespace(prompt_tokens=1, completion_tokens=2, total_tokens=3),
+                )
+
+        completions = FakeCompletions()
+        deepseek_client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+        with (
+            patch.object(backend_app_module, "text_generation_client", return_value=deepseek_client),
+            patch.object(backend_app_module, "active_text_provider", return_value="deepseek"),
+        ):
+            response = backend_app_module.generate_chat(
+                [{"role": "user", "content": "Explain photosynthesis."}],
+                model="deepseek-v4-flash",
+                max_tokens=120,
+            )
+
+        self.assertEqual(response, "DeepSeek response")
+        self.assertEqual(completions.calls[0]["extra_body"], {"thinking": {"type": "disabled"}})
+
     def test_gemini_adc_client_uses_vertex_openai_endpoint_and_token(self):
         class FakeCredentials:
             token = "adc-token"

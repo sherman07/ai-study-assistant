@@ -33,6 +33,8 @@ services:
         sync: false
       - key: DEEPSEEK_MODEL
         value: deepseek-v4-flash
+      - key: DEEPSEEK_THINKING_MODE
+        value: disabled
       - key: ENABLE_TUTOR_WEB_RESEARCH
         value: "true"
       - key: SYNAPSE_PUBLIC_BACKEND_URL

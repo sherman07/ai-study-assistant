@@ -1,0 +1,36 @@
+---
+description: Apply architecture-refactor quality gates for all new code, styles, and uploads
+alwaysApply: true
+---
+
+# Architecture quality for new work
+
+Before writing **any new function, module, style, upload/file-handling path, or feature**, do a **lightweight** pass of `.cursor/skills/architecture-refactor/SKILL.md` — not the full five-phase refactor.
+
+## Required mini-pass (every new change)
+
+1. **Read the important parts** of the skill: Mandatory stance, Objectives 1–10 (as constraints), Architecture guidance, Security non-negotiables, Anti-patterns.
+2. **Place code in the right layer** per `docs/architecture/MVP.md`:
+   - View → Presenter → Model ← Services/Infrastructure
+   - Frontend: views in `react/` / `focus-room/components`; presenters in `*/presenters`; models in `*/model`; HTTP in api clients
+   - Backend: new logic in `domain/` or `application/`; do not grow `app_sections` with product logic
+   - Server: routes thin; orchestration in `services/`; persistence in `repositories/`
+3. **Preserve contracts**: public routes, env var names, DOM ids, schemas, Focus Room storage keys — unless change is explicitly required and justified.
+4. **Keep it proportional**: no new DI frameworks, extra layers, or rewrites unless they solve a demonstrated problem in this change.
+5. **Quality bar for the new code**:
+   - One clear responsibility; avoid mixed UI + business + I/O in one function
+   - Explicit names; no hard-coded secrets; validate external input at boundaries
+   - Prefer composition; reuse existing presenters/models (e.g. scene selection via `sceneBundle` / `scenePresenter`)
+   - Add or extend a focused test when behaviour is non-trivial or security-sensitive
+6. **Styles / UI**: follow existing Synapse visual language and section purpose; do not invent a parallel design system or dump logic into CSS/HTML.
+
+## When to run the full skill
+
+Only when the user asks to analyse/refactor architecture, or the change clearly needs a structural redesign. Otherwise stay on this mini-pass.
+
+## References
+
+- Skill: `.cursor/skills/architecture-refactor/SKILL.md`
+- MVP map: `docs/architecture/MVP.md`
+- Focus Room scenes: `docs/architecture/SCENE_CONNECTIONS.md`
+- Frontend MVP rules: `frontend/src/mvp/README.md`

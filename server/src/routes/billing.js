@@ -280,8 +280,16 @@ router.get("/credits", requireUser, (req, res) => {
 
 router.post("/credits/estimate", requireUser, asyncRoute(async (req, res) => {
   const actionId = req.body?.action_id || req.body?.actionId || req.body?.action;
+  const entitlements = userEntitlements(req.user);
+  if (entitlements.isSuspended) {
+    return res.status(403).json({
+      ok: false,
+      error: "This account is suspended.",
+      entitlements
+    });
+  }
   const estimate = estimateCredits(req.user, actionId, {
-    isPro: hasActivePro(req.user)
+    isPro: entitlements.isPro || hasActivePro(req.user)
   });
   if (!estimate.ok) {
     return res.status(400).json(estimate);
@@ -289,6 +297,7 @@ router.post("/credits/estimate", requireUser, asyncRoute(async (req, res) => {
   res.json({
     ok: true,
     ...estimate,
+    entitlements,
     credits: publicCreditBalance(req.user)
   });
 }));
@@ -296,10 +305,20 @@ router.post("/credits/estimate", requireUser, asyncRoute(async (req, res) => {
 router.post("/credits/spend", requireUser, asyncRoute(async (req, res) => {
   const actionId = req.body?.action_id || req.body?.actionId || req.body?.action;
   const requestedAmount = req.body?.amount ?? req.body?.credits;
+  const entitlements = userEntitlements(req.user);
+  if (entitlements.isSuspended) {
+    return res.status(403).json({
+      ok: false,
+      error: "This account is suspended.",
+      entitlements
+    });
+  }
   let charge = Number(requestedAmount);
 
   if (actionId) {
-    const estimate = estimateCredits(req.user, actionId, { isPro: hasActivePro(req.user) });
+    const estimate = estimateCredits(req.user, actionId, {
+      isPro: entitlements.isPro || hasActivePro(req.user)
+    });
     if (!estimate.ok) {
       return res.status(400).json(estimate);
     }
@@ -307,7 +326,8 @@ router.post("/credits/spend", requireUser, asyncRoute(async (req, res) => {
       return res.status(402).json({
         ok: false,
         error: estimate.blockedReason,
-        estimate
+        estimate,
+        entitlements
       });
     }
     if (!Number.isFinite(charge) || charge <= 0) {

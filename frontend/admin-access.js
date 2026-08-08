@@ -2,16 +2,39 @@
   "use strict";
 
   const admin = window.SynapseAdmin;
+  const MODEL_FEATURE_KEYS = new Set(["gptProvider", "geminiProvider", "deepseekProvider"]);
+  const DEFAULT_FEATURE_CATALOG = [
+    { key: "deepStudy", label: "Deep Study", description: "High-depth note generation and Pro study actions." },
+    { key: "proStudy", label: "Pro study tools", description: "Pro workspace study features and related content saves." },
+    { key: "advancedAnalytics", label: "Advanced analytics", description: "Mastery / analytics surfaces marked as Pro." },
+    { key: "priorityProcessing", label: "Priority processing", description: "Priority generation path when the product requests it." },
+    { key: "unlimitedUploads", label: "Unlimited uploads", description: "Relax Pro upload entitlement checks." },
+    { key: "learningCompanion", label: "Learning Companion", description: "AI learning companion chat." },
+    { key: "broadcastMode", label: "Broadcast Mode", description: "AI broadcast script and audio jobs." },
+    { key: "focusRoom", label: "Focus Room", description: "Focus Room study workspace." },
+    { key: "mediaAnalysis", label: "Audio / video analysis", description: "Transcribe and analyze audio or video uploads." },
+    { key: "voiceTutor", label: "Voice tutor", description: "Live voice tutoring sessions." },
+    { key: "gptProvider", label: "GPT models", description: "Allow OpenAI / GPT as a text provider." },
+    { key: "geminiProvider", label: "Gemini models", description: "Allow Gemini as a text provider." },
+    { key: "deepseekProvider", label: "DeepSeek models", description: "Allow DeepSeek as a text provider." }
+  ];
+
   let plansById = {
-    free: { id: "free", label: "Free", credits: 550 },
-    pro_monthly: { id: "pro_monthly", label: "Pro Monthly", credits: 1000 },
-    pro_yearly: { id: "pro_yearly", label: "Pro Annual", credits: 1000 }
+    free: { id: "free", label: "Free", credits: 550, dailyCredits: 50 },
+    pro_monthly: { id: "pro_monthly", label: "Pro Monthly", credits: 1000, dailyCredits: 1000 },
+    pro_yearly: { id: "pro_yearly", label: "Pro Annual", credits: 1000, dailyCredits: 1000 }
   };
+  let featureCatalog = DEFAULT_FEATURE_CATALOG.slice();
   let usersCache = [];
   let selectedUserId = "";
 
   function planLabel(plan) {
     return plansById[plan]?.label || plan || "Free";
+  }
+
+  function planDailyDefault(plan) {
+    const entry = plansById[plan] || {};
+    return Number(entry.dailyCredits ?? entry.credits ?? 50) || 50;
   }
 
   function formatDate(value) {
@@ -29,6 +52,62 @@
     return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 
+  function featureModeSelect(key, label, description, value) {
+    const selected = value || "inherit";
+    return `
+      <label class="admin-field admin-feature-field">
+        <span>${admin.escapeHtml(label)}</span>
+        <small>${admin.escapeHtml(description || "")}</small>
+        <select data-admin-feature="${admin.escapeHtml(key)}">
+          <option value="inherit" ${selected === "inherit" ? "selected" : ""}>Inherit from plan</option>
+          <option value="allow" ${selected === "allow" ? "selected" : ""}>Force allow</option>
+          <option value="deny" ${selected === "deny" ? "selected" : ""}>Force deny</option>
+        </select>
+      </label>
+    `;
+  }
+
+  function renderFeatureFields() {
+    const modelHost = document.getElementById("editModelAccessFields");
+    const featureHost = document.getElementById("editFeatureGateFields");
+    if (!modelHost || !featureHost) return;
+    const modelFeatures = featureCatalog.filter((entry) => MODEL_FEATURE_KEYS.has(entry.key));
+    const otherFeatures = featureCatalog.filter((entry) => !MODEL_FEATURE_KEYS.has(entry.key));
+    modelHost.innerHTML = modelFeatures.map((entry) => (
+      featureModeSelect(entry.key, entry.label, entry.description, "inherit")
+    )).join("");
+    featureHost.innerHTML = otherFeatures.map((entry) => (
+      featureModeSelect(entry.key, entry.label, entry.description, "inherit")
+    )).join("");
+  }
+
+  function readFeatureOverridesFromForm() {
+    const features = {};
+    document.querySelectorAll("[data-admin-feature]").forEach((node) => {
+      const key = node.getAttribute("data-admin-feature");
+      if (!key) return;
+      features[key] = node.value || "inherit";
+    });
+    return features;
+  }
+
+  function writeFeatureOverridesToForm(controls = {}) {
+    const features = controls.features || {};
+    document.querySelectorAll("[data-admin-feature]").forEach((node) => {
+      const key = node.getAttribute("data-admin-feature");
+      node.value = features[key] || "inherit";
+    });
+  }
+
+  function updateCreditTotalHint() {
+    const daily = Number(document.getElementById("editDailyCredits")?.value || 0);
+    const boost = Number(document.getElementById("editBoostCredits")?.value || 0);
+    const hint = document.getElementById("editCreditTotalHint");
+    if (!hint) return;
+    const total = Math.max(0, Math.floor(daily) + Math.floor(boost));
+    hint.textContent = `Total: ${total} (daily ${Math.max(0, Math.floor(daily))} + boost ${Math.max(0, Math.floor(boost))})`;
+  }
+
   function renderUsers(users) {
     const body = document.getElementById("usersTableBody");
     const hint = document.getElementById("usersCountHint");
@@ -42,12 +121,15 @@
       body.innerHTML = `<tr><td colspan="7">No users match this search.</td></tr>`;
       return;
     }
-    body.innerHTML = users.map((user) => `
+    body.innerHTML = users.map((user) => {
+      const suspended = user.adminControls?.accountStatus === "suspended";
+      return `
       <tr class="${user.id === selectedUserId ? "is-selected" : ""}" data-user-row="${admin.escapeHtml(user.id)}">
         <td>
           ${admin.escapeHtml(user.email || "—")}
           ${user.bootstrap ? ' <span class="admin-badge">primary</span>' : ""}
           ${user.platformRole === "controller" && !user.bootstrap ? ' <span class="admin-badge">controller</span>' : ""}
+          ${suspended ? ' <span class="admin-badge admin-badge-warn">suspended</span>' : ""}
         </td>
         <td>${admin.escapeHtml(user.displayName || "—")}</td>
         <td>${admin.escapeHtml(planLabel(user.plan))}</td>
@@ -56,13 +138,14 @@
             ? ` <small>(${admin.escapeHtml(String(user.dailyCredits ?? "—"))}d / ${admin.escapeHtml(String(user.boostCredits ?? "—"))}b)</small>`
             : ""
         }</td>
-        <td>${admin.escapeHtml(user.subscriptionStatus || "inactive")}</td>
+        <td>${admin.escapeHtml(suspended ? "suspended" : (user.subscriptionStatus || "inactive"))}</td>
         <td>${admin.escapeHtml(user.platformRole || "user")}</td>
         <td>
           <button type="button" class="admin-edit-btn" data-edit-user="${admin.escapeHtml(user.id)}">Edit</button>
         </td>
       </tr>
-    `).join("");
+    `;
+    }).join("");
   }
 
   function fillPlanSelect(plans) {
@@ -81,20 +164,31 @@
     document.getElementById("editEmail").value = user.email || "";
     document.getElementById("editDisplayName").value = user.displayName || "";
     document.getElementById("editPlan").value = user.plan || "free";
-    document.getElementById("editCredits").value = String(user.credits ?? plansById[user.plan]?.credits ?? 500);
+    const daily = Number.isFinite(Number(user.dailyCredits))
+      ? Number(user.dailyCredits)
+      : planDailyDefault(user.plan);
+    const boost = Number.isFinite(Number(user.boostCredits)) ? Number(user.boostCredits) : 0;
+    document.getElementById("editDailyCredits").value = String(daily);
+    document.getElementById("editBoostCredits").value = String(boost);
     document.getElementById("editSubscriptionStatus").value = user.subscriptionStatus || "inactive";
     document.getElementById("editPeriodEnd").value = toLocalInputValue(user.currentPeriodEnd);
     document.getElementById("editRole").value = user.role || "student";
     document.getElementById("editPlatformRole").value = user.platformRole || "user";
     document.getElementById("editPlatformRole").disabled = Boolean(user.bootstrap);
     document.getElementById("editResetCredits").checked = false;
+    const controls = user.adminControls || {};
+    document.getElementById("editAccountStatus").value = controls.accountStatus || "active";
+    document.getElementById("editAdminNotes").value = controls.notes || "";
+    writeFeatureOverridesToForm(controls);
+    updateCreditTotalHint();
     document.getElementById("editorSubtitle").textContent = user.email
       ? `Editing ${user.email}`
-      : "Update billing, credits, and rights for the selected account.";
+      : "Update billing, credits, models, and feature rights for the selected account.";
     document.getElementById("editorMeta").innerHTML = `
       <div><span>User id</span><strong>${admin.escapeHtml(user.id || "—")}</strong></div>
       <div><span>Auth provider</span><strong>${admin.escapeHtml(user.authProvider || "—")}</strong></div>
       <div><span>Stripe customer</span><strong>${admin.escapeHtml(user.stripeCustomerId || "—")}</strong></div>
+      <div><span>Daily allowance</span><strong>${admin.escapeHtml(String(user.dailyAllowance ?? planDailyDefault(user.plan)))}</strong></div>
       <div><span>Created</span><strong>${admin.escapeHtml(formatDate(user.createdAt))}</strong></div>
       <div><span>Updated</span><strong>${admin.escapeHtml(formatDate(user.updatedAt))}</strong></div>
     `;
@@ -117,6 +211,10 @@
     if (Array.isArray(data.plans)) {
       plansById = Object.fromEntries(data.plans.map((plan) => [plan.id, plan]));
       fillPlanSelect(data.plans);
+    }
+    if (Array.isArray(data.featureCatalog) && data.featureCatalog.length) {
+      featureCatalog = data.featureCatalog;
+      renderFeatureFields();
     }
     usersCache = data.users || [];
     renderUsers(usersCache);
@@ -145,21 +243,29 @@
     if (!userId) return;
     const plan = document.getElementById("editPlan")?.value || "free";
     const resetCredits = Boolean(document.getElementById("editResetCredits")?.checked);
+    let dailyCredits = Number(document.getElementById("editDailyCredits")?.value || 0);
+    const boostCredits = Number(document.getElementById("editBoostCredits")?.value || 0);
+    if (resetCredits) {
+      dailyCredits = planDailyDefault(plan);
+    }
     const body = {
       displayName: document.getElementById("editDisplayName")?.value || "",
       plan,
-      credits: Number(document.getElementById("editCredits")?.value || 0),
+      dailyCredits,
+      boostCredits,
       subscriptionStatus: document.getElementById("editSubscriptionStatus")?.value || "inactive",
       currentPeriodEnd: document.getElementById("editPeriodEnd")?.value
         ? new Date(document.getElementById("editPeriodEnd").value).toISOString()
         : null,
       role: document.getElementById("editRole")?.value || "student",
       platformRole: document.getElementById("editPlatformRole")?.value || "user",
-      resetCredits
+      resetCredits: false,
+      adminControls: {
+        accountStatus: document.getElementById("editAccountStatus")?.value || "active",
+        notes: document.getElementById("editAdminNotes")?.value || "",
+        features: readFeatureOverridesFromForm()
+      }
     };
-    if (resetCredits) {
-      body.credits = plansById[plan]?.credits ?? body.credits;
-    }
     admin.setStatus("editorStatus", "Saving to Supabase…", "info");
     try {
       const data = await admin.adminFetch(`/api/admin/users/${encodeURIComponent(userId)}`, {
@@ -190,6 +296,7 @@
     }
     const me = await admin.ensureController();
     if (!me) return;
+    renderFeatureFields();
     try {
       await refreshUsers();
     } catch (error) {
@@ -216,9 +323,16 @@
 
     document.getElementById("userEditForm")?.addEventListener("submit", saveUser);
     document.getElementById("editorClose")?.addEventListener("click", closeEditor);
+    document.getElementById("editDailyCredits")?.addEventListener("input", updateCreditTotalHint);
+    document.getElementById("editBoostCredits")?.addEventListener("input", updateCreditTotalHint);
     document.getElementById("editApplyPlanCredits")?.addEventListener("click", () => {
       const plan = document.getElementById("editPlan")?.value || "free";
-      document.getElementById("editCredits").value = String(plansById[plan]?.credits ?? 500);
+      document.getElementById("editDailyCredits").value = String(planDailyDefault(plan));
+      updateCreditTotalHint();
+    });
+    document.getElementById("editClearBoostCredits")?.addEventListener("click", () => {
+      document.getElementById("editBoostCredits").value = "0";
+      updateCreditTotalHint();
     });
     document.getElementById("editPlan")?.addEventListener("change", () => {
       const plan = document.getElementById("editPlan")?.value || "free";
@@ -236,7 +350,8 @@
         statusEl.value = "inactive";
       }
       if (document.getElementById("editResetCredits")?.checked) {
-        document.getElementById("editCredits").value = String(plansById[plan]?.credits ?? 500);
+        document.getElementById("editDailyCredits").value = String(planDailyDefault(plan));
+        updateCreditTotalHint();
       }
     });
   });

@@ -1,3 +1,4 @@
+import { applyAdminControlsToEntitlements } from "../admin/userControls.js";
 import { config } from "../config.js";
 import { cleanString } from "../utils/validators.js";
 
@@ -219,7 +220,7 @@ function hasActivePro(user = {}, now = new Date()) {
 
 function userEntitlements(user = {}) {
   const pro = hasActivePro(user);
-  return {
+  const base = {
     plan: normalizePlan(user.plan),
     subscriptionStatus: normalizeSubscriptionStatus(user.subscriptionStatus || user.subscription_status),
     currentPeriodEnd: user.currentPeriodEnd || user.current_period_end || null,
@@ -231,9 +232,28 @@ function userEntitlements(user = {}) {
       advancedAnalytics: pro,
       priorityProcessing: pro,
       unlimitedUploads: pro,
-      boostCredits: true
+      boostCredits: true,
+      learningCompanion: true,
+      broadcastMode: true,
+      focusRoom: true,
+      mediaAnalysis: true,
+      voiceTutor: true,
+      // Plan default: Free → DeepSeek only; Pro → GPT + Gemini + DeepSeek.
+      gptProvider: pro,
+      geminiProvider: pro,
+      deepseekProvider: true,
+      multiAiProviders: pro,
+      allowedAiProviders: pro ? ["openai", "gemini", "deepseek"] : ["deepseek"],
+      defaultAiProvider: pro ? "" : "deepseek"
     }
   };
+  return applyAdminControlsToEntitlements(base, user);
+}
+
+function userHasEntitlementFeature(user = {}, featureKey = "") {
+  const entitlements = userEntitlements(user);
+  if (entitlements.isSuspended) return false;
+  return Boolean(entitlements.features?.[featureKey]);
 }
 
 export {
@@ -252,5 +272,6 @@ export {
   resolveUserCredits,
   subscriptionAccessPlan,
   userEntitlements,
+  userHasEntitlementFeature,
   welcomeCreditsForPlan
 };

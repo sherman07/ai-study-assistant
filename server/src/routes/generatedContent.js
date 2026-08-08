@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireInternal, requireUser, requireUserOrInternal } from "../middleware/auth.js";
-import { requireActivePro } from "../middleware/billing.js";
+import { requireEntitlementFeature } from "../middleware/billing.js";
 import { upsertUser } from "../repositories/usersRepository.js";
 import { cleanString, limitValue } from "../utils/validators.js";
 import { asyncRoute, sendNotFound } from "./helpers.js";
@@ -18,6 +18,12 @@ import {
 const router = Router();
 const internalRouter = Router();
 const PRO_FEATURES = new Set(["advanced_analytics", "priority_processing", "pro_study", "unlimited_uploads"]);
+const PRO_FEATURE_TO_ENTITLEMENT = {
+  advanced_analytics: "advancedAnalytics",
+  priority_processing: "priorityProcessing",
+  pro_study: "proStudy",
+  unlimited_uploads: "unlimitedUploads"
+};
 
 async function actorFromRequest(req) {
   if (req.user) return req.user;
@@ -37,9 +43,15 @@ function requestRequiresPro(body = {}) {
   );
 }
 
+function entitlementKeyForRequest(body = {}) {
+  const result = body?.result || {};
+  const feature = cleanString(body?.feature || result.feature, 80);
+  return PRO_FEATURE_TO_ENTITLEMENT[feature] || "proStudy";
+}
+
 function requireProWhenRequested(req, res, next) {
   if (req.internal || !requestRequiresPro(req.body)) return next();
-  return requireActivePro(req, res, next);
+  return requireEntitlementFeature(entitlementKeyForRequest(req.body))(req, res, next);
 }
 
 router.get("/", requireUser, asyncRoute(async (req, res) => {

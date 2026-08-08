@@ -8,7 +8,17 @@ import {
   publicAdminUser
 } from "../admin/controllers.js";
 import { syncAuthUsersIntoPublicUsers } from "../admin/authUsers.js";
-import { billingPlanList, creditsForPlan, normalizePlan, normalizeSubscriptionStatus } from "../billing/plans.js";
+import {
+  adminFeatureCatalog,
+  normalizeAdminControls
+} from "../admin/userControls.js";
+import {
+  billingPlanList,
+  creditsForPlan,
+  dailyCreditsForPlan,
+  normalizePlan,
+  normalizeSubscriptionStatus
+} from "../billing/plans.js";
 import { requireController } from "../middleware/auth.js";
 import { listPlatformSettings, patchPlatformSettings } from "../repositories/platformSettingsRepository.js";
 import {
@@ -29,6 +39,16 @@ import { asyncRoute } from "./helpers.js";
 const router = Router();
 
 const ALLOWED_ROLES = new Set(["student", "teacher", "tutor", "admin"]);
+
+function parseNonNegativeInt(value, fieldName) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed < 0) {
+    const error = new Error(`${fieldName} must be a non-negative number.`);
+    error.status = 400;
+    throw error;
+  }
+  return Math.floor(parsed);
+}
 
 router.use(requireController);
 
@@ -213,6 +233,7 @@ router.get("/users", asyncRoute(async (req, res) => {
       dailyCredits: plan.dailyCredits,
       welcomeCredits: plan.welcomeCredits
     })),
+    featureCatalog: adminFeatureCatalog(),
     users: marked
   });
 }));
@@ -295,13 +316,52 @@ router.patch("/users/:id", asyncRoute(async (req, res) => {
   }
 
   if (body.credits !== undefined) {
-    const credits = Number(body.credits);
-    if (!Number.isFinite(credits) || credits < 0) {
-      return res.status(400).json({ ok: false, error: "Credits must be a non-negative number." });
+    try {
+      patch.credits = parseNonNegativeInt(body.credits, "Credits");
+    } catch (error) {
+      return res.status(400).json({ ok: false, error: error.message });
     }
-    patch.credits = Math.floor(credits);
-  } else if (body.plan !== undefined && body.resetCredits === true) {
-    patch.credits = creditsForPlan(patch.plan);
+  }
+
+  if (body.dailyCredits !== undefined || body.daily_credits !== undefined) {
+    try {
+      patch.dailyCredits = parseNonNegativeInt(
+        body.dailyCredits ?? body.daily_credits,
+        "Daily credits"
+      );
+    } catch (error) {
+      return res.status(400).json({ ok: false, error: error.message });
+    }
+  }
+
+  if (body.boostCredits !== undefined || body.boost_credits !== undefined) {
+    try {
+      patch.boostCredits = parseNonNegativeInt(
+        body.boostCredits ?? body.boost_credits,
+        "Boost credits"
+      );
+    } catch (error) {
+      return res.status(400).json({ ok: false, error: error.message });
+    }
+  }
+
+  if (
+    body.credits === undefined
+    && body.dailyCredits === undefined
+    && body.daily_credits === undefined
+    && body.boostCredits === undefined
+    && body.boost_credits === undefined
+    && body.plan !== undefined
+    && body.resetCredits === true
+  ) {
+    patch.resetCredits = true;
+    patch.preserveBoostCredits = body.preserveBoostCredits !== false;
+    // Prefer splitting plan daily + keep boost rather than a single total blob.
+    patch.dailyCredits = dailyCreditsForPlan(patch.plan);
+  }
+
+  if (body.adminControls !== undefined || body.admin_controls !== undefined) {
+    patch.adminControls = normalizeAdminControls(body.adminControls ?? body.admin_controls);
   }
 
   if (body.currentPeriodEnd !== undefined || body.current_period_end !== undefined) {

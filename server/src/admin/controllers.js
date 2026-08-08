@@ -1,5 +1,6 @@
 import { config } from "../config.js";
 import { resolveUserCredits } from "../billing/plans.js";
+import { publicAdminControls } from "./userControls.js";
 import { cleanString } from "../utils/validators.js";
 
 const PRIMARY_CONTROLLER_EMAIL = "shermanzheng8@gmail.com";
@@ -59,6 +60,7 @@ function publicAdminUser(user = {}) {
     dailyAllowance: Number.isFinite(Number(user.dailyAllowance))
       ? Math.max(0, Math.floor(Number(user.dailyAllowance)))
       : null,
+    adminControls: publicAdminControls(user),
     stripeCustomerId: user.stripeCustomerId || user.stripe_customer_id || "",
     authProvider: user.authProvider || user.auth_provider || "",
     createdAt: user.createdAt || user.created_at || null,

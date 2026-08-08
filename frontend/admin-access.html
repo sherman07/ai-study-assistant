@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Users | Synapse</title>
-  <meta name="description" content="Controller tools for reviewing Synapse users, plans, credits, and platform access without leaving the study assistant workspace." />
+  <meta name="description" content="Controller tools for reviewing Synapse users, plans, credits, model access, and feature gates without leaving the study assistant workspace." />
   <meta name="robots" content="noindex,nofollow" />
   <meta name="theme-color" content="#4a7cff" />
   <script src="theme-bootstrap.js?v=theme-system-v2"></script>
   <link rel="icon" type="image/png" href="/logos/synapse.png">
   <link rel="stylesheet" href="billing-pages.css?v=stripe-billing-v1">
-  <link rel="stylesheet" href="admin-pages.css?v=admin-auth-loop-v1">
+  <link rel="stylesheet" href="admin-pages.css?v=admin-user-controls-v1">
   <link rel="stylesheet" href="styles/00-theme.css?v=ui-english-v1">
   <link rel="stylesheet" href="styles/99-dark-mode.css?v=dark-mode-v6">
   <script src="config.js"></script>
@@ -37,7 +37,7 @@
       <section class="billing-container admin-hero">
         <p class="billing-kicker">Controller only</p>
         <h1>Users</h1>
-        <p>See everyone signed up in Synapse. Edit plan, credits, subscription status, and controller rights. Changes write to Supabase.</p>
+        <p>Edit plan, daily and boost credits, AI model access, feature gates, and account status. Changes write to Supabase.</p>
       </section>
 
       <section class="billing-container">
@@ -82,12 +82,17 @@
             <div class="admin-toolbar">
               <div>
                 <h2>Edit user</h2>
-                <p class="admin-copy" id="editorSubtitle">Update billing, credits, and rights for the selected account.</p>
+                <p class="admin-copy" id="editorSubtitle">Update billing, credits, models, and feature rights for the selected account.</p>
               </div>
               <button class="billing-button" type="button" id="editorClose">Close</button>
             </div>
             <form id="userEditForm" class="admin-form admin-edit-grid">
               <input type="hidden" id="editUserId" />
+
+              <div class="admin-section admin-field-span">
+                <h3>Account</h3>
+                <p class="admin-section-help">Identity, plan, and platform rights.</p>
+              </div>
               <label class="admin-field">
                 <span>Email</span>
                 <input id="editEmail" type="email" disabled />
@@ -105,8 +110,11 @@
                 </select>
               </label>
               <label class="admin-field">
-                <span>Credits</span>
-                <input id="editCredits" type="number" min="0" step="1" />
+                <span>Account status</span>
+                <select id="editAccountStatus">
+                  <option value="active">active</option>
+                  <option value="suspended">suspended</option>
+                </select>
               </label>
               <label class="admin-field">
                 <span>Subscription status</span>
@@ -139,13 +147,46 @@
                   <option value="controller">controller</option>
                 </select>
               </label>
+
+              <div class="admin-section admin-field-span">
+                <h3>Credits</h3>
+                <p class="admin-section-help">Daily credits refresh each day. Boost credits persist until spent. Set them independently.</p>
+              </div>
+              <label class="admin-field">
+                <span>Daily credits</span>
+                <input id="editDailyCredits" type="number" min="0" step="1" />
+              </label>
+              <label class="admin-field">
+                <span>Boost credits</span>
+                <input id="editBoostCredits" type="number" min="0" step="1" />
+              </label>
+              <p class="admin-credit-total admin-field-span" id="editCreditTotalHint">Total: 0</p>
               <label class="admin-checkbox admin-field-span">
                 <input id="editResetCredits" type="checkbox" />
-                <span>When changing plan, also set credits to that plan’s default</span>
+                <span>When changing plan, also set daily credits to that plan’s default (keeps boost)</span>
               </label>
+
+              <div class="admin-section admin-field-span">
+                <h3>AI model access</h3>
+                <p class="admin-section-help">Override plan defaults. Inherit follows Free (DeepSeek only) or Pro (GPT + Gemini + DeepSeek).</p>
+              </div>
+              <div class="admin-feature-grid admin-field-span" id="editModelAccessFields"></div>
+
+              <div class="admin-section admin-field-span">
+                <h3>Feature gates</h3>
+                <p class="admin-section-help">Allow or deny product areas for this user. Inherit uses the plan entitlement.</p>
+              </div>
+              <div class="admin-feature-grid admin-field-span" id="editFeatureGateFields"></div>
+
+              <label class="admin-field admin-field-span">
+                <span>Controller notes</span>
+                <textarea id="editAdminNotes" rows="3" maxlength="2000" placeholder="Internal notes about this account…"></textarea>
+              </label>
+
               <div class="admin-actions admin-field-span">
                 <button class="billing-button primary" type="submit">Save changes</button>
-                <button class="billing-button" type="button" id="editApplyPlanCredits">Apply plan credits</button>
+                <button class="billing-button" type="button" id="editApplyPlanCredits">Apply plan daily credits</button>
+                <button class="billing-button" type="button" id="editClearBoostCredits">Clear boost</button>
               </div>
             </form>
             <p class="billing-status" id="editorStatus" role="status" aria-live="polite"></p>
@@ -155,6 +196,6 @@
       </section>
     </main>
   </div>
-  <script src="admin-access.js?v=notes-taller-v2"></script>
+  <script src="admin-access.js?v=admin-user-controls-v1"></script>
 </body>
 </html>

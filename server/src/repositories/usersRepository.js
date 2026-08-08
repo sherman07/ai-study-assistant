@@ -1,4 +1,6 @@
+import { normalizeAdminControls } from "../admin/userControls.js";
 import {
+  buildCreditState,
   creditMetadataFromState,
   ensureCreditState,
   resetCreditsForPlan
@@ -94,15 +96,33 @@ function adminCreditsState(existingUser, desiredTotal, plan) {
   const allowance = dailyCreditsForPlan(plan);
   const dailyCredits = Math.min(desired, allowance);
   const boostCredits = Math.max(0, desired - dailyCredits);
-  return {
+  return buildCreditState({
     ...base,
     plan,
     dailyCredits,
     boostCredits,
-    totalCredits: dailyCredits + boostCredits,
-    dailyAllowance: allowance,
     welcomeGranted: true
-  };
+  });
+}
+
+function adminSplitCreditsState(existingUser, patch = {}, plan) {
+  const base = ensureCreditState({
+    plan,
+    metadata: existingUser?.metadata || {}
+  });
+  const hasDaily = patch.dailyCredits !== undefined || patch.daily_credits !== undefined;
+  const hasBoost = patch.boostCredits !== undefined || patch.boost_credits !== undefined;
+  const dailyRaw = hasDaily ? (patch.dailyCredits ?? patch.daily_credits) : base.dailyCredits;
+  const boostRaw = hasBoost ? (patch.boostCredits ?? patch.boost_credits) : base.boostCredits;
+  const dailyCredits = Math.max(0, Math.floor(Number(dailyRaw) || 0));
+  const boostCredits = Math.max(0, Math.floor(Number(boostRaw) || 0));
+  return buildCreditState({
+    ...base,
+    plan,
+    dailyCredits,
+    boostCredits,
+    welcomeGranted: true
+  });
 }
 
 function supabaseUserPatch(patch = {}, existingUser = null) {
@@ -125,10 +145,22 @@ function supabaseUserPatch(patch = {}, existingUser = null) {
     ? (patch.metadata || {})
     : null;
 
+  const hasSplitCredits = patch.dailyCredits !== undefined
+    || patch.daily_credits !== undefined
+    || patch.boostCredits !== undefined
+    || patch.boost_credits !== undefined;
+
   if (patch.creditState) {
     metadata = {
       ...(metadata || existingMetadata || {}),
       ...creditMetadataFromState(patch.creditState)
+    };
+  } else if (hasSplitCredits) {
+    const plan = patch.plan || existingUser?.plan || "free";
+    const nextState = adminSplitCreditsState(existingUser, patch, plan);
+    metadata = {
+      ...(metadata || existingMetadata || {}),
+      ...creditMetadataFromState(nextState)
     };
   } else if (patch.credits !== undefined) {
     const plan = patch.plan || existingUser?.plan || "free";
@@ -140,11 +172,22 @@ function supabaseUserPatch(patch = {}, existingUser = null) {
   } else if (patch.resetCredits === true) {
     const plan = patch.plan || existingUser?.plan || "free";
     const nextState = resetCreditsForPlan(plan, {
-      preserveBoost: patch.preserveBoostCredits ? Number(existingUser?.boostCredits || 0) : 0
+      preserveBoost: patch.preserveBoostCredits !== false
+        ? Number(existingUser?.boostCredits || existingMetadata.boost_credits || 0)
+        : 0
     });
     metadata = {
       ...(metadata || existingMetadata || {}),
       ...creditMetadataFromState(nextState)
+    };
+  }
+
+  if (patch.adminControls !== undefined || patch.admin_controls !== undefined) {
+    const controls = normalizeAdminControls(patch.adminControls ?? patch.admin_controls);
+    controls.updatedAt = new Date().toISOString();
+    metadata = {
+      ...(metadata || existingMetadata || {}),
+      admin_controls: controls
     };
   }
 
@@ -217,7 +260,13 @@ async function supabaseUpsertUser(identity = {}) {
 async function supabasePatchUser(userId, patch = {}) {
   const needsExisting = patch.credits !== undefined
     || patch.creditState !== undefined
-    || patch.resetCredits === true;
+    || patch.resetCredits === true
+    || patch.dailyCredits !== undefined
+    || patch.daily_credits !== undefined
+    || patch.boostCredits !== undefined
+    || patch.boost_credits !== undefined
+    || patch.adminControls !== undefined
+    || patch.admin_controls !== undefined;
 
   const existing = needsExisting ? await supabaseGetUserById(userId) : null;
   const next = supabaseUserPatch(patch, existing);

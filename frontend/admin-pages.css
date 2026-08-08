@@ -197,6 +197,58 @@
   color: var(--primary-strong) !important;
 }
 
+.admin-section {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+}
+
+.admin-section h3 {
+  margin: 0 0 6px;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+}
+
+.admin-section-help,
+.admin-credit-total {
+  margin: 0 0 4px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.admin-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-feature-field small {
+  display: block;
+  margin-top: -4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.admin-field textarea {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 12px 14px;
+  font: inherit;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.92);
+  resize: vertical;
+  min-height: 88px;
+}
+
+.admin-badge-warn {
+  background: rgba(220, 38, 38, 0.12);
+  color: #b91c1c;
+}
+
 .admin-table tr.is-selected td {
   background: rgba(74, 124, 255, 0.08);
 }
@@ -224,6 +276,10 @@
   }
 
   .admin-edit-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-feature-grid {
     grid-template-columns: 1fr;
   }
 }

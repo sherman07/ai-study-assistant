@@ -2,6 +2,7 @@ import {
   dailyCreditsForPlan,
   normalizePlan,
   resolveUserCredits,
+  userEntitlements,
   welcomeCreditsForPlan
 } from "./plans.js";
 import { cleanString } from "../utils/validators.js";
@@ -290,7 +291,32 @@ function estimateCredits(user = {}, actionId, { now = new Date(), isPro = null }
     };
   }
   const state = ensureCreditState(user, { now });
-  const pro = typeof isPro === "boolean" ? isPro : Boolean(user.isPro);
+  const entitlements = userEntitlements(user);
+  if (entitlements.isSuspended) {
+    return {
+      ok: true,
+      action: {
+        id: action.id,
+        label: action.label,
+        description: action.description,
+        requiresPro: action.requiresPro
+      },
+      estimate: {
+        expectedRange: { min: action.min, max: action.max },
+        maximumCharge: action.max,
+        currency: "credits"
+      },
+      balance: state,
+      willUse: balanceSourceLabel(state, 0),
+      canAfford: false,
+      blockedReason: "This account is suspended. Contact support or a controller.",
+      lowerCostOption: null
+    };
+  }
+  const pro = typeof isPro === "boolean" ? isPro : Boolean(entitlements.isPro);
+  const featureAllowed = action.requiresPro
+    ? Boolean(entitlements.features?.deepStudy || entitlements.features?.proStudy || pro)
+    : true;
   const maxCharge = action.max;
   const canAfford = state.totalCredits >= maxCharge;
   const source = balanceSourceLabel(state, Math.min(maxCharge, state.totalCredits || maxCharge));
@@ -312,8 +338,8 @@ function estimateCredits(user = {}, actionId, { now = new Date(), isPro = null }
     balance: state,
     willUse: source,
     canAfford,
-    blockedReason: action.requiresPro && !pro
-      ? "Deep Study and other Pro learning features require an active Pro plan."
+    blockedReason: action.requiresPro && !featureAllowed
+      ? "Deep Study and other Pro learning features require an active Pro plan (or a controller grant)."
       : (!canAfford ? "Not enough credits for the maximum estimated charge." : null),
     lowerCostOption: lowerCost
       ? {

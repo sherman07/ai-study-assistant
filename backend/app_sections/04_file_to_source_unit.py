@@ -36,27 +36,26 @@ def file_to_source_unit(name: str, content_type: str, data: bytes) -> Tuple[List
         source_meta["visual_parts"] = [visual_label, image_part]
         return parts, source_meta
 
-    is_audio_video = (
-        (content_type and (content_type.startswith("audio/") or content_type.startswith("video/")))
-        or lower_name.endswith((".mp3", ".m4a", ".wav", ".webm", ".mp4", ".mov", ".m4v", ".avi", ".mkv"))
-    )
+    is_audio_video = media_analysis_domain.is_media_upload(name, content_type or "")
 
     frame_parts: List[dict] = []
     if is_audio_video:
-        transcript = transcribe_media_bytes(name, data) if has_openai() else "Audio/video transcription requires a valid OPENAI_API_KEY."
-        text = transcript
-        if lower_name.endswith((".mp4", ".mov", ".m4v", ".webm", ".avi", ".mkv")):
-            suffix = Path(name or "video.mp4").suffix or ".mp4"
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
-                temp_file.write(data)
-                temp_path = temp_file.name
-            try:
-                frame_parts = extract_video_frames_from_file(temp_path, source_name=name or "uploaded video")
-            finally:
-                try:
-                    os.remove(temp_path)
-                except OSError:
-                    pass
+        parts, source_meta = build_uploaded_media_source(
+            name,
+            content_type or "",
+            data,
+            has_openai=has_openai(),
+            client=client,
+            primary_model=TRANSCRIBE_MODEL,
+            max_audio_bytes=MAX_AUDIO_BYTES,
+            require_openai_api=require_openai_api,
+            extract_video_frames=extract_video_frames_from_file,
+            truncate_text=truncate_text,
+            detect_title=lambda sample: detect_legislation_title(sample) or detect_course_or_topic_title(sample),
+            sha256_bytes=sha256_bytes,
+            sha256_text=sha256_text,
+        )
+        return parts, source_meta
     elif lower_name.endswith(".pdf") or content_type == "application/pdf":
         text = extract_pdf(data)
         frame_parts = (
@@ -122,31 +121,37 @@ def link_to_source_unit(url: str, captions_only: bool = False) -> Tuple[List[dic
     if lower_path.endswith((".mp3", ".m4a", ".wav", ".mp4", ".webm", ".mov", ".avi", ".mkv")):
         req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         data = urlopen_bytes(req, timeout=20, max_bytes=MAX_VIDEO_BYTES + 1)
-        frame_parts: List[dict] = []
         linked_name = Path(parsed.path).name or "linked media"
-        if lower_path.endswith((".mp4", ".webm", ".mov", ".avi", ".mkv")):
-            suffix = Path(linked_name).suffix or ".mp4"
-            with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
-                temp_file.write(data)
-                temp_path = temp_file.name
-            try:
-                frame_parts = extract_video_frames_from_file(temp_path, source_name=linked_name)
-            finally:
-                try:
-                    os.remove(temp_path)
-                except OSError:
-                    pass
-        transcript = transcribe_media_bytes(Path(parsed.path).name or "linked-media", data) if has_openai() else "Media transcription requires a valid OPENAI_API_KEY."
-        parts = [{"type": "text", "text": f"\n\nSOURCE MEDIA LINK: {url}\nTranscript:\n{truncate_text(transcript)}"}]
-        parts.extend(frame_parts)
-        return parts, {
-            "display_name": url,
-            "source_identity": canonicalize_url(url)[1],
-            "title_candidate": linked_name,
-            "content_hash": sha256_text(transcript),
-            "text_excerpt": transcript,
-            "visual_parts": frame_parts,
-        }
+        linked_type = "video/mp4" if media_analysis_domain.is_video_upload(linked_name, "") else "audio/mpeg"
+        parts, source_meta = build_uploaded_media_source(
+            linked_name,
+            linked_type,
+            data,
+            has_openai=has_openai(),
+            client=client,
+            primary_model=TRANSCRIBE_MODEL,
+            max_audio_bytes=MAX_AUDIO_BYTES,
+            require_openai_api=require_openai_api,
+            extract_video_frames=extract_video_frames_from_file,
+            truncate_text=truncate_text,
+            detect_title=lambda sample: detect_legislation_title(sample) or detect_course_or_topic_title(sample),
+            sha256_bytes=sha256_bytes,
+            sha256_text=sha256_text,
+        )
+        # Rewrite identity fields for link sources while keeping the rich media brief.
+        source_meta["display_name"] = url
+        source_meta["source_identity"] = canonicalize_url(url)[1]
+        source_meta["url"] = url
+        if parts and parts[0].get("type") == "text":
+            parts[0] = {
+                "type": "text",
+                "text": str(parts[0].get("text") or "").replace(
+                    f"SOURCE MEDIA",
+                    f"SOURCE MEDIA LINK ({url})",
+                    1,
+                ),
+            }
+        return parts, source_meta
 
     try:
         webpage_text, meta = fetch_webpage(url)

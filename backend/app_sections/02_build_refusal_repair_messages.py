@@ -754,42 +754,18 @@ def fetch_youtube_metadata(url: str) -> dict:
 
 
 def transcribe_media_bytes(filename: str, data: bytes) -> str:
-    require_openai_api()
-    if not data:
-        return "No audio/video data was provided."
-    if len(data) > MAX_AUDIO_BYTES:
-        size_mb = len(data) / (1024 * 1024)
-        limit_mb = MAX_AUDIO_BYTES / (1024 * 1024)
-        return (
-            f"The audio/video file is too large to transcribe directly ({size_mb:.1f}MB). "
-            f"The current limit is about {limit_mb:.0f}MB. Upload a shorter clip or paste the transcript."
-        )
-
-    suffix = Path(filename or "audio.webm").suffix or ".webm"
-    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
-        temp_file.write(data)
-        temp_path = temp_file.name
-    try:
-        with open(temp_path, "rb") as audio_file:
-            try:
-                result = client.audio.transcriptions.create(
-                    model=TRANSCRIBE_MODEL,
-                    file=audio_file,
-                    prompt="Academic tutorial or lecture. Preserve formulas, numbers, mixed Chinese-English, and correction steps.",
-                )
-            except Exception:
-                audio_file.seek(0)
-                result = client.audio.transcriptions.create(
-                    model="whisper-1",
-                    file=audio_file,
-                    prompt="Academic lecture/tutorial. Preserve formulas and numbers.",
-                )
-        return getattr(result, "text", str(result)).strip()
-    finally:
-        try:
-            os.remove(temp_path)
-        except OSError:
-            pass
+    """Compatibility wrapper — structured transcription lives in application.media_transcription."""
+    if not has_openai():
+        return "Audio/video transcription requires a valid OPENAI_API_KEY."
+    result = application_transcribe_media_file(
+        filename,
+        data,
+        client=client,
+        primary_model=TRANSCRIBE_MODEL,
+        max_audio_bytes=MAX_AUDIO_BYTES,
+        require_openai_api=require_openai_api,
+    )
+    return str(result.get("text") or "").strip()
 
 
 def extract_video_frames_from_file(video_path: str, max_frames: int = MAX_VIDEO_FRAMES, source_name: str = "video") -> List[dict]:

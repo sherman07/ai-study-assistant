@@ -1627,6 +1627,31 @@ body.mobile-assistant-open::before {
   line-height: 1;
 }
 
+.file-chip-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
+  min-width: 0;
+}
+
+.file-chip-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-chip-media-hint {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 550;
+  line-height: 1.2;
+}
+
+.file-chip-audio,
+.file-chip-video {
+  border-color: color-mix(in srgb, var(--accent, #4f46e5) 35%, var(--border-blue));
+}
+
 .multi-link-adder {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;

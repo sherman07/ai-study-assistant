@@ -50,11 +50,11 @@ export function UploadStage() {
           className: "visually-hidden",
           type: "file",
           multiple: true,
-          accept: ".pdf,.txt,.md,.docx,.pptx,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.webm,image/*,audio/*,video/*,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation",
+          accept: ".pdf,.txt,.md,.docx,.pptx,.png,.jpg,.jpeg,.webp,.mp3,.m4a,.wav,.mp4,.mov,.webm,image/*,audio/*,video/*,application/pdf,text/plain,text/markdown,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.openxmlformats-officedocument.presentationml.presentation",
         }),
         h("div", { className: "upload-icon-wrap" }, icon("bi-cloud-arrow-up")),
         h("h2", null, "Drop files here"),
-        h("p", null, "PDFs, slides, documents, images, audio, and video are supported."),
+        h("p", null, "PDFs, slides, documents, images, audio, and video are supported. Audio and video are transcribed into tutor-style study notes."),
         h(
           "button",
           {

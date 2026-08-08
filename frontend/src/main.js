@@ -12,6 +12,13 @@ import {
   titleFromCompanionThread,
 } from "./legacy/learningCompanionChatStore.js?v=ai-learning-companion-v2";
 import { normalizeFocusRoomWorkspaceTarget } from "./focus-room/model/workspaceReturnTarget.js";
+import {
+  describeAddedFiles,
+  mediaKindFromFile,
+  mediaReadyLabel,
+  summarizeMediaUploads
+} from "./legacy/presenters/mediaUploadPresenter.js";
+import { mediaFileIcon } from "./legacy/model/mediaUpload.js";
 
 const root = document.getElementById("root");
 
@@ -31,6 +38,13 @@ if (!window.React || !window.ReactDOM) {
 }
 
 window.__synapseNormalizeFocusRoomWorkspaceTarget = normalizeFocusRoomWorkspaceTarget;
+window.__synapseMediaUpload = {
+  describeAddedFiles,
+  mediaKindFromFile,
+  mediaReadyLabel,
+  mediaFileIcon,
+  summarizeMediaUploads
+};
 
 window.__synapseCompanionChat = {
   activate(id) {

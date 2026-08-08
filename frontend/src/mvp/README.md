@@ -7,6 +7,10 @@ View (React / HTML)
       ← Services (apiClient, dataApiClient, auth)
 ```
 
+## Before adding anything new
+
+Do the lightweight architecture-refactor mini-pass (see `.cursor/rules/architecture-quality.mdc` and `.cursor/skills/architecture-refactor/SKILL.md`): place the change in the correct layer, preserve contracts, keep it proportional, and add a focused test when behaviour matters.
+
 ## Rules
 
 1. New Focus Room scene / audio / motion behaviour goes through `model/sceneBundle.js`.

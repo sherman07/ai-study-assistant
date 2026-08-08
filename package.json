@@ -17,7 +17,7 @@
     "test:frontend": "for test_file in frontend/tests/*.mjs; do if grep -q 'puppeteer-core' \"$test_file\"; then continue; fi; node \"$test_file\" || exit 1; done",
     "test:frontend:chrome": "for test_file in frontend/tests/*.mjs; do if grep -q 'puppeteer-core' \"$test_file\"; then node \"$test_file\" || exit 1; fi; done",
     "test:focus-room": "node frontend/tests/focus-room-integration-regression.mjs && node frontend/tests/focus-room-data-regression.mjs && node frontend/tests/focus-room-audio-regression.mjs && node frontend/tests/focus-room-controller-actions-regression.mjs && node frontend/tests/focus-room-study-tools-regression.mjs && node frontend/tests/focus-room-navigation-regression.mjs && node frontend/tests/focus-room-timer-regression.mjs && node frontend/tests/focus-room-compact-timer-regression.mjs && node frontend/tests/focus-room-topics-regression.mjs && node frontend/tests/focus-room-enhanced-mode-regression.mjs && node frontend/tests/study-tools-settings-regression.mjs && node frontend/tests/focus-room-scene-mvp-regression.mjs",
-    "test:mvp": "node frontend/tests/focus-room-scene-mvp-regression.mjs && node frontend/tests/workspace-presenter-regression.mjs"
+    "test:mvp": "node frontend/tests/focus-room-scene-mvp-regression.mjs && node frontend/tests/workspace-presenter-regression.mjs && node frontend/tests/media-upload-mvp-regression.mjs"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.19",

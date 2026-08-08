@@ -931,6 +931,7 @@ def generate_chat(
     temperature: float = 0,
     max_tokens: int = 4500,
     request_timeout: Optional[float] = None,
+    provider_options: Optional[dict] = None,
 ) -> str:
     active_client = text_generation_client()
     provider = active_text_provider() if "active_text_provider" in globals() else AI_TEXT_PROVIDER
@@ -959,6 +960,8 @@ def generate_chat(
             request_options["timeout"] = timeout_value
         except Exception:
             request_options = {}
+    if provider_options:
+        request_options["extra_body"] = provider_options
 
     # Some newer models may reject temperature or prefer max_completion_tokens.
     # Try several compatible payload shapes, preserving the previous robustness.

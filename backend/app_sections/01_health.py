@@ -39,12 +39,16 @@ def health_deepseek(probe: bool = False):
             "probe": bool(probe),
         }
         if probe:
-            payload["reply"] = generate_chat(
+            reply = generate_chat(
                 [{"role": "user", "content": "Reply with OK only."}],
                 model=model,
                 temperature=0,
-                max_tokens=5,
+                max_tokens=16,
+                provider_options={"thinking": {"type": "disabled"}},
             ).strip()
+            if not reply:
+                raise RuntimeError("DeepSeek health probe returned an empty reply.")
+            payload["reply"] = reply
         else:
             payload["reply"] = None
             payload["message"] = "DeepSeek credentials are configured. Add ?probe=true to run a live model check."

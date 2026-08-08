@@ -91,6 +91,30 @@ class HealthDeepSeekProbeTests(unittest.TestCase):
         generate_chat.assert_called_once()
         reset_provider.assert_called_once_with(request_token)
 
+    def test_deepseek_health_probe_rejects_an_empty_model_reply(self):
+        request_token = object()
+        with (
+            patch("backend.app.set_request_text_provider", return_value=request_token),
+            patch("backend.app.require_text_ai"),
+            patch("backend.app.chat_model_for_active_provider", return_value="deepseek-v4-flash"),
+            patch("backend.app.generate_chat", return_value="") as generate_chat,
+            patch("backend.app.reset_request_text_provider") as reset_provider,
+        ):
+            response = TestClient(app).get("/health/deepseek?probe=true")
+
+        self.assertEqual(response.status_code, 503)
+        payload = response.json()
+        self.assertEqual(payload["status"], "error")
+        self.assertEqual(payload["provider"], "deepseek")
+        generate_chat.assert_called_once_with(
+            [{"role": "user", "content": "Reply with OK only."}],
+            model="deepseek-v4-flash",
+            temperature=0,
+            max_tokens=16,
+            provider_options={"thinking": {"type": "disabled"}},
+        )
+        reset_provider.assert_called_once_with(request_token)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -150,7 +150,15 @@ assert.ok(!appShell.includes("FocusRoom()"), "AppShell should not render the sep
 assert.ok(!analysisStage.includes("focusRoomCta"), "generated notes should not expose a duplicate Focus Room entry point");
 assert.ok(controller.includes("\"10_focusroombridge.js\""), "legacy controller should load the Focus Room bridge");
 assert.ok(historyNavigation.includes("learning-rail-focus-room"), "left learning navigation should include the Focus Room action");
-assert.ok(historyNavigation.includes('legacyAction("openSynapseFocusRoom")'), "left learning navigation should open Focus Room through the shared bridge");
+assert.ok(
+  historyNavigation.includes('legacyAction("openSynapseFocusRoom")')
+    || historyNavigation.includes("workspacePresenters.openSynapseFocusRoom()"),
+  "left learning navigation should open Focus Room through the shared bridge"
+);
+assert.ok(
+  historyNavigation.includes("workspacePresenters") || historyNavigation.includes("legacyAction"),
+  "left learning navigation should keep an explicit presenter or legacy action boundary"
+);
 assert.ok(boot.includes("getSynapseFocusRoomMaterials"), "boot should expose Focus Room material bridge helpers");
 assert.ok(boot.includes("openSynapseFocusRoom"), "boot should expose the disabled-safe Focus Room opener");
 assert.ok(uploadSection.includes("renderFocusRoomWorkspaceActions"), "analysis view should refresh Focus Room CTAs");

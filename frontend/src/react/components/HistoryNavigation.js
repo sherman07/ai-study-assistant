@@ -1,4 +1,5 @@
 import { h, icon, legacyAction } from "../runtime.js";
+import { workspacePresenters } from "../../legacy/presenters/workspaceActions.js";
 import { SummaryNavigation } from "./SummaryNavigation.js?v=notes-taller-v2";
 import {
   accountInitials,
@@ -113,7 +114,7 @@ export function HistoryNavigation() {
               className: "account-menu-item account-signed-in-only",
               type: "button",
               style: signedInStyle,
-              onClick: legacyAction("openAccountPanel", "profile"),
+              onClick: workspacePresenters.openAccountPanel("profile"),
             },
             icon("bi-person-circle"),
             h("span", null, "Profile")
@@ -124,7 +125,7 @@ export function HistoryNavigation() {
               className: "account-menu-item account-signed-in-only",
               type: "button",
               style: signedInStyle,
-              onClick: legacyAction("openAccountPanel", "billing"),
+              onClick: workspacePresenters.openAccountPanel("billing"),
             },
             icon("bi-credit-card"),
             h("span", null, "Billing & credits")
@@ -135,7 +136,7 @@ export function HistoryNavigation() {
               className: "account-menu-item account-signed-in-only",
               type: "button",
               style: signedInStyle,
-              onClick: legacyAction("openAccountPanel", "settings"),
+              onClick: workspacePresenters.openAccountPanel("settings"),
             },
             icon("bi-gear"),
             h("span", null, "Settings")
@@ -164,7 +165,7 @@ export function HistoryNavigation() {
           ),
           h(
             "button",
-            { className: "account-menu-item", type: "button", onClick: legacyAction("openAccountPanel", "help") },
+            { className: "account-menu-item", type: "button", onClick: workspacePresenters.openAccountPanel("help") },
             icon("bi-question-circle"),
             h("span", null, "Help")
           ),
@@ -216,7 +217,7 @@ export function HistoryNavigation() {
         {
           className: "learning-rail-action learning-rail-materials",
           type: "button",
-          onClick: legacyAction("setLearningExperienceMode", "materials"),
+          onClick: workspacePresenters.setLearningExperienceMode("materials"),
           "data-learning-experience-target": "materials",
           "aria-pressed": "true",
         },
@@ -228,7 +229,7 @@ export function HistoryNavigation() {
         {
           className: "learning-rail-action learning-rail-companion",
           type: "button",
-          onClick: legacyAction("setLearningExperienceMode", "companion"),
+          onClick: workspacePresenters.setLearningExperienceMode("companion"),
           "data-learning-experience-target": "companion",
           "aria-pressed": "false",
         },
@@ -240,7 +241,7 @@ export function HistoryNavigation() {
         {
           className: "learning-rail-action learning-rail-focus-room",
           type: "button",
-          onClick: legacyAction("openSynapseFocusRoom"),
+          onClick: workspacePresenters.openSynapseFocusRoom(),
           "aria-label": "Open Focus Room",
         },
         icon("bi-bullseye"),
@@ -314,7 +315,7 @@ export function HistoryNavigation() {
             {
               className: "history-empty-cta",
               type: "button",
-              onClick: legacyAction("setLearningExperienceMode", "materials"),
+              onClick: workspacePresenters.setLearningExperienceMode("materials"),
             },
             "Upload material to start"
           )

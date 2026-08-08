@@ -165,6 +165,11 @@ from core.source_extractors import (
     source_unit_visual_parts,
 )
 from core.url_security import normalize_public_http_url
+from backend.application.media_transcription import (
+    build_uploaded_media_source,
+    transcribe_media_file as application_transcribe_media_file,
+)
+from backend.domain import media_analysis as media_analysis_domain
 from core.text_utils import (
     canonicalize_youtube_watch_url,
     clean_detected_url,

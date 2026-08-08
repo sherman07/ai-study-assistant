@@ -23,7 +23,11 @@ assert.ok(!historyNavigation.includes(">Starter<"), "account menu should not har
 assert.ok(!historyNavigation.includes(">500<"), "account menu should not hardcode signed-in credits before auth hydration");
 assert.ok(!historyNavigation.includes(">Account<"));
 assert.ok(historyNavigation.includes("account-popover"));
-assert.ok(historyNavigation.includes('legacyAction("openAccountPanel", "profile")'));
+assert.ok(
+  historyNavigation.includes('legacyAction("openAccountPanel", "profile")')
+    || historyNavigation.includes('workspacePresenters.openAccountPanel("profile")'),
+  "profile menu action should use the workspace presenter or legacy bridge"
+);
 assert.ok(historyNavigation.includes('legacyAction("signOutAccount")'));
 assert.ok(
   historyNavigation.includes('style: signedInStyle') || historyNavigation.includes('style: { display: "none" }'),

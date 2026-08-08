@@ -877,10 +877,23 @@ function addFiles(files) {
     flashUploadState("error");
     return;
   }
+  const mediaApi = window.__synapseMediaUpload;
+  const described = typeof mediaApi?.describeAddedFiles === "function"
+    ? mediaApi.describeAddedFiles(nextFiles)
+    : null;
+  if (described?.type === "error" && described.message && /exceeds the upload limit/i.test(described.message)) {
+    setUploadStatus("error", described.message);
+    flashUploadState("error");
+    return;
+  }
   uploadedFiles.push(...nextFiles);
   renderFilePreview();
-  setUploadStatus("success", `${nextFiles.length} file${nextFiles.length === 1 ? "" : "s"} ready. Review the list below, then click Analyze materials.`);
-  flashUploadState("success");
+  if (described?.message) {
+    setUploadStatus(described.type || "success", described.message);
+  } else {
+    setUploadStatus("success", `${nextFiles.length} file${nextFiles.length === 1 ? "" : "s"} ready. Review the list below, then click Analyze materials.`);
+  }
+  flashUploadState(described?.type === "error" ? "error" : "success");
 }
 
 function renderFilePreview() {
@@ -892,15 +905,26 @@ function renderFilePreview() {
   }
 
   filePreview.classList.remove("d-none");
-  filePreview.innerHTML = uploadedFiles.map((file, index) => `
-    <div class="file-chip file-chip-added">
+  filePreview.innerHTML = uploadedFiles.map((file, index) => {
+    const mediaApi = window.__synapseMediaUpload;
+    const kind = typeof mediaApi?.mediaKindFromFile === "function" ? mediaApi.mediaKindFromFile(file) : "";
+    const ready = typeof mediaApi?.mediaReadyLabel === "function" ? mediaApi.mediaReadyLabel(file) : "";
+    const readyHtml = ready
+      ? `<small class="file-chip-media-hint">${escapeHTML(ready)}</small>`
+      : "";
+    return `
+    <div class="file-chip file-chip-added${kind ? ` file-chip-${kind}` : ""}">
       <i class="bi ${fileIcon(file)}"></i>
-      <span title="${escapeAttr(file.name)}">${escapeHTML(shorten(file.name, 42))}</span>
+      <span class="file-chip-copy" title="${escapeAttr(file.name)}">
+        <span class="file-chip-name">${escapeHTML(shorten(file.name, 42))}</span>
+        ${readyHtml}
+      </span>
       <button type="button" onclick="removeFile(${index})" aria-label="Remove file">
         <i class="bi bi-x"></i>
       </button>
     </div>
-  `).join("");
+  `;
+  }).join("");
 }
 
 function setUploadStatus(type, message) {
@@ -924,6 +948,9 @@ function removeFile(index) {
 }
 
 function fileIcon(file) {
+  const mediaApi = window.__synapseMediaUpload;
+  const kind = typeof mediaApi?.mediaKindFromFile === "function" ? mediaApi.mediaKindFromFile(file) : "";
+  if (kind && typeof mediaApi?.mediaFileIcon === "function") return mediaApi.mediaFileIcon(kind);
   const name = (file.name || "").toLowerCase();
   if (file.type && file.type.includes("image")) return "bi-image";
   if ((file.type && file.type.includes("pdf")) || name.endsWith(".pdf")) return "bi-file-earmark-pdf";
@@ -1118,6 +1145,22 @@ async function startGenerationJobFromCurrentUpload() {
   if (uploadedFiles.length === 0 && !rawSource && !sourceLinks.length) {
     alert("Upload at least one file, link, video link, or text first.");
     return;
+  }
+
+  const mediaApi = window.__synapseMediaUpload;
+  const mediaSummary = typeof mediaApi?.summarizeMediaUploads === "function"
+    ? mediaApi.summarizeMediaUploads(uploadedFiles)
+    : null;
+  if (mediaSummary?.hasBlockingUpload) {
+    setUploadStatus("error", mediaSummary.warnings[0] || "One or more media files exceed the upload size limit.");
+    flashUploadState("error");
+    return;
+  }
+  if (mediaSummary?.warnings?.length) {
+    const proceed = window.confirm(
+      `${mediaSummary.warnings[0]}\n\nContinue analyzing anyway? Large media may produce a partial transcript.`
+    );
+    if (!proceed) return;
   }
 
   currentSourceFingerprint = await buildClientFingerprint(rawSource, sourceLinks);

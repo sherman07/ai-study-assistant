@@ -15,6 +15,8 @@ class FileSourceClassifier {
       text: "bi-file-text",
       presentation: "bi-file-earmark-slides",
       document: "bi-file-earmark-word",
+      audio: "bi-file-earmark-music",
+      video: "bi-camera-video",
       youtube: "bi-youtube",
       link: "bi-link-45deg",
       note: "bi-card-text",
@@ -27,6 +29,8 @@ class FileSourceClassifier {
     const type = String(file?.type || "").toLowerCase();
     if (type.includes("pdf") || name.endsWith(".pdf")) return "pdf";
     if (type.includes("image") || /\.(png|jpe?g|webp|gif|bmp|svg)$/i.test(name)) return "image";
+    if (type.startsWith("audio/") || /\.(mp3|m4a|wav|aac|ogg|flac|wma)$/i.test(name)) return "audio";
+    if (type.startsWith("video/") || /\.(mp4|mov|m4v|webm|avi|mkv|mpeg|mpg)$/i.test(name)) return "video";
     if (type.startsWith("text/") || /\.(txt|md|csv|json|rtf)$/i.test(name)) return "text";
     if (name.endsWith(".ppt") || name.endsWith(".pptx")) return "presentation";
     if (name.endsWith(".doc") || name.endsWith(".docx")) return "document";

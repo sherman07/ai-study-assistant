@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { sceneMotionProfile } from "../sceneMotion.js";
+import { resolveSceneBundle } from "../model/sceneBundle.js";
 import { LiquidGlassFilterDefs } from "./LiquidGlass.jsx";
 import { SceneMotionLayer } from "./SceneMotionLayer.jsx";
 
@@ -49,8 +49,9 @@ export function FocusBackground({ scene }) {
     return () => media.removeEventListener?.("change", onChange);
   }, []);
 
-  const profile = sceneMotionProfile(activeScene?.motionProfile || activeScene?.id);
-  const camera = profile.layers.find(layer => layer.kind === "camera");
+  const bundle = resolveSceneBundle(activeScene?.id);
+  const profile = bundle?.motion;
+  const camera = profile?.layers?.find(layer => layer.kind === "camera");
 
   return (
     <div className="focus-background-wrap" aria-hidden="true">

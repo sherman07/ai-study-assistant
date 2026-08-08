@@ -1,5 +1,5 @@
 import { BookOpenText, Brain, FileText, History, Layers3, ListTodo, NotebookPen } from "lucide-react";
-import { currentScene } from "../utils.js";
+import { getScenePresentation } from "../presenters/scenePresenter.js";
 import { useFocusRoomStore } from "../hooks/useFocusRoomStore.js";
 import { GlassButton } from "./GlassButton.jsx";
 
@@ -12,14 +12,14 @@ export function SessionOverviewCard() {
   const workspaceNotes = useFocusRoomStore(state => state.workspaceNotes);
   const openStudyPanel = useFocusRoomStore(state => state.openStudyPanel);
 
-  const scene = currentScene(selectedScene);
+  const scene = getScenePresentation(selectedScene);
   const nextTask = studyPlan.find(item => !completedTasks.includes(item.task))?.task || "Review and consolidate this block.";
 
   return (
     <aside className="session-overview liquid-glass">
       <div className="session-overview-head">
         <span className="focus-kicker">Current Session</span>
-        <h2>{scene.name}</h2>
+        <h2>{scene.title}</h2>
         <p>{material?.materialTitle || "Study material"}</p>
       </div>
 

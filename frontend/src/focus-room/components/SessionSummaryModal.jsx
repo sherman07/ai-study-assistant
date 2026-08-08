@@ -2,14 +2,14 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { AnimatePresence, motion } from "motion/react";
 import { formatFocusRoomDuration } from "../data.js";
 import { useFocusRoomStore } from "../hooks/useFocusRoomStore.js";
-import { currentScene } from "../utils.js";
+import { getScenePresentation } from "../presenters/scenePresenter.js";
 import { GlassButton } from "./GlassButton.jsx";
 
 export function SessionSummaryModal() {
   const record = useFocusRoomStore(state => state.summaryRecord);
   const closeSummary = useFocusRoomStore(state => state.closeSummary);
   const startTimer = useFocusRoomStore(state => state.startTimer);
-  const scene = currentScene(record?.selectedScene);
+  const scene = getScenePresentation(record?.selectedScene);
 
   return (
     <Dialog.Root open={Boolean(record)} onOpenChange={open => !open && closeSummary()}>
@@ -48,7 +48,7 @@ export function SessionSummaryModal() {
                   </div>
                   <div className="summary-stat liquid-glass-lite">
                     <span>Scene</span>
-                    <strong>{scene.name}</strong>
+                    <strong>{scene.title}</strong>
                   </div>
                   <div className="summary-stat liquid-glass-lite">
                     <span>Room state</span>

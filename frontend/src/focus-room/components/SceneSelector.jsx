@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { FOCUS_ROOM_GALLERY_SCENES, FOCUS_ROOM_SCENES } from "../data.js";
+import { FOCUS_ROOM_GALLERY_SCENES } from "../data.js";
+import { listSelectableScenes } from "../model/sceneBundle.js";
 import { useFocusRoomStore } from "../hooks/useFocusRoomStore.js";
 import { SceneCard } from "./SceneCard.jsx";
 
@@ -13,7 +14,7 @@ export function SceneSelector({ variant = "default" }) {
 
   const scenes = useMemo(() => {
     if (variant === "gallery") return FOCUS_ROOM_GALLERY_SCENES;
-    return FOCUS_ROOM_SCENES.filter(scene => !scene.galleryOnly || scene.id === selectedScene);
+    return listSelectableScenes(selectedScene);
   }, [selectedScene, variant]);
 
   const pageCount = Math.max(1, Math.ceil(scenes.length / GALLERY_PAGE_SIZE));

@@ -1,11 +1,11 @@
 import { DoorOpen, Footprints, Settings2, Users } from "lucide-react";
-import { currentScene } from "../utils.js";
+import { getScenePresentation } from "../presenters/scenePresenter.js";
 import { useFocusRoomStore } from "../hooks/useFocusRoomStore.js";
 import { GlassButton } from "./GlassButton.jsx";
 
 export function TopFocusNav({ onWorkspace, onOpenTrail, onOpenCompanion, onOpenSettings, onExit }) {
   const selectedScene = useFocusRoomStore(state => state.selectedScene);
-  const scene = currentScene(selectedScene);
+  const scene = getScenePresentation(selectedScene);
 
   return (
     <header className="focus-room-header">
@@ -13,7 +13,7 @@ export function TopFocusNav({ onWorkspace, onOpenTrail, onOpenCompanion, onOpenS
         <span className="focus-wordmark-mark">S</span><span>synapse</span>
       </button>
       <div className="focus-room-context" aria-label="Current focus context">
-        <span>{scene.name}</span>
+        <span>{scene.title}</span>
         <small>Quiet study room</small>
       </div>
       <nav className="focus-room-header-actions" aria-label="Focus Room controls">

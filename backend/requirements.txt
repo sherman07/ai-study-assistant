@@ -11,6 +11,7 @@ yt-dlp
 opencv-python
 certifi
 requests
+selenium>=4.20,<5
 stripe
 google-auth
 

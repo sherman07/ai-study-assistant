@@ -110,13 +110,18 @@ GEMINI_ENV_PATHS = (
     BACKEND_DIR / "core" / ".env.gemini",
     PROJECT_ROOT / ".env.gemini",
 )
-CONFIG_ENV_PATHS = BASE_ENV_PATHS + GPT_ENV_PATHS + GEMINI_ENV_PATHS
-load_env_defaults(BASE_ENV_PATHS + GEMINI_ENV_PATHS)
+DEEPSEEK_ENV_PATHS = (
+    BACKEND_DIR / ".env.deepseek",
+    BACKEND_DIR / "core" / ".env.deepseek",
+    PROJECT_ROOT / ".env.deepseek",
+)
+CONFIG_ENV_PATHS = BASE_ENV_PATHS + GPT_ENV_PATHS + GEMINI_ENV_PATHS + DEEPSEEK_ENV_PATHS
+load_env_defaults(BASE_ENV_PATHS + GEMINI_ENV_PATHS + DEEPSEEK_ENV_PATHS)
 load_env_overrides_for_placeholders(GPT_ENV_PATHS)
 load_dotenv()
 
 AI_TEXT_PROVIDER = env_str("AI_TEXT_PROVIDER", "openai").lower()
-if AI_TEXT_PROVIDER not in {"openai", "gemini"}:
+if AI_TEXT_PROVIDER not in {"openai", "gemini", "deepseek"}:
     AI_TEXT_PROVIDER = "openai"
 REQUEST_AI_TEXT_PROVIDER: ContextVar[str] = ContextVar(
     "REQUEST_AI_TEXT_PROVIDER",
@@ -165,22 +170,37 @@ gemini_client = (
     if GEMINI_API_KEY and GEMINI_AUTH_MODE == "api_key"
     else None
 )
+DEEPSEEK_API_KEY = (os.getenv("DEEPSEEK_API_KEY") or "").strip()
+DEEPSEEK_OPENAI_BASE_URL = env_str("DEEPSEEK_OPENAI_BASE_URL", "https://api.deepseek.com")
+deepseek_client = (
+    OpenAI(
+        api_key=DEEPSEEK_API_KEY,
+        base_url=DEEPSEEK_OPENAI_BASE_URL,
+        timeout=OPENAI_TIMEOUT_SECONDS,
+    )
+    if DEEPSEEK_API_KEY
+    else None
+)
 
 DEFAULT_TEXT_MODEL = "gpt-5.4-mini"
 DEFAULT_GEMINI_TEXT_MODEL = "gemini-3.1-flash-lite"
+DEFAULT_DEEPSEEK_TEXT_MODEL = "deepseek-v4-flash"
 DEFAULT_REALTIME_MODEL = "gpt-realtime-2"
 DEFAULT_TRANSCRIBE_MODEL = "gpt-4o-mini-transcribe"
 DEFAULT_VISUAL_IMAGE_GUIDE_MODEL = "gpt-image-1.5"
 
 OPENAI_ANALYSIS_MODEL_NAME = env_str("OPENAI_ANALYSIS_MODEL", DEFAULT_TEXT_MODEL)
 OPENAI_CHAT_MODEL_NAME = env_str("OPENAI_CHAT_MODEL", DEFAULT_TEXT_MODEL)
-OPENAI_FALLBACK_MODEL_NAME = env_str("OPENAI_FALLBACK_MODEL", OPENAI_ANALYSIS_MODEL_NAME)
+# Kept as compatibility exports for existing health/config consumers. They are
+# deliberately not used for retries: a request must stay with its selected AI
+# provider and report a failure instead of changing model or provider.
+OPENAI_FALLBACK_MODEL_NAME = OPENAI_ANALYSIS_MODEL_NAME
 OPENAI_MINDMAP_MODEL_NAME = env_str("OPENAI_MINDMAP_MODEL", OPENAI_ANALYSIS_MODEL_NAME)
 OPENAI_TITLE_MODEL_NAME = env_str("OPENAI_TITLE_MODEL", OPENAI_ANALYSIS_MODEL_NAME)
 
 GEMINI_ANALYSIS_MODEL = env_str("GEMINI_ANALYSIS_MODEL", env_str("GEMINI_MODEL", DEFAULT_GEMINI_TEXT_MODEL))
 GEMINI_CHAT_MODEL = env_str("GEMINI_CHAT_MODEL", GEMINI_ANALYSIS_MODEL)
-GEMINI_FALLBACK_MODEL = env_str("GEMINI_FALLBACK_MODEL", GEMINI_CHAT_MODEL)
+GEMINI_FALLBACK_MODEL = GEMINI_CHAT_MODEL
 GEMINI_MINDMAP_MODEL = env_str("GEMINI_MINDMAP_MODEL", GEMINI_ANALYSIS_MODEL)
 GEMINI_TITLE_MODEL = env_str("GEMINI_TITLE_MODEL", GEMINI_CHAT_MODEL)
 GEMINI_FOCUSED_MODEL = env_str("GEMINI_FOCUSED_MODEL", env_str("GEMINI_BRIEF_MODEL", GEMINI_ANALYSIS_MODEL))
@@ -190,6 +210,17 @@ GEMINI_COMPREHENSIVE_MODEL = env_str(
     "GEMINI_COMPREHENSIVE_MODEL",
     env_str("GEMINI_DEEP_MODEL", GEMINI_ANALYSIS_MODEL),
 )
+DEEPSEEK_ANALYSIS_MODEL = env_str("DEEPSEEK_ANALYSIS_MODEL", env_str("DEEPSEEK_MODEL", DEFAULT_DEEPSEEK_TEXT_MODEL))
+DEEPSEEK_CHAT_MODEL = env_str("DEEPSEEK_CHAT_MODEL", DEEPSEEK_ANALYSIS_MODEL)
+DEEPSEEK_MINDMAP_MODEL = env_str("DEEPSEEK_MINDMAP_MODEL", DEEPSEEK_ANALYSIS_MODEL)
+DEEPSEEK_TITLE_MODEL = env_str("DEEPSEEK_TITLE_MODEL", DEEPSEEK_CHAT_MODEL)
+DEEPSEEK_FOCUSED_MODEL = env_str("DEEPSEEK_FOCUSED_MODEL", env_str("DEEPSEEK_BRIEF_MODEL", DEEPSEEK_ANALYSIS_MODEL))
+DEEPSEEK_STANDARD_MODEL = env_str("DEEPSEEK_STANDARD_MODEL", DEEPSEEK_ANALYSIS_MODEL)
+DEEPSEEK_DETAILED_MODEL = env_str("DEEPSEEK_DETAILED_MODEL", DEEPSEEK_ANALYSIS_MODEL)
+DEEPSEEK_COMPREHENSIVE_MODEL = env_str(
+    "DEEPSEEK_COMPREHENSIVE_MODEL",
+    env_str("DEEPSEEK_DEEP_MODEL", DEEPSEEK_ANALYSIS_MODEL),
+)
 
 if AI_TEXT_PROVIDER == "gemini":
     ANALYSIS_MODEL = GEMINI_ANALYSIS_MODEL
@@ -197,6 +228,12 @@ if AI_TEXT_PROVIDER == "gemini":
     FALLBACK_MODEL = GEMINI_FALLBACK_MODEL
     MINDMAP_MODEL = GEMINI_MINDMAP_MODEL
     TITLE_MODEL = GEMINI_TITLE_MODEL
+elif AI_TEXT_PROVIDER == "deepseek":
+    ANALYSIS_MODEL = DEEPSEEK_ANALYSIS_MODEL
+    CHAT_MODEL = DEEPSEEK_CHAT_MODEL
+    FALLBACK_MODEL = DEEPSEEK_CHAT_MODEL
+    MINDMAP_MODEL = DEEPSEEK_MINDMAP_MODEL
+    TITLE_MODEL = DEEPSEEK_TITLE_MODEL
 else:
     ANALYSIS_MODEL = OPENAI_ANALYSIS_MODEL_NAME
     CHAT_MODEL = OPENAI_CHAT_MODEL_NAME
@@ -275,7 +312,7 @@ try:
     CACHE_PATH = RUNTIME_DIR / "synapse_analysis_cache.json"
 except Exception:
     CACHE_PATH = DEFAULT_CACHE_PATH
-CACHE_VERSION = "source_identity_mindmap_v67_inline_visual_markers"
+CACHE_VERSION = "source_identity_mindmap_v68_provider_isolation"
 VISUAL_PIPELINE_VERSION = "inline-visual-markers-v1"
 
 DEFAULT_CORS_ALLOW_ORIGINS = [
@@ -310,6 +347,8 @@ def normalise_text_provider(provider: str = "") -> str:
         return "openai"
     if value in {"gemini", "google", "vertex"}:
         return "gemini"
+    if value in {"deepseek", "deepsea"}:
+        return "deepseek"
     return AI_TEXT_PROVIDER
 
 
@@ -324,25 +363,39 @@ def gemini_request_is_configured() -> bool:
     return bool(GEMINI_PROJECT_ID and google_auth_default and GoogleAuthRequest)
 
 
+def deepseek_request_is_configured() -> bool:
+    """Return whether this deployment can actually serve a DeepSeek request."""
+    return bool(DEEPSEEK_API_KEY and deepseek_client)
+
+
 def chat_model_for_active_provider() -> str:
     if active_text_provider() == "gemini":
         return GEMINI_CHAT_MODEL
+    if active_text_provider() == "deepseek":
+        return DEEPSEEK_CHAT_MODEL
     return OPENAI_CHAT_MODEL_NAME
 
 
 def fallback_model_for_active_provider() -> str:
-    if active_text_provider() == "gemini":
-        return GEMINI_FALLBACK_MODEL
-    return OPENAI_FALLBACK_MODEL_NAME
+    """Compatibility helper; automatic model fallback is disabled."""
+    return chat_model_for_active_provider()
 
 
-def set_request_text_provider(provider: str, *, allow_openai_fallback: bool = True):
+def set_request_text_provider(provider: str):
+    """Select one provider for this request without cross-provider fallback."""
     selected = normalise_text_provider(provider)
     if selected == "gemini" and not gemini_request_is_configured():
-        if allow_openai_fallback and has_openai():
-            selected = "openai"
-        elif not allow_openai_fallback:
-            require_text_ai()
+        if GEMINI_AUTH_MODE == "adc":
+            raise RuntimeError(
+                "Gemini is not configured. Add GEMINI_PROJECT_ID and Google Application Default Credentials, then restart the backend."
+            )
+        raise RuntimeError(
+            "Gemini is not configured. Add GEMINI_API_KEY to backend/.env.gemini, then restart the backend."
+        )
+    if selected == "deepseek" and not deepseek_request_is_configured():
+        raise RuntimeError(
+            "DeepSeek is not configured. Add DEEPSEEK_API_KEY to backend/.env.deepseek, then restart the backend."
+        )
     return REQUEST_AI_TEXT_PROVIDER.set(selected)
 
 
@@ -359,6 +412,14 @@ def model_for_depth(depth: str) -> str:
         if depth == "detailed":
             return GEMINI_DETAILED_MODEL
         return GEMINI_COMPREHENSIVE_MODEL
+    if active_text_provider() == "deepseek":
+        if depth == "focused":
+            return DEEPSEEK_FOCUSED_MODEL
+        if depth == "standard":
+            return DEEPSEEK_STANDARD_MODEL
+        if depth == "detailed":
+            return DEEPSEEK_DETAILED_MODEL
+        return DEEPSEEK_COMPREHENSIVE_MODEL
     if depth == "focused":
         return env_str("OPENAI_FOCUSED_MODEL", env_str("OPENAI_BRIEF_MODEL", OPENAI_ANALYSIS_MODEL_NAME))
     if depth == "standard":
@@ -428,6 +489,8 @@ def text_generation_client():
         if GEMINI_AUTH_MODE == "adc":
             return gemini_adc_client()
         return gemini_client
+    if active_text_provider() == "deepseek":
+        return deepseek_client
     return client
 
 
@@ -458,6 +521,11 @@ def require_text_ai() -> None:
         raise RuntimeError(
             "GEMINI_API_KEY is missing. Create backend/.env.gemini and add "
             "GEMINI_API_KEY=your_key_here, then restart uvicorn."
+        )
+    if active_text_provider() == "deepseek":
+        raise RuntimeError(
+            "DEEPSEEK_API_KEY is missing. Create backend/.env.deepseek and add "
+            "DEEPSEEK_API_KEY=your_key_here, then restart uvicorn."
         )
     require_openai_api()
 

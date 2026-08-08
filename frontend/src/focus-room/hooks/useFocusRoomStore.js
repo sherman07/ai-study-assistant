@@ -46,6 +46,7 @@ import {
   normalizeFocusTopics,
   promoteNextFocusTopic
 } from "../focusTopics.js";
+import { requestFocusAssistantAnswer } from "../services/focusAssistantClient.js";
 
 const DEFAULT_AUDIO_CHANNELS = Object.freeze({
   "white-noise": 0, "pink-noise": 0, "brown-noise": 0, "light-rain": 24, "heavy-rain": 0,
@@ -337,50 +338,6 @@ function focusQuizMistakesFromState(state) {
     .filter(([, result]) => result && result.hasKnownAnswer && !result.correct)
     .map(([index]) => questionText(questions[Number(index)], Number(index)))
     .filter(Boolean);
-}
-
-async function requestFocusAssistantAnswer(question, chatHistory, material, assistantContext = {}) {
-  if (!globalThis.apiClient || typeof globalThis.apiClient.fetch !== "function") {
-    return {
-      answer: focusAssistantReply(question, material, useFocusRoomStore.getState().studyGoal),
-      offline: true
-    };
-  }
-
-  const response = await globalThis.apiClient.fetch("/ask", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      question,
-      selected_section: assistantContext.sectionTitle || material?.studyHeadings?.[0] || "",
-      selected_excerpt: assistantContext.excerpt || "",
-      source_strict: Boolean(material?.isSourceRestricted),
-      preferred_language: globalThis.preferredLanguage?.value || "auto",
-      title: material?.materialTitle || "Study material",
-      summary: material?.aiSummary || material?.summaryText || "",
-      sections: material?.sections || {},
-      source_identity: material?.materialId || "",
-      source_fingerprint: material?.sourceFingerprint || "",
-      chat_history: chatHistory
-    })
-  });
-
-  let data = null;
-  try {
-    data = await response.json();
-  } catch {
-    throw new Error("Backend returned non-JSON response.");
-  }
-
-  if (!response.ok || data?.error) {
-    throw new Error(data?.error || "AI request failed.");
-  }
-
-  return {
-    answer: data?.answer || "No answer returned.",
-    usedExternalResearch: Boolean(data?.used_external_research),
-    researchSources: Array.isArray(data?.research_sources) ? data.research_sources : []
-  };
 }
 
 export const useFocusRoomStore = create((set, get) => {
@@ -1279,7 +1236,13 @@ export const useFocusRoomStore = create((set, get) => {
       });
 
       try {
-        const result = await requestFocusAssistantAnswer(text, priorChatHistory, material, state.assistantContext);
+        const result = await requestFocusAssistantAnswer({
+          question: text,
+          chatHistory: priorChatHistory,
+          material,
+          assistantContext: state.assistantContext,
+          studyGoal: state.studyGoal
+        });
         set(nextState => ({
           chatMessages: normalizeChatMessages([
             ...nextState.chatMessages,

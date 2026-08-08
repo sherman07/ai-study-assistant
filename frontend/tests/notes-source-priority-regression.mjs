@@ -14,6 +14,7 @@ const sourceViewer = read("frontend/src/legacy/controller_sections/09_togglesour
 const transcript = read("frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
 const analysis = read("frontend/src/react/components/AnalysisStage.js");
 const index = read("frontend/index.html");
+const controllerLoader = read("frontend/src/legacy/controllerLoader.js");
 
 assert.match(
   layoutCss,
@@ -147,8 +148,8 @@ assert.ok(
   "workspace styles should cache-bust after the notes/source priority pass"
 );
 assert.ok(
-  index.includes("synapse-legacy-controller-combined.js?v="),
-  "legacy controller should cache-bust after background preview preload"
+  controllerLoader.includes('synapse-legacy-controller-combined.js') && controllerLoader.includes('?v=${this.version}'),
+  "controller loader should cache-bust after background preview preload"
 );
 
 console.log("notes-source-priority-regression: passed");

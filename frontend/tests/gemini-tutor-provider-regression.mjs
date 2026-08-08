@@ -19,10 +19,11 @@ const app = read("backend/app.py");
 const index = read("frontend/index.html");
 
 assert.ok(config.includes("def chat_model_for_active_provider"), "active chat model helper required for Gemini tutor");
-assert.ok(config.includes("allow_openai_fallback"), "provider switch should support fallback control");
+assert.ok(config.includes("without cross-provider fallback"), "provider switch must keep Gemini and GPT requests separate");
 assert.ok(ask.includes('get("ai_provider")'), "Open Tutor /ask must accept ai_provider");
 assert.ok(ask.includes("chat_model_for_active_provider"), "/ask must use provider-aware chat model");
-assert.ok(ask.includes("provider_warning"), "/ask should warn when Gemini falls back to GPT");
+assert.ok(!ask.includes("reply used GPT"), "/ask must not substitute GPT when Gemini was requested");
+assert.ok(uploadFrontend.includes("Synapse will not substitute GPT"), "Gemini UI must explain that it fails instead of switching providers");
 assert.ok(ask.includes("research_status"), "/ask should report web research availability");
 assert.ok(companion.includes('get("ai_provider")'), "learning companion must accept ai_provider");
 assert.ok(analyze.includes("ai_provider: str = Form"), "voice tutor respond must accept ai_provider");

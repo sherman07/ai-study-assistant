@@ -10,6 +10,7 @@ const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
 const uploaded = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
 const sourceBuilder = read("frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
 const index = read("frontend/index.html");
+const controllerLoader = read("frontend/src/legacy/controllerLoader.js");
 
 assert.ok(uploaded.includes("function isPrimarySourceReviewItem"), "primary source review filter should exist");
 assert.ok(uploaded.includes("function youtubeSourceLinks"), "YouTube-only link helper should exist");
@@ -19,7 +20,10 @@ assert.ok(sourceBuilder.includes("youtubeSourceLinks"), "source review builder s
 assert.ok(sourceBuilder.includes("isPrimarySourceReviewItem"), "source review builder should drop secondary web sources");
 assert.ok(sourceBuilder.includes('kind: "youtube"'), "link tabs in review should be YouTube-only");
 assert.ok(!sourceBuilder.includes("`Web source ${index + 1}`"), "generic Web source review tabs should be removed");
-assert.ok(/synapse-legacy-controller-combined\.js\?v=[\w.-]+/.test(index), "controller should cache-bust");
+assert.ok(
+  controllerLoader.includes('synapse-legacy-controller-combined.js') && controllerLoader.includes('?v=${this.version}'),
+  "controller loader should cache-bust"
+);
 
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}`);

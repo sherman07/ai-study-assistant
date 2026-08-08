@@ -103,7 +103,7 @@ async function askAI() {
       answer = `${answer}\n\n<small>External research: ${researchLabel}</small>`;
     }
     if (data.ai_provider) {
-      const label = data.ai_provider === "gemini" ? "Gemini" : "GPT";
+      const label = data.ai_provider === "gemini" ? "Gemini" : (data.ai_provider === "deepseek" ? "DeepSeek" : "GPT");
       answer = `${answer}\n\n<small>Provider: ${label}${data.model ? ` · ${data.model}` : ""}</small>`;
     }
     addMessage("assistant", answer);

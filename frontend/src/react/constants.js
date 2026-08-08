@@ -38,4 +38,5 @@ export const AI_PROVIDER_OPTIONS = [
   ["", "Backend default", "Use the text AI provider selected by the backend environment."],
   ["openai", "GPT", "Use the OpenAI/GPT text model configured on the backend."],
   ["gemini", "Gemini", "Use the Gemini text model configured on the backend."],
+  ["deepseek", "DeepSeek", "Use the DeepSeek text model configured on the backend."],
 ];

@@ -547,7 +547,7 @@ class ProfessionalModeTests(unittest.TestCase):
         self.assertIn("validated:quick_answer", final)
         self.assertEqual(calls, [("quick_answer", "quick_review")])
 
-    def test_professional_mode_fallback_is_not_source_evidence_table(self):
+    def test_professional_mode_propagates_model_failure(self):
         source_units = [{
             "display_name": "vaccination-ethics.pdf",
             "title_candidate": "Vaccination Ethics",
@@ -556,20 +556,15 @@ class ProfessionalModeTests(unittest.TestCase):
         }]
 
         with patch("backend.app.generate_chat", side_effect=RuntimeError("forced model failure")):
-            summary = generate_reference_style_multisource_notes(
-                source_units,
-                "english",
-                {"depth": "detailed", "config": {}},
-                "professor_mode",
-            )
+            with self.assertRaisesRegex(RuntimeError, "forced model failure"):
+                generate_reference_style_multisource_notes(
+                    source_units,
+                    "english",
+                    {"depth": "detailed", "config": {}},
+                    "professor_mode",
+                )
 
-        self.assertIn("## 1. Big Picture: What This Material Is Really About", summary)
-        self.assertIn("## 3. What You Actually Need To Understand", summary)
-        self.assertIn("## 4. Deep Explanation of the Core Concepts", summary)
-        self.assertNotIn("## Source Evidence Table", summary)
-        self.assertNotIn("| Source | Topic | Useful evidence |", summary)
-
-    def test_professional_mode_fallback_uses_specific_source_learning_targets(self):
+    def test_professional_mode_never_replaces_failed_model_output_with_local_notes(self):
         source_units = [
             {
                 "display_name": "human-nature.pdf",
@@ -592,22 +587,15 @@ class ProfessionalModeTests(unittest.TestCase):
         ]
 
         with patch("backend.app.generate_chat", side_effect=RuntimeError("forced model failure")):
-            summary = generate_reference_style_multisource_notes(
-                source_units,
-                "english",
-                {"depth": "detailed", "config": {}},
-                "professor_mode",
-            )
+            with self.assertRaisesRegex(RuntimeError, "forced model failure"):
+                generate_reference_style_multisource_notes(
+                    source_units,
+                    "english",
+                    {"depth": "detailed", "config": {}},
+                    "professor_mode",
+                )
 
-        self.assertIn("Human Nature and Aggression", summary)
-        self.assertIn("hydraulic model of aggression", summary)
-        self.assertIn("Six Tongan Castaways", summary)
-        self.assertIn("Two Monkeys Were Paid Unequally", summary)
-        self.assertIn("Frans de Waal", summary)
-        self.assertNotIn("Add only the background knowledge that makes the source easier to understand", summary)
-        self.assertNotIn("A high-quality response states the key judgement clearly", summary)
-
-    def test_non_professional_fallbacks_keep_selected_mode_shape(self):
+    def test_non_professional_modes_propagate_model_failures(self):
         source_units = [{
             "display_name": "psych109-development.pdf",
             "title_candidate": "Developmental Psychology",
@@ -627,33 +615,22 @@ class ProfessionalModeTests(unittest.TestCase):
             "is_likely_decorative": False,
             "score": 0.95,
         }]
-        expected_headings = {
-            "quick_answer": "## Direct Answer",
-            "detailed_explanation": "## Main Idea",
-            "tutor_mode": "## Start From The Basic Idea",
-        }
+        modes = ("quick_answer", "detailed_explanation", "tutor_mode")
 
         with (
             patch("backend.app.generate_chat", side_effect=RuntimeError("forced model failure")),
             patch("backend.app.generate_visual_argument_cards", return_value=visual_cards),
             patch("backend.app._v23_renderable_visual_cards", side_effect=lambda cards, **kwargs: cards),
         ):
-            for mode_key, expected_heading in expected_headings.items():
+            for mode_key in modes:
                 with self.subTest(prompt_mode=mode_key):
-                    summary = generate_reference_style_multisource_notes(
-                        source_units,
-                        "english",
-                        {"depth": "detailed", "config": {}},
-                        mode_key,
-                    )
-
-                    self.assertIn(expected_heading, summary)
-                    self.assertIn("Lewontin", summary)
-                    self.assertRegex(summary, r"within(?:-group)?\s+(?:vs|and)\s+between")
-                    self.assertNotIn("## Source Evidence Table", summary)
-                    self.assertNotIn("## Source Examples and Evidence", summary)
-                    self.assertNotIn("This source figure belongs in the notes", summary)
-                    self.assertLessEqual(summary.count("Figure focus:"), 1)
+                    with self.assertRaisesRegex(RuntimeError, "forced model failure"):
+                        generate_reference_style_multisource_notes(
+                            source_units,
+                            "english",
+                            {"depth": "detailed", "config": {}},
+                            mode_key,
+                        )
 
     def test_recommended_structure_uses_professional_sections(self):
         structure_source = (

@@ -1079,7 +1079,7 @@ function accountSettingsContent(section, session) {
         <p class="account-section-copy">These defaults apply to new analyses. Prompt mode and study depth still appear on the upload screen; Generate AI is only changed here.</p>
         <div class="account-settings-fields">
           ${accountPreferenceSelect("language", "Output language", "Notes, explanations, quizzes, and flashcards.", languageOptions, preferences.language || document.getElementById("preferredLanguage")?.value || "auto")}
-          ${accountPreferenceSelect("provider", "Generate AI", "Choose Backend default, GPT, or Gemini for note generation.", [["", "Backend default"], ["openai", "GPT"], ["gemini", "Gemini"]], savedProvider)}
+          ${accountPreferenceSelect("provider", "Generate AI", "Choose Backend default, GPT, Gemini, or DeepSeek for note generation.", [["", "Backend default"], ["openai", "GPT"], ["gemini", "Gemini"], ["deepseek", "DeepSeek"]], savedProvider)}
           ${accountPreferenceSelect("promptMode", "Response style", "How Synapse explains your material.", promptOptions, preferences.promptMode || document.getElementById("promptMode")?.value || "professor_mode")}
           ${accountPreferenceSelect("studyDepth", "Study depth", "The default level of detail for new notes.", depthOptions, preferences.studyDepth || document.getElementById("noteLength")?.value || "standard_notes")}
         </div>

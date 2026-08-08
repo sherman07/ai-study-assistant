@@ -1146,21 +1146,12 @@ def generate_reference_style_multisource_notes(
                 "stage": "main_notes",
                 "provider": active_text_provider() if "active_text_provider" in globals() else AI_TEXT_PROVIDER,
                 "model": model_for_depth("detailed") if "model_for_depth" in globals() else CHAT_MODEL,
-                "status": "fallback",
+                "status": "error",
                 "api_request_attempted": False,
                 "error_type": type(error).__name__,
                 "error": _sanitize_ai_error(error) if "_sanitize_ai_error" in globals() else str(error),
             })
-        is_chinese_fallback = generation_language in {"simplified_chinese", "traditional_chinese", "mixed_chinese_english"}
-        if is_professional_mode:
-            result = _professional_fallback_notes(source_units, is_chinese_fallback)
-        else:
-            result = _mode_specific_fallback_notes(
-                prompt_mode_key,
-                source_units,
-                visual_cards,
-                generation_language,
-            )
+        raise
     result = enforce_thetawave_inline_note_format(result, visual_cards, generation_language)
     result = remove_auto_bilingual_heading_leakage(result, preferred_language, source_context)
     result = polish_note_readability_markdown(result, generation_language)

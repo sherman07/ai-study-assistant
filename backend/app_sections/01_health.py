@@ -1,4 +1,5 @@
 from core.health import HealthReporter
+from fastapi.responses import JSONResponse
 
 
 health_reporter = HealthReporter(globals())
@@ -17,7 +18,50 @@ def health():
 
 @app.get("/health/openai")
 def health_openai(probe: bool = False):
-    return health_reporter.openai_status(probe=probe)
+    payload = health_reporter.openai_status(probe=probe)
+    if payload.get("status") == "error":
+        return JSONResponse(status_code=503, content=payload)
+    return payload
+
+
+@app.get("/health/deepseek")
+def health_deepseek(probe: bool = False):
+    """Check DeepSeek configuration, or make an explicit low-cost live probe."""
+    provider_token = None
+    try:
+        provider_token = set_request_text_provider("deepseek")
+        require_text_ai()
+        model = chat_model_for_active_provider()
+        payload = {
+            "status": "ok",
+            "provider": "deepseek",
+            "model": model,
+            "probe": bool(probe),
+        }
+        if probe:
+            payload["reply"] = generate_chat(
+                [{"role": "user", "content": "Reply with OK only."}],
+                model=model,
+                temperature=0,
+                max_tokens=5,
+            ).strip()
+        else:
+            payload["reply"] = None
+            payload["message"] = "DeepSeek credentials are configured. Add ?probe=true to run a live model check."
+        return payload
+    except Exception:
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "error",
+                "provider": "deepseek",
+                "probe": bool(probe),
+                "message": "DeepSeek health check failed. Check DEEPSEEK_API_KEY, available balance, model configuration, and server logs.",
+            },
+        )
+    finally:
+        if provider_token is not None:
+            reset_request_text_provider(provider_token)
 
 stored_summary = ""
 stored_sections: Dict[str, str] = {}

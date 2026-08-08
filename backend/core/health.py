@@ -30,6 +30,9 @@ class HealthReporter:
             "gemini_project_id_loaded": bool(self._get("GEMINI_PROJECT_ID")),
             "gemini_location": self._get("GEMINI_LOCATION"),
             "gemini_chat_model": self._get("GEMINI_CHAT_MODEL"),
+            "deepseek_api_key_loaded": bool(self._get("DEEPSEEK_API_KEY")),
+            "deepseek_configured": bool(self._call("deepseek_request_is_configured")),
+            "deepseek_chat_model": self._get("DEEPSEEK_CHAT_MODEL"),
             "active_chat_model": self._call("chat_model_for_active_provider", self._get("CHAT_MODEL")),
             "org_id_loaded": bool(self._get("OPENAI_ORG_ID")),
             "project_id_loaded": bool(self._get("OPENAI_PROJECT_ID")),
@@ -120,7 +123,7 @@ class HealthReporter:
             return {
                 "status": "error",
                 "probe": bool(probe),
-                "message": str(error),
+                "message": "Text AI health probe failed. Check provider configuration and server logs.",
                 "hint": (
                     "Check OPENAI_API_KEY, OPENAI_ORG_ID, OPENAI_PROJECT_ID, billing, "
                     "project access, and model access."

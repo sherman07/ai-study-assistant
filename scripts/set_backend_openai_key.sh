@@ -4,10 +4,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 ENV_FILE="${PROJECT_ROOT}/backend/.env"
-ENV_EXAMPLE="${PROJECT_ROOT}/backend/.env.example"
 
 if [ ! -f "${ENV_FILE}" ]; then
-  cp "${ENV_EXAMPLE}" "${ENV_FILE}"
+  install -m 600 /dev/null "${ENV_FILE}"
 fi
 
 OPENAI_KEY="${1:-}"

@@ -125,14 +125,32 @@ class LegacyControllerLoader {
 
   async loadCombinedController() {
     if (this.globalScope.__synapseCombinedControllerReady) return;
-    await new Promise(resolve => {
-      const finish = () => {
-        this.globalScope.removeEventListener("synapse-combined-controller-ready", finish);
-        resolve();
-      };
-      this.globalScope.addEventListener("synapse-combined-controller-ready", finish, { once: true });
-      if (this.globalScope.__synapseCombinedControllerReady) finish();
-    });
+
+    const combinedUrl = `${new URL("./synapse-legacy-controller-combined.js", this.baseUrl).href}?v=${this.version}`;
+    let combinedSource = "";
+    try {
+      const response = await fetch(combinedUrl);
+      const contentType = response.headers.get("content-type") || "";
+      if (response.ok && !contentType.toLowerCase().includes("text/html")) {
+        combinedSource = await response.text();
+      }
+    } catch {
+      // Development servers do not publish the generated combined asset.
+    }
+
+    if (!combinedSource) {
+      const definitionSections = await Promise.all(
+        this.definitionFiles.map(fileName => this.fetchSection(fileName))
+      );
+      const bootSection = await this.fetchSection(this.bootFile);
+      combinedSource = this.combinedSource(definitionSections, bootSection);
+    }
+
+    await this.executeCombinedScript(combinedSource);
+    if (!this.globalScope.__synapseCombinedControllerReady) {
+      this.globalScope.__synapseCombinedControllerReady = true;
+      this.globalScope.dispatchEvent(new Event("synapse-combined-controller-ready"));
+    }
   }
 
   async load() {

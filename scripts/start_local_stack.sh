@@ -7,7 +7,6 @@ RUNTIME_DIR="${PROJECT_ROOT}/.synapse_runtime"
 LOG_DIR="${RUNTIME_DIR}/logs"
 PID_DIR="${RUNTIME_DIR}/pids"
 BACKEND_ENV="${PROJECT_ROOT}/backend/.env"
-BACKEND_ENV_EXAMPLE="${PROJECT_ROOT}/backend/.env.example"
 SERVER_ENV="${PROJECT_ROOT}/server/.env"
 
 mkdir -p "${LOG_DIR}" "${PID_DIR}"
@@ -18,14 +17,6 @@ ensure_node() {
   fi
   # shellcheck disable=SC1091
   source "${PROJECT_ROOT}/scripts/use_local_node.sh" >/dev/null
-}
-
-ensure_backend_env() {
-  if [ -f "${BACKEND_ENV}" ]; then
-    return
-  fi
-  cp "${BACKEND_ENV_EXAMPLE}" "${BACKEND_ENV}"
-  echo "Created backend/.env from backend/.env.example"
 }
 
 backend_reports_openai_key() {
@@ -98,7 +89,6 @@ if [ ! -f "${SERVER_ENV}" ]; then
 fi
 
 ensure_node
-ensure_backend_env
 start_data_api
 start_backend
 start_frontend

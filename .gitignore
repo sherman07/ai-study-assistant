@@ -17,9 +17,6 @@ backend/synapse_analysis_cache.json
 *.sqlite3
 .env
 .env.*
-!server/.env.example
-!backend/.env.example
-!backend/.env.gemini.example
 *.env
 credentials.json
 *.pem

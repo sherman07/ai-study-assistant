@@ -116,7 +116,8 @@ const PROMPT_MODE_DESCRIPTIONS = {
 const AI_PROVIDER_DESCRIPTIONS = {
   "": "Backend default uses the provider selected in backend environment settings.",
   openai: "GPT uses the OpenAI/GPT backend configuration.",
-  gemini: "Gemini uses the Gemini backend configuration with the same Synapse prompts."
+  gemini: "Gemini uses the Gemini backend configuration with the same Synapse prompts.",
+  deepseek: "DeepSeek uses the DeepSeek backend configuration with the same Synapse prompts."
 };
 
 let backendAiStatus = {
@@ -125,13 +126,19 @@ let backendAiStatus = {
   geminiConfigured: false,
   geminiApiKeyLoaded: false,
   geminiAuthMode: "",
+  deepseekConfigured: false,
+  deepseekApiKeyLoaded: false,
   openaiApiKeyLoaded: false,
   tutorWebResearchEnabled: false,
   activeChatModel: ""
 };
 
 function geminiProviderUnavailableMessage() {
-  return "Gemini is not configured on the live backend yet. Add GEMINI_API_KEY on Render (GEMINI_AUTH_MODE=api_key). Until then, Synapse will answer with GPT.";
+  return "Gemini is not configured on the live backend yet. Add GEMINI_API_KEY on Render (GEMINI_AUTH_MODE=api_key), then retry. Synapse will not substitute GPT.";
+}
+
+function deepseekProviderUnavailableMessage() {
+  return "DeepSeek is not configured on the live backend yet. Add DEEPSEEK_API_KEY on Render, then retry. Synapse will not substitute GPT or Gemini.";
 }
 
 function refreshAiProviderDescription() {
@@ -141,6 +148,8 @@ function refreshAiProviderDescription() {
   let text = AI_PROVIDER_DESCRIPTIONS[provider] || AI_PROVIDER_DESCRIPTIONS.openai;
   if (provider === "gemini" && backendAiStatus.loaded && !backendAiStatus.geminiConfigured) {
     text = geminiProviderUnavailableMessage();
+  } else if (provider === "deepseek" && backendAiStatus.loaded && !backendAiStatus.deepseekConfigured) {
+    text = deepseekProviderUnavailableMessage();
   } else if (!provider && backendAiStatus.loaded && backendAiStatus.textProvider === "openai" && !backendAiStatus.geminiConfigured) {
     text = `${AI_PROVIDER_DESCRIPTIONS[""]} Gemini is currently unavailable on this deployment.`;
   }
@@ -149,6 +158,11 @@ function refreshAiProviderDescription() {
     const unavailable = backendAiStatus.loaded && !backendAiStatus.geminiConfigured;
     button.title = unavailable ? geminiProviderUnavailableMessage() : (AI_PROVIDER_DESCRIPTIONS.gemini || "");
     button.setAttribute("data-gemini-available", unavailable ? "false" : "true");
+  });
+  document.querySelectorAll('[data-ai-provider="deepseek"]').forEach(button => {
+    const unavailable = backendAiStatus.loaded && !backendAiStatus.deepseekConfigured;
+    button.title = unavailable ? deepseekProviderUnavailableMessage() : (AI_PROVIDER_DESCRIPTIONS.deepseek || "");
+    button.setAttribute("data-deepseek-available", unavailable ? "false" : "true");
   });
 }
 
@@ -167,13 +181,15 @@ async function refreshBackendAiStatus() {
       geminiConfigured: Boolean(data.gemini_configured),
       geminiApiKeyLoaded: Boolean(data.gemini_api_key_loaded),
       geminiAuthMode: String(data.gemini_auth_mode || ""),
+      deepseekConfigured: Boolean(data.deepseek_configured),
+      deepseekApiKeyLoaded: Boolean(data.deepseek_api_key_loaded),
       openaiApiKeyLoaded: Boolean(data.openai_api_key_loaded),
       tutorWebResearchEnabled: Boolean(data.tutor_web_research_enabled),
       activeChatModel: String(data.active_chat_model || data.chat_model || "")
     };
     refreshAiProviderDescription();
   } catch {
-    // Keep last known status; tutor still works via GPT when OpenAI is configured.
+    // Keep the last known status. A selected provider is never replaced client-side.
   }
   return backendAiStatus;
 }
@@ -203,8 +219,8 @@ function renderAiGenerationNotice() {
   const reason = diagnostics.lastError ? ` Reason: ${diagnostics.lastError}` : "";
   return `
     <div class="alert alert-warning ai-generation-notice" role="status">
-      <strong>${escapeHTML(provider)} main generation did not complete.</strong>
-      Synapse showed local fallback notes instead of verified AI-generated notes.${escapeHTML(model + reason)}
+      <strong>${escapeHTML(provider)} historical generation did not complete.</strong>
+      These notes were created by an older local fallback and should be regenerated before use.${escapeHTML(model + reason)}
     </div>
   `;
 }
@@ -419,6 +435,7 @@ function updatePromptModeDescription() {
 function normaliseAiProvider(value) {
   const provider = String(value || "").toLowerCase();
   if (provider === "gemini") return "gemini";
+  if (provider === "deepseek" || provider === "deepsea") return "deepseek";
   if (provider === "openai" || provider === "gpt") return "openai";
   return "";
 }
@@ -1331,6 +1348,11 @@ async function runGenerationJobAnalysis(jobId, context = {}) {
     currentPromptMode = data.prompt_mode || promptModeValue;
     currentPromptModeLabel = data.prompt_mode_label || "";
     currentAiGeneration = normaliseAiGenerationDiagnostics(data.ai_generation || null);
+    if (currentAiGeneration?.fallbackUsed) {
+      throw new Error(
+        "AI generation did not complete. Synapse rejected local fallback notes; fix the selected provider and retry."
+      );
+    }
     currentHistoryId = "";
     resetTimelineState();
     resetVisualGuideState();

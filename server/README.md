@@ -34,10 +34,10 @@ npm install
 
 Run the `source` command again in each new terminal tab before using `npm`.
 
-Copy the env template and add your Supabase credentials:
+Create `server/.env` and add your Supabase credentials:
 
 ```bash
-cp .env.example .env
+touch .env
 ```
 
 Start the data API:

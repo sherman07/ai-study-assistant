@@ -25,8 +25,8 @@ assert.ok(
 );
 
 assert.ok(
-  uploadControllerSource.includes("Synapse showed local fallback notes instead of verified AI-generated notes"),
-  "fallback model-generation results should show a visible warning"
+  uploadControllerSource.includes("Synapse rejected local fallback notes; fix the selected provider and retry"),
+  "the client must reject legacy local fallback notes instead of rendering them as generated output"
 );
 
 assert.ok(

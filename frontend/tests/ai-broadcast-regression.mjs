@@ -40,9 +40,6 @@ const backendApp = read("backend/app.py");
 const backendBroadcastMode = read("backend/app_sections/13_broadcast_mode.py");
 const studyTools = read("frontend/src/react/components/StudyTools.js");
 const styles = read("frontend/styles/04-section.css");
-const serverEnvExample = read("server/.env.example");
-const backendEnvExample = read("backend/.env.example");
-const geminiEnvExample = read("backend/.env.gemini.example");
 const broadcastAssetVersion = "notes-taller-v2";
 const legacyControllerAssetVersion = "settings-modal-pattern-20260720-06";
 
@@ -224,15 +221,6 @@ assert.ok(!broadcastController.includes("nextJobs.slice(0, 1)"), "boot recovery 
 
 assert.ok(studyTools.includes("toolBtnBroadcast"), "Study tools should include AI Broadcast tab button");
 assert.ok(studyTools.includes("toolPanelBroadcast"), "Study tools should include AI Broadcast panel");
-
-for (const source of [serverEnvExample, backendEnvExample, geminiEnvExample]) {
-  assert.ok(source.includes("BROADCAST_TTS_MODEL=gpt-4o-mini-tts"), "env examples should document OpenAI Broadcast TTS");
-}
-assert.ok(serverEnvExample.includes("BROADCAST_SCRIPT_MODEL=gpt-5.4-mini"), "server env should document the broadcast script model");
-assert.ok(backendEnvExample.includes("BROADCAST_SCRIPT_MODEL=gpt-5.4-mini"), "backend env should document the broadcast script model");
-assert.ok(backendEnvExample.includes("BROADCAST_TTS_PROVIDER=openai"), "backend env should document OpenAI TTS provider");
-assert.ok(backendEnvExample.includes("OPENAI_REALTIME_MODEL=gpt-realtime-2"), "backend env should document the realtime speaker model");
-assert.ok(backendEnvExample.includes("OPENAI_REALTIME_VOICE=marin"), "backend env should document the realtime speaker voice");
 
 assert.ok(backendApp.includes('"13_broadcast_mode.py"'), "FastAPI app should load Broadcast Mode section");
 for (const token of [

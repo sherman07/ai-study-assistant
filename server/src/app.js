@@ -23,7 +23,10 @@ function createApp() {
   app.use(cors({
     origin(origin, callback) {
       if (!origin || allowedOrigins.has(origin)) return callback(null, true);
-      return callback(new Error(`CORS origin is not allowed: ${origin}`));
+      const error = new Error("CORS origin is not allowed.");
+      error.status = 403;
+      error.code = "cors_origin_denied";
+      return callback(error);
     },
     allowedHeaders: [
       "Authorization",

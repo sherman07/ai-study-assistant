@@ -14,8 +14,10 @@
     "build": "vite build --config vite.focus-room-static.config.js && vite build && node scripts/copy_frontend_runtime_assets.mjs",
     "build:focus-room-static": "vite build --config vite.focus-room-static.config.js",
     "preview": "vite preview --host 0.0.0.0 --port 5175 --strictPort",
-    "test:frontend": "for test_file in frontend/tests/*.mjs; do if grep -q 'puppeteer-core' \"$test_file\"; then continue; fi; node \"$test_file\" || exit 1; done",
-    "test:frontend:chrome": "for test_file in frontend/tests/*.mjs; do if grep -q 'puppeteer-core' \"$test_file\"; then node \"$test_file\" || exit 1; fi; done",
+    "test:frontend": "for test_file in frontend/tests/*.mjs; do if grep -q 'prepareChromeProbe' \"$test_file\"; then continue; fi; node \"$test_file\" || exit 1; done",
+    "test:frontend:chrome": "node scripts/run-browser-probes.mjs",
+    "test:frontend:selenium": "npm run build && .venv/bin/python -m unittest discover -s frontend/selenium_tests -v",
+    "test:all": "node scripts/validate_static_site.mjs && npm run test:frontend && npm run test:frontend:selenium && npm --prefix server run check && .venv/bin/python -m unittest discover -s backend/tests -v && npm audit --omit=dev && npm --prefix server audit --omit=dev && .venv/bin/python -m pip check",
     "test:focus-room": "node frontend/tests/focus-room-integration-regression.mjs && node frontend/tests/focus-room-data-regression.mjs && node frontend/tests/focus-room-audio-regression.mjs && node frontend/tests/focus-room-controller-actions-regression.mjs && node frontend/tests/focus-room-study-tools-regression.mjs && node frontend/tests/focus-room-navigation-regression.mjs && node frontend/tests/focus-room-timer-regression.mjs && node frontend/tests/focus-room-compact-timer-regression.mjs && node frontend/tests/focus-room-topics-regression.mjs && node frontend/tests/focus-room-enhanced-mode-regression.mjs && node frontend/tests/study-tools-settings-regression.mjs"
   },
   "dependencies": {

@@ -27,8 +27,12 @@ services:
         value: gemini-3.1-flash-lite
       - key: GEMINI_ANALYSIS_MODEL
         value: gemini-3.1-flash-lite
-      - key: GEMINI_FALLBACK_MODEL
-        value: gemini-3.1-flash-lite
+      # DeepSeek (optional). Add the secret in Render before selecting this
+      # provider; it is never substituted with GPT or Gemini.
+      - key: DEEPSEEK_API_KEY
+        sync: false
+      - key: DEEPSEEK_MODEL
+        value: deepseek-v4-flash
       - key: ENABLE_TUTOR_WEB_RESEARCH
         value: "true"
       - key: SYNAPSE_PUBLIC_BACKEND_URL

@@ -143,13 +143,7 @@ Requirements:
             ]
             answer = generate_chat(repair_messages, model=chat_model, temperature=0.15, max_tokens=2400)
 
-        provider_warning = ""
         requested_normalised = normalise_text_provider(requested_provider) if requested_provider else ""
-        if requested_normalised == "gemini" and selected_provider != "gemini":
-            provider_warning = (
-                "Gemini is not configured on the Synapse backend yet, so this tutor reply used GPT. "
-                "Add GEMINI_API_KEY on Render with GEMINI_AUTH_MODE=api_key to enable Gemini."
-            )
 
         return {
             "answer": answer,
@@ -157,7 +151,7 @@ Requirements:
             "research_status": research_status,
             "ai_provider": selected_provider,
             "ai_provider_requested": requested_normalised or selected_provider,
-            "provider_warning": provider_warning,
+            "provider_warning": "",
             "model": chat_model,
             "research_sources": [
                 {
@@ -816,34 +810,13 @@ def _v21_record_usage(response, model_name: str, purpose: str = "chat") -> None:
         return
 
 
-def _v21_unique_model_candidates(primary_model: str) -> List[str]:
-    candidates = []
-    for model_name in (primary_model or CHAT_MODEL, FALLBACK_MODEL):
-        model_name = normalise_space(model_name or "")
-        if model_name and model_name not in candidates:
-            candidates.append(model_name)
-    return candidates or [CHAT_MODEL]
+def _v21_selected_model(primary_model: str) -> str:
+    """Return only the selected provider's requested model; retries stay local."""
+    return normalise_space(primary_model or CHAT_MODEL) or CHAT_MODEL
 
 
 def _v21_is_payload_compatibility_error(message: str) -> bool:
     return any(term in message for term in ("temperature", "max_tokens", "max_completion_tokens"))
-
-
-def _v21_is_model_availability_error(message: str) -> bool:
-    return any(
-        term in message
-        for term in (
-            "model",
-            "does not exist",
-            "not found",
-            "not have access",
-            "invalid_model",
-            "unsupported_model",
-            "deprecated",
-            "permission",
-            "404",
-        )
-    )
 
 
 from contextvars import ContextVar
@@ -990,70 +963,59 @@ def generate_chat(
     # Some newer models may reject temperature or prefer max_completion_tokens.
     # Try several compatible payload shapes, preserving the previous robustness.
     last_error = None
-    candidate_models = _v21_unique_model_candidates(model_name)
-    for model_index, candidate_model in enumerate(candidate_models):
-        payloads = [
-            {"model": candidate_model, "messages": optimised_messages, "temperature": temperature, "max_tokens": max_tokens, **request_options},
-            {"model": candidate_model, "messages": optimised_messages, "max_tokens": max_tokens, **request_options},
-            {"model": candidate_model, "messages": optimised_messages, "temperature": temperature, "max_completion_tokens": max_tokens, **request_options},
-            {"model": candidate_model, "messages": optimised_messages, "max_completion_tokens": max_tokens, **request_options},
-        ]
-        try_next_model = False
-        for kwargs in payloads:
-            call_started_at = time.monotonic()
-            try:
-                response = active_client.chat.completions.create(**kwargs)
-                _v21_record_usage(response, candidate_model)
-                usage = getattr(response, "usage", None)
-                _record_ai_call_event({
-                    "stage": "chat",
-                    "provider": provider,
-                    "requested_model": model_name,
-                    "model": candidate_model,
-                    "status": "success",
-                    "api_request_attempted": True,
-                    "duration_ms": int((time.monotonic() - call_started_at) * 1000),
-                    "prompt_tokens": getattr(usage, "prompt_tokens", None) if usage is not None else None,
-                    "completion_tokens": getattr(usage, "completion_tokens", None) if usage is not None else None,
-                    "total_tokens": getattr(usage, "total_tokens", None) if usage is not None else None,
-                })
-                content = response.choices[0].message.content or ""
-                # If the task is JSON and the model still pretty-printed JSON, compact it.
-                if MINIFY_MODEL_JSON and _v21_is_json_task(optimised_messages):
-                    try:
-                        parsed = extract_json_object(content)
-                        if isinstance(parsed, dict):
-                            return json.dumps(parsed, ensure_ascii=False, separators=(",", ":"))
-                    except Exception:
-                        pass
-                return content
-            except Exception as exc:
-                last_error = exc
-                msg = str(exc).lower()
-                _record_ai_call_event({
-                    "stage": "chat",
-                    "provider": provider,
-                    "requested_model": model_name,
-                    "model": candidate_model,
-                    "status": "error",
-                    "api_request_attempted": True,
-                    "duration_ms": int((time.monotonic() - call_started_at) * 1000),
-                    "error_type": type(exc).__name__,
-                    "error": _sanitize_ai_error(exc),
-                })
-                if _v21_is_payload_compatibility_error(msg):
-                    continue
-                if model_index + 1 < len(candidate_models) and _v21_is_model_availability_error(msg):
-                    try_next_model = True
-                    break
-                raise
-        if try_next_model:
-            continue
-        if last_error and model_index + 1 < len(candidate_models) and _v21_is_model_availability_error(str(last_error).lower()):
-            continue
-        if last_error:
-            raise last_error
-    raise last_error if last_error else RuntimeError("OpenAI request failed.")
+    candidate_model = _v21_selected_model(model_name)
+    payloads = [
+        {"model": candidate_model, "messages": optimised_messages, "temperature": temperature, "max_tokens": max_tokens, **request_options},
+        {"model": candidate_model, "messages": optimised_messages, "max_tokens": max_tokens, **request_options},
+        {"model": candidate_model, "messages": optimised_messages, "temperature": temperature, "max_completion_tokens": max_tokens, **request_options},
+        {"model": candidate_model, "messages": optimised_messages, "max_completion_tokens": max_tokens, **request_options},
+    ]
+    for kwargs in payloads:
+        call_started_at = time.monotonic()
+        try:
+            response = active_client.chat.completions.create(**kwargs)
+            _v21_record_usage(response, candidate_model)
+            usage = getattr(response, "usage", None)
+            _record_ai_call_event({
+                "stage": "chat",
+                "provider": provider,
+                "requested_model": model_name,
+                "model": candidate_model,
+                "status": "success",
+                "api_request_attempted": True,
+                "duration_ms": int((time.monotonic() - call_started_at) * 1000),
+                "prompt_tokens": getattr(usage, "prompt_tokens", None) if usage is not None else None,
+                "completion_tokens": getattr(usage, "completion_tokens", None) if usage is not None else None,
+                "total_tokens": getattr(usage, "total_tokens", None) if usage is not None else None,
+            })
+            content = response.choices[0].message.content or ""
+            # If the task is JSON and the model still pretty-printed JSON, compact it.
+            if MINIFY_MODEL_JSON and _v21_is_json_task(optimised_messages):
+                try:
+                    parsed = extract_json_object(content)
+                    if isinstance(parsed, dict):
+                        return json.dumps(parsed, ensure_ascii=False, separators=(",", ":"))
+                except Exception:
+                    pass
+            return content
+        except Exception as exc:
+            last_error = exc
+            msg = str(exc).lower()
+            _record_ai_call_event({
+                "stage": "chat",
+                "provider": provider,
+                "requested_model": model_name,
+                "model": candidate_model,
+                "status": "error",
+                "api_request_attempted": True,
+                "duration_ms": int((time.monotonic() - call_started_at) * 1000),
+                "error_type": type(exc).__name__,
+                "error": _sanitize_ai_error(exc),
+            })
+            if _v21_is_payload_compatibility_error(msg):
+                continue
+            raise
+    raise last_error if last_error else RuntimeError("Text generation request failed.")
 
 
 @app.get("/health/token-optimization")

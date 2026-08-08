@@ -120,6 +120,16 @@ class ApiShapeTests(unittest.TestCase):
             core_config.CONFIG_ENV_PATHS,
         )
 
+    def test_backend_loads_deepseek_settings_from_separate_env_file(self):
+        self.assertIn(
+            backend_app_module.BACKEND_PACKAGE_DIR / ".env.deepseek",
+            core_config.DEEPSEEK_ENV_PATHS,
+        )
+        self.assertIn(
+            backend_app_module.BACKEND_PACKAGE_DIR / ".env.deepseek",
+            core_config.CONFIG_ENV_PATHS,
+        )
+
     def test_backend_loads_gpt_settings_from_separate_env_file(self):
         self.assertIn(
             backend_app_module.BACKEND_PACKAGE_DIR / ".env.gpt",
@@ -169,7 +179,7 @@ class ApiShapeTests(unittest.TestCase):
             self.assertEqual(core_config.model_for_depth("detailed"), "gemini-detailed")
             self.assertEqual(core_config.model_for_depth("comprehensive"), "gemini-comprehensive")
 
-    def test_unconfigured_gemini_request_falls_back_to_openai(self):
+    def test_unconfigured_gemini_request_reports_configuration_error_without_openai_substitution(self):
         with (
             patch.object(core_config, "AI_TEXT_PROVIDER", "openai"),
             patch.object(core_config, "OPENAI_API_KEY", "test-openai-key"),
@@ -177,15 +187,88 @@ class ApiShapeTests(unittest.TestCase):
             patch.object(core_config, "GEMINI_AUTH_MODE", "adc"),
             patch.object(core_config, "GEMINI_PROJECT_ID", ""),
         ):
-            token = core_config.set_request_text_provider("gemini")
+            with self.assertRaisesRegex(RuntimeError, "Gemini.*not configured"):
+                core_config.set_request_text_provider("gemini")
+            self.assertEqual(core_config.active_text_provider(), "openai")
+
+    def test_deepseek_request_selects_the_deepseek_client_and_model(self):
+        deepseek_client = object()
+        with (
+            patch.object(core_config, "AI_TEXT_PROVIDER", "openai"),
+            patch.object(core_config, "DEEPSEEK_API_KEY", "deepseek-test-key", create=True),
+            patch.object(core_config, "deepseek_client", deepseek_client, create=True),
+            patch.object(core_config, "DEEPSEEK_CHAT_MODEL", "deepseek-v4-flash", create=True),
+        ):
+            token = core_config.set_request_text_provider("deepseek")
             try:
-                self.assertEqual(
-                    core_config.active_text_provider(),
-                    "openai",
-                    "an unavailable optional Gemini selection must not break analysis",
-                )
+                self.assertEqual(core_config.active_text_provider(), "deepseek")
+                self.assertEqual(core_config.chat_model_for_active_provider(), "deepseek-v4-flash")
+                self.assertIs(core_config.text_generation_client(), deepseek_client)
             finally:
                 core_config.reset_request_text_provider(token)
+
+    def test_unconfigured_deepseek_request_is_not_substituted_with_openai(self):
+        with (
+            patch.object(core_config, "AI_TEXT_PROVIDER", "openai"),
+            patch.object(core_config, "OPENAI_API_KEY", "test-openai-key"),
+            patch.object(core_config, "client", object()),
+            patch.object(core_config, "DEEPSEEK_API_KEY", "", create=True),
+            patch.object(core_config, "deepseek_client", None, create=True),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "DeepSeek.*not configured"):
+                core_config.set_request_text_provider("deepseek")
+            self.assertEqual(core_config.active_text_provider(), "openai")
+
+    def test_gemini_never_retries_an_openai_fallback_model(self):
+        class FailingCompletions:
+            def __init__(self):
+                self.calls = []
+
+            def create(self, **kwargs):
+                self.calls.append(kwargs)
+                raise RuntimeError("404: model is unavailable")
+
+        completions = FailingCompletions()
+        gemini_client = SimpleNamespace(chat=SimpleNamespace(completions=completions))
+
+        with (
+            patch.object(backend_app_module, "AI_TEXT_PROVIDER", "gemini", create=True),
+            patch.object(backend_app_module, "FALLBACK_MODEL", "gpt-5.4-mini", create=True),
+            patch.object(backend_app_module, "text_generation_client", return_value=gemini_client, create=True),
+            patch.object(backend_app_module, "active_text_provider", return_value="gemini", create=True),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "404"):
+                backend_app_module.generate_chat(
+                    [{"role": "user", "content": "Generate study notes."}],
+                    model="gemini-3.1-flash-lite",
+                    max_tokens=20,
+                )
+
+        self.assertEqual(
+            [call["model"] for call in completions.calls],
+            ["gemini-3.1-flash-lite"],
+            "a Gemini request must not send an OpenAI model name to the Gemini API",
+        )
+
+    def test_note_generation_propagates_model_failure_instead_of_returning_local_notes(self):
+        source_units = [{
+            "display_name": "lecture.txt",
+            "title_candidate": "Lecture",
+            "text_excerpt": "A source-grounded study note must only be returned after a model succeeds.",
+            "visual_parts": [],
+        }]
+
+        with (
+            patch("backend.app.generate_visual_argument_cards", return_value=[]),
+            patch("backend.app.generate_chat", side_effect=RuntimeError("Gemini model request failed")),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "Gemini model request failed"):
+                generate_reference_style_multisource_notes(
+                    source_units,
+                    "english",
+                    {"depth": "detailed", "config": {}},
+                    "professor_mode",
+                )
 
     def test_generate_chat_uses_gemini_client_when_provider_is_gemini(self):
         class FakeCompletions:
@@ -480,7 +563,7 @@ class ApiShapeTests(unittest.TestCase):
         self.assertEqual(payload["source_evidence_cards"], payload["visual_gallery"])
         self.assertEqual(payload["figure_cards"], payload["visual_gallery"])
 
-    def test_analyze_reports_fallback_when_main_note_model_fails(self):
+    def test_analyze_returns_an_error_when_main_note_model_fails(self):
         with (
             patch("backend.app.require_text_ai"),
             patch("backend.app.cache_get", return_value=None),
@@ -500,13 +583,8 @@ class ApiShapeTests(unittest.TestCase):
                 client_fingerprint="",
             ))
 
-        self.assertNotIn("error", payload)
-        self.assertFalse(payload["cached"])
-        self.assertEqual(payload["ai_generation_source"], "fallback")
-        self.assertTrue(payload["ai_fallback_used"])
-        self.assertIn("main_notes", payload["ai_generation"]["fallback_stages"])
-        self.assertIn("forced model failure", payload["ai_generation"]["last_error"])
-        self.assertIn("Professional Study Guide", payload["summary"])
+        self.assertEqual(payload.status_code, 500)
+        self.assertEqual(json.loads(payload.body), {"error": "forced model failure"})
 
     def test_deadline_skips_visual_filter_and_note_expansion_model_stages(self):
         long_summary = "# Overview\n\n" + ("This source explains table data, comparison, evidence, and exam use. " * 700)

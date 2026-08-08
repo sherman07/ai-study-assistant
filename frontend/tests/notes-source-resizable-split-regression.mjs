@@ -13,6 +13,7 @@ const boot = read("frontend/src/legacy/controller_sections/99_boot.js");
 const layoutCss = read("frontend/styles/01-section.css");
 const sectionCss = read("frontend/styles/02-section.css");
 const index = read("frontend/index.html");
+const controllerLoader = read("frontend/src/legacy/controllerLoader.js");
 
 assert.match(analysis, /notesSourceSplitter/, "AnalysisStage should render the notes/source splitter");
 assert.match(analysis, /notes-source-splitter-handle/, "splitter should include a visible handle");
@@ -49,8 +50,8 @@ assert.match(
 
 assert.ok(index.includes("style.css?v="), "styles should cache-bust for the resizable split");
 assert.ok(
-  index.includes("synapse-legacy-controller-combined.js?v="),
-  "controller should cache-bust for the resizable split"
+  controllerLoader.includes('synapse-legacy-controller-combined.js') && controllerLoader.includes('?v=${this.version}'),
+  "controller loader should cache-bust for the resizable split"
 );
 
 console.log("notes-source-resizable-split-regression: passed");

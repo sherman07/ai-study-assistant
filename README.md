@@ -137,7 +137,7 @@ bash scripts/status_local_stack.sh
 bash scripts/stop_local_stack.sh
 ```
 
-If `backend/.env` does not exist yet, the start script creates it from `backend/.env.example`. Add your real `OPENAI_API_KEY` there, or run:
+Add your real `OPENAI_API_KEY` to `backend/.env`, or run:
 
 ```bash
 bash scripts/set_backend_openai_key.sh
@@ -158,8 +158,21 @@ Gemini uses the same Synapse prompt-mode builder, source context, and validators
 as the GPT path. OpenAI-only features such as realtime voice, transcription, and
 hosted image generation still require `OPENAI_API_KEY`.
 
+DeepSeek is already connected through the real local file
+`backend/.env.deepseek`. Add your key there:
+
+```env
+DEEPSEEK_API_KEY=your-deepseek-api-key
+DEEPSEEK_MODEL=deepseek-v4-flash
+```
+
+DeepSeek is routed independently through its OpenAI-compatible endpoint. To
+make it the backend default, add `AI_TEXT_PROVIDER=deepseek` to `backend/.env`.
+DeepSeek request never falls back to GPT or Gemini; if its key, balance, model,
+or service is unavailable, Synapse returns that provider error.
+
 The upload form includes a Generate AI switch. Leave it on backend default to
-use `AI_TEXT_PROVIDER`, or choose GPT/Gemini for that generation request only.
+use `AI_TEXT_PROVIDER`, or choose GPT, Gemini, or DeepSeek for that generation request only.
 
 Start the backend:
 

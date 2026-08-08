@@ -12,6 +12,7 @@ const transcript = read("frontend/src/legacy/controller_sections/08_extractrealt
 const boot = read("frontend/src/legacy/controller_sections/99_boot.js");
 const css = read("frontend/styles/02-section.css");
 const index = read("frontend/index.html");
+const controllerLoader = read("frontend/src/legacy/controllerLoader.js");
 const copyScript = read("scripts/copy_frontend_runtime_assets.mjs");
 
 assert.ok(sourceViewer.includes("canUseNativePdfPreview"), "PDF blobs should use a local page preview");
@@ -58,6 +59,9 @@ assert.ok(boot.includes("resetSourceZoom"), "boot should expose fit-width helper
 assert.ok(boot.includes("retryActiveSourcePreview"), "boot should expose retry helper");
 
 assert.ok(/style\.css\?v=[\w.-]+/.test(index), "styles should cache-bust");
-assert.ok(/synapse-legacy-controller-combined\.js\?v=[\w.-]+/.test(index), "controller should cache-bust");
+assert.ok(
+  controllerLoader.includes('synapse-legacy-controller-combined.js') && controllerLoader.includes('?v=${this.version}'),
+  "controller loader should cache-bust its runtime asset"
+);
 
 console.log("source-preview-instant-ui-regression: passed");

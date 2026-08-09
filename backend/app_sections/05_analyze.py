@@ -1315,8 +1315,6 @@ async def voice_tutor_respond(
     provider_token = None
     try:
         provider_token = set_request_text_provider(ai_provider)
-        require_text_ai()
-        chat_model = chat_model_for_active_provider() if "chat_model_for_active_provider" in globals() else CHAT_MODEL
         parsed_history = normalise_voice_tutor_history(parse_json_list(history))
         sections_dict = parse_json_dict(sections)
         note_summary = str(summary or "").strip()
@@ -1325,6 +1323,8 @@ async def voice_tutor_respond(
                 "No current note context was provided. Open or generate the note before starting voice tutor.",
                 400,
             )
+        require_text_ai()
+        chat_model = chat_model_for_active_provider() if "chat_model_for_active_provider" in globals() else CHAT_MODEL
 
         transcript_text = normalise_space(transcript)
         if audio is not None and audio.filename:

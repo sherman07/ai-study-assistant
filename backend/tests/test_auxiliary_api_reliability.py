@@ -28,17 +28,17 @@ class AuxiliaryEndpointErrorStatusTests(unittest.TestCase):
             ("post", "/quiz/generate", {}),
             ("post", "/flashcards/generate", {}),
             ("post", "/broadcast/generate", {}),
+            ("post", "/visual-guide/generate", {}),
+            ("post", "/visual-image-guide/generate", {}),
         ]
 
-        with (
-            patch("backend.app.require_text_ai"),
-            patch("backend.app.generate_chat", side_effect=AssertionError("model should not be called without request context")),
-        ):
-            for method, path, payload in cases:
-                response = getattr(client, method)(path, json=payload)
-                self.assertEqual(response.status_code, 400, path)
-                self.assertIn("application/json", response.headers.get("content-type", ""))
-                self.assertIn("error", response.json())
+        # Do not patch require_text_ai: missing note context must win over missing
+        # provider credentials so students see an actionable 400, not a 503/200.
+        for method, path, payload in cases:
+            response = getattr(client, method)(path, json=payload)
+            self.assertEqual(response.status_code, 400, path)
+            self.assertIn("application/json", response.headers.get("content-type", ""))
+            self.assertIn("error", response.json())
 
     def test_voice_tutor_missing_context_returns_http_400(self):
         with patch("backend.app.require_text_ai"):

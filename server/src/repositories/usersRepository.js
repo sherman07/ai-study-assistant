@@ -6,7 +6,8 @@ import {
   resetCreditsForPlan
 } from "../billing/credits.js";
 import { dailyCreditsForPlan } from "../billing/plans.js";
-import { firstSupabaseRow, supabaseRequest } from "../supabase/rest.js";
+import { databaseUnavailableError, isDatabaseUnavailableError } from "../middleware/errors.js";
+import { firstSupabaseRow, supabaseRequest, supabaseStorageEnabled } from "../supabase/rest.js";
 import { stableUserId } from "../utils/ids.js";
 import { cleanString, jsonValue, nullableString } from "../utils/validators.js";
 
@@ -348,7 +349,18 @@ async function supabaseListUsers({ query = "", limit = 100, offset = 0 } = {}) {
 }
 
 async function upsertUser(identity = {}) {
-  return supabaseUpsertUser(identity);
+  if (!supabaseStorageEnabled()) {
+    throw databaseUnavailableError(new Error("Supabase storage is not configured."));
+  }
+
+  try {
+    return await supabaseUpsertUser(identity);
+  } catch (error) {
+    if (isDatabaseUnavailableError(error)) {
+      throw databaseUnavailableError(error);
+    }
+    throw error;
+  }
 }
 async function getUserById(userId) {
   return supabaseGetUserById(userId);

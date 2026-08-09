@@ -35,9 +35,6 @@ async def ask_question(data: dict):
     try:
         requested_provider = str((data or {}).get("ai_provider") or "").strip()
         provider_token = set_request_text_provider(requested_provider)
-        require_text_ai()
-        selected_provider = active_text_provider()
-        chat_model = chat_model_for_active_provider()
         question = data.get("question", "")
         selected_section = data.get("selected_section", "")
         selected_excerpt = str(data.get("selected_excerpt") or "").strip()
@@ -58,6 +55,10 @@ async def ask_question(data: dict):
                 "No current note context was provided. Open or generate the note again before asking the tutor.",
                 400,
             )
+
+        require_text_ai()
+        selected_provider = active_text_provider()
+        chat_model = chat_model_for_active_provider()
 
         context_summary = request_summary
         context_title = request_title or "Current Notes"

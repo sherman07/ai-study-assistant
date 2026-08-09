@@ -406,12 +406,17 @@
       return {
         plan: "Free",
         billingPlan: "free",
+        isPro: false,
+        isSuspended: false,
         subscriptionStatus: "inactive",
         currentPeriodEnd: null,
         credits: null,
         dailyCredits: null,
         boostCredits: null,
         dailyAllowance: null,
+        adminControls: null,
+        entitlements: null,
+        features: null,
         billingSyncedAt: null
       };
     }
@@ -419,6 +424,8 @@
     return {
       plan: displayPlan(planId),
       billingPlan: planId,
+      isPro: Boolean(session.isPro),
+      isSuspended: Boolean(session.isSuspended),
       subscriptionStatus: session.subscriptionStatus || "inactive",
       currentPeriodEnd: session.currentPeriodEnd || null,
       credits: Number.isFinite(Number(session.credits)) ? Math.max(0, Math.floor(Number(session.credits))) : null,
@@ -431,11 +438,14 @@
       dailyAllowance: Number.isFinite(Number(session.dailyAllowance))
         ? Math.max(0, Math.floor(Number(session.dailyAllowance)))
         : null,
+      adminControls: session.adminControls || null,
+      entitlements: session.entitlements || null,
+      features: session.features || session.entitlements?.features || null,
       billingSyncedAt: session.billingSyncedAt || null
     };
   }
 
-  function mergeServerUserIntoSession(session, user = {}) {
+  function mergeServerUserIntoSession(session, user = {}, entitlementsPayload = null) {
     if (!session) return session;
     // Server `public.users` is the only source of truth for plan and credits.
     // Never fall back to the display label in session.plan (e.g. "Pro Annual").
@@ -447,9 +457,28 @@
     );
     const platformRole = user.platformRole || user.platform_role || session.platformRole || "user";
     const isController = Boolean(user.isController) || platformRole === "controller";
+    const entitlements = entitlementsPayload
+      || user.entitlements
+      || session.entitlements
+      || null;
+    const adminControls = user.adminControls
+      || user.admin_controls
+      || entitlements?.adminControls
+      || session.adminControls
+      || null;
     const totalCredits = Number.isFinite(Number(user.credits))
       ? Math.max(0, Math.floor(Number(user.credits)))
       : (Number.isFinite(Number(session.credits)) ? Math.max(0, Math.floor(Number(session.credits))) : creditsForPlan(planId));
+    const isPro = typeof user.isPro === "boolean"
+      ? user.isPro
+      : (typeof entitlements?.isPro === "boolean"
+        ? entitlements.isPro
+        : (planId.startsWith("pro_") && ["active", "trialing"].includes(String(user.subscriptionStatus || session.subscriptionStatus || "inactive").toLowerCase())));
+    const isSuspended = Boolean(
+      user.isSuspended
+      || entitlements?.isSuspended
+      || adminControls?.accountStatus === "suspended"
+    );
     return {
       ...session,
       accountId: user.id || session.accountId,
@@ -460,6 +489,8 @@
       isController,
       plan: displayPlan(planId),
       billingPlan: planId,
+      isPro,
+      isSuspended,
       subscriptionStatus: user.subscriptionStatus || session.subscriptionStatus || "inactive",
       currentPeriodEnd: user.currentPeriodEnd || session.currentPeriodEnd || null,
       credits: totalCredits,
@@ -472,6 +503,9 @@
       dailyAllowance: Number.isFinite(Number(user.dailyAllowance))
         ? Math.max(0, Math.floor(Number(user.dailyAllowance)))
         : (Number.isFinite(Number(session.dailyAllowance)) ? Math.floor(Number(session.dailyAllowance)) : null),
+      adminControls: adminControls || session.adminControls || null,
+      entitlements: entitlements || session.entitlements || null,
+      features: entitlements?.features || session.features || null,
       billingSyncedAt: new Date().toISOString()
     };
   }
@@ -1121,7 +1155,27 @@
       const response = await dataApiFetch("/api/users/me", { method: "GET" });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || data.error || !data.user) return session;
-      return saveSession(mergeServerUserIntoSession(session, data.user));
+      let next = saveSession(mergeServerUserIntoSession(session, data.user, data.entitlements || data.user.entitlements));
+      // Prefer authoritative entitlements + credit split when available.
+      try {
+        const entitlementsResponse = await dataApiFetch("/api/billing/entitlements", { method: "GET" });
+        const entitlementsData = await entitlementsResponse.json().catch(() => ({}));
+        if (entitlementsResponse.ok && !entitlementsData.error) {
+          const creditUser = {
+            ...(entitlementsData.user || data.user),
+            credits: entitlementsData.credits?.totalCredits ?? entitlementsData.user?.credits ?? data.user.credits,
+            dailyCredits: entitlementsData.credits?.dailyCredits ?? entitlementsData.user?.dailyCredits ?? data.user.dailyCredits,
+            boostCredits: entitlementsData.credits?.boostCredits ?? entitlementsData.user?.boostCredits ?? data.user.boostCredits,
+            dailyAllowance: entitlementsData.credits?.dailyAllowance ?? entitlementsData.user?.dailyAllowance ?? data.user.dailyAllowance,
+            entitlements: entitlementsData.entitlements,
+            adminControls: entitlementsData.entitlements?.adminControls || data.user.adminControls
+          };
+          next = saveSession(mergeServerUserIntoSession(next, creditUser, entitlementsData.entitlements));
+        }
+      } catch {
+        // /me already merged; entitlements are best-effort.
+      }
+      return next;
     } catch {
       return session;
     }
@@ -1138,9 +1192,18 @@
     const response = await dataApiFetch("/api/billing/entitlements", { method: "GET" });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.error) throw new Error(data.error || "Could not load billing status.");
-    if (data.user) {
-      const session = getStoredSession();
-      if (session) saveSession(mergeServerUserIntoSession(session, data.user));
+    const session = getStoredSession();
+    if (session) {
+      const creditUser = {
+        ...(data.user || {}),
+        credits: data.credits?.totalCredits ?? data.user?.credits,
+        dailyCredits: data.credits?.dailyCredits ?? data.user?.dailyCredits,
+        boostCredits: data.credits?.boostCredits ?? data.user?.boostCredits,
+        dailyAllowance: data.credits?.dailyAllowance ?? data.user?.dailyAllowance,
+        entitlements: data.entitlements,
+        adminControls: data.entitlements?.adminControls || data.user?.adminControls
+      };
+      saveSession(mergeServerUserIntoSession(session, creditUser, data.entitlements));
     }
     return data;
   }
@@ -1178,9 +1241,18 @@
     const response = await dataApiFetch("/api/billing/credits", { method: "GET" });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.error) throw new Error(data.error || "Could not load credit balance.");
-    if (data.user) {
+    if (data.user || data.credits) {
       const session = getStoredSession();
-      if (session) saveSession(mergeServerUserIntoSession(session, data.user));
+      if (session) {
+        const creditUser = {
+          ...(data.user || {}),
+          credits: data.credits?.totalCredits ?? data.user?.credits,
+          dailyCredits: data.credits?.dailyCredits ?? data.user?.dailyCredits,
+          boostCredits: data.credits?.boostCredits ?? data.user?.boostCredits,
+          dailyAllowance: data.credits?.dailyAllowance ?? data.user?.dailyAllowance
+        };
+        saveSession(mergeServerUserIntoSession(session, creditUser));
+      }
     }
     return data;
   }

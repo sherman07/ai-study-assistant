@@ -28,6 +28,37 @@ function normalizeIdentity(identity = {}) {
   };
 }
 
+const IDENTITY_METADATA_KEYS = new Set([
+  "supabase_user_id",
+  "provider",
+  "providers",
+  "client_id",
+  "email_confirmed_at",
+  "last_sign_in_at",
+  "created_at"
+]);
+
+const PROTECTED_METADATA_KEYS = new Set([
+  "credits",
+  "daily_credits",
+  "boost_credits",
+  "daily_refreshed_on",
+  "welcome_granted",
+  "admin_controls",
+  "admin_daily_allowance"
+]);
+
+function mergeIdentityMetadata(existingMetadata = {}, identityMetadata = {}) {
+  const next = { ...(existingMetadata && typeof existingMetadata === "object" ? existingMetadata : {}) };
+  const incoming = identityMetadata && typeof identityMetadata === "object" ? identityMetadata : {};
+  for (const [key, value] of Object.entries(incoming)) {
+    if (PROTECTED_METADATA_KEYS.has(key)) continue;
+    if (!IDENTITY_METADATA_KEYS.has(key)) continue;
+    next[key] = value;
+  }
+  return next;
+}
+
 function attachCreditFields(user, creditState) {
   return {
     ...user,
@@ -125,6 +156,17 @@ function adminSplitCreditsState(existingUser, patch = {}, plan) {
   });
 }
 
+function creditMetadataFromAdminPatch(state, { lockDailyAllowance = false } = {}) {
+  const metadata = {
+    ...creditMetadataFromState(state)
+  };
+  if (lockDailyAllowance) {
+    // Controllers can set a custom daily balance that survives UTC refresh.
+    metadata.admin_daily_allowance = state.dailyCredits;
+  }
+  return metadata;
+}
+
 function supabaseUserPatch(patch = {}, existingUser = null) {
   const next = {};
   const existingMetadata = existingUser?.metadata || {};
@@ -158,9 +200,10 @@ function supabaseUserPatch(patch = {}, existingUser = null) {
   } else if (hasSplitCredits) {
     const plan = patch.plan || existingUser?.plan || "free";
     const nextState = adminSplitCreditsState(existingUser, patch, plan);
+    const lockDaily = patch.dailyCredits !== undefined || patch.daily_credits !== undefined;
     metadata = {
       ...(metadata || existingMetadata || {}),
-      ...creditMetadataFromState(nextState)
+      ...creditMetadataFromAdminPatch(nextState, { lockDailyAllowance: lockDaily })
     };
   } else if (patch.credits !== undefined) {
     const plan = patch.plan || existingUser?.plan || "free";
@@ -180,6 +223,8 @@ function supabaseUserPatch(patch = {}, existingUser = null) {
       ...(metadata || existingMetadata || {}),
       ...creditMetadataFromState(nextState)
     };
+    // Plan-default daily refresh should follow the plan allowance again.
+    delete metadata.admin_daily_allowance;
   }
 
   if (patch.adminControls !== undefined || patch.admin_controls !== undefined) {
@@ -247,14 +292,42 @@ async function persistRefreshedCredits(user) {
 }
 
 async function supabaseUpsertUser(identity = {}) {
-  const payload = await supabaseRequest("POST", "users", {
-    query: { on_conflict: "auth_provider,auth_subject" },
-    body: [supabaseUserRow(identity)],
-    prefer: "resolution=merge-duplicates,return=representation"
+  const row = supabaseUserRow(identity);
+  const existing = await supabaseSelectSingle({
+    auth_provider: `eq.${row.auth_provider}`,
+    auth_subject: `eq.${row.auth_subject}`
   });
-  const row = firstSupabaseRow(payload);
-  if (!row) return null;
-  return persistRefreshedCredits(mapUser(row));
+
+  if (!existing) {
+    // First sighting of this auth identity — insert a row. Credit seeding happens
+    // via persistRefreshedCredits after mapUser/ensureCreditState.
+    const payload = await supabaseRequest("POST", "users", {
+      query: { on_conflict: "auth_provider,auth_subject" },
+      body: [row],
+      prefer: "resolution=merge-duplicates,return=representation"
+    });
+    const inserted = firstSupabaseRow(payload);
+    if (!inserted) return null;
+    return persistRefreshedCredits(mapUser(inserted));
+  }
+
+  // IMPORTANT: never replace metadata_json wholesale on login/sync.
+  // Credits (daily/boost) and admin_controls live there and must survive upserts.
+  const mergedMetadata = mergeIdentityMetadata(existing.metadata || {}, row.metadata_json || {});
+  const patchBody = {
+    email: row.email,
+    display_name: row.display_name,
+    auth_mode: row.auth_mode,
+    metadata_json: mergedMetadata
+  };
+  const payload = await supabaseRequest("PATCH", "users", {
+    query: { id: `eq.${cleanString(existing.id, 80)}` },
+    body: patchBody,
+    prefer: "return=representation"
+  });
+  const updated = firstSupabaseRow(payload);
+  if (!updated) return persistRefreshedCredits(existing);
+  return persistRefreshedCredits(mapUser(updated));
 }
 
 async function supabasePatchUser(userId, patch = {}) {
@@ -385,6 +458,8 @@ async function applyCreditState(userId, creditState) {
 }
 
 export {
+  IDENTITY_METADATA_KEYS,
+  PROTECTED_METADATA_KEYS,
   applyCreditState,
   getUserByEmail,
   getUserById,
@@ -393,9 +468,11 @@ export {
   listControllers,
   listUsers,
   mapUser,
+  mergeIdentityMetadata,
   normalizeIdentity,
   patchUser,
   searchUsersByEmail,
+  supabaseUserPatch,
   updateUserStripeCustomer,
   updateUserSubscription,
   upsertUser

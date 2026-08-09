@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 /**
- * Prints (and optionally verifies) the Supabase admin-controller migration.
+ * Prints (and optionally verifies) Supabase admin + user-control migrations.
  *
- * DDL cannot be applied through PostgREST. Run the SQL in the Supabase SQL Editor:
+ * DDL cannot be applied through PostgREST. Run these in the Supabase SQL Editor:
  *   server/src/db/migrations/001_admin_controller_access.sql
+ *   server/src/db/migrations/002_admin_user_controls_credits.sql
  *
- * With SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY set, this script verifies that
- * platform_settings / site_access_allowlist exist and that the primary controller
- * row can be written.
+ * With SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY set, this script verifies tables,
+ * metadata credit keys, and the billing overview view.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -20,7 +20,10 @@ dotenv.config({ path: path.join(serverRoot, ".env") });
 dotenv.config();
 
 const PRIMARY = "shermanzheng8@gmail.com";
-const migrationPath = path.join(serverRoot, "src/db/migrations/001_admin_controller_access.sql");
+const migrationPaths = [
+  path.join(serverRoot, "src/db/migrations/001_admin_controller_access.sql"),
+  path.join(serverRoot, "src/db/migrations/002_admin_user_controls_credits.sql")
+];
 
 function requiredEnv(name) {
   return String(process.env[name] || "").trim();
@@ -58,20 +61,36 @@ async function supabaseRest(method, table, { query = {}, body, prefer = "" } = {
 }
 
 async function main() {
-  const sql = fs.readFileSync(migrationPath, "utf8");
-  console.log("Migration file:", migrationPath);
-  console.log("Apply this SQL in Supabase Dashboard → SQL Editor, then re-run with service-role env to verify.\n");
+  for (const migrationPath of migrationPaths) {
+    const sql = fs.readFileSync(migrationPath, "utf8");
+    console.log("Migration file:", migrationPath);
+    console.log(`Apply this SQL in Supabase Dashboard → SQL Editor (${path.basename(migrationPath)}).\n`);
+    if (!requiredEnv("SUPABASE_URL") || !requiredEnv("SUPABASE_SERVICE_ROLE_KEY")) {
+      console.log("---");
+      console.log(sql);
+      console.log("---\n");
+    }
+  }
 
   if (!requiredEnv("SUPABASE_URL") || !requiredEnv("SUPABASE_SERVICE_ROLE_KEY")) {
-    console.log("Env not set — printing migration only.");
-    console.log("---");
-    console.log(sql);
+    console.log("Env not set — printed migrations only.");
     process.exit(0);
   }
 
   for (const table of ["platform_settings", "site_access_allowlist", "users"]) {
-    await supabaseRest("GET", table, { query: { select: table === "users" ? "id,email,platform_role" : "key", limit: 1 } });
+    await supabaseRest("GET", table, {
+      query: { select: table === "users" ? "id,email,platform_role,plan,metadata_json" : "key", limit: 1 }
+    });
     console.log(`OK: ${table} reachable`);
+  }
+
+  try {
+    await supabaseRest("GET", "synapse_user_billing_overview", {
+      query: { select: "id,email,daily_credits,boost_credits,account_status", limit: 1 }
+    });
+    console.log("OK: synapse_user_billing_overview reachable");
+  } catch (error) {
+    console.warn(`WARN: billing overview view missing — apply 002_admin_user_controls_credits.sql (${error.message})`);
   }
 
   await supabaseRest("POST", "site_access_allowlist", {
@@ -83,7 +102,7 @@ async function main() {
 
   const users = await supabaseRest("GET", "users", {
     query: {
-      select: "id,email,platform_role",
+      select: "id,email,platform_role,plan,metadata_json",
       email: `eq.${PRIMARY}`,
       limit: 1
     }
@@ -95,11 +114,15 @@ async function main() {
       prefer: "return=minimal"
     });
     console.log(`OK: platform_role=controller for ${PRIMARY}`);
+    const meta = users[0].metadata_json || {};
+    console.log(
+      `NOTE: credit metadata keys present → daily=${meta.daily_credits ?? "n/a"} boost=${meta.boost_credits ?? "n/a"} admin_controls=${meta.admin_controls ? "yes" : "no"}`
+    );
   } else {
     console.log(`NOTE: ${PRIMARY} has not signed up yet; bootstrap email still grants controller on first login.`);
   }
 
-  console.log("Supabase admin-controller wiring verified.");
+  console.log("Supabase admin + user-control wiring verified.");
 }
 
 main().catch(error => {

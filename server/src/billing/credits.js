@@ -103,7 +103,8 @@ function readCreditMetadata(user = {}) {
     boostCredits: metadata.boost_credits,
     dailyRefreshedOn: metadata.daily_refreshed_on,
     welcomeGranted: metadata.welcome_granted,
-    legacyCredits: metadata.credits
+    legacyCredits: metadata.credits,
+    adminDailyAllowance: metadata.admin_daily_allowance
   };
 }
 
@@ -113,17 +114,21 @@ function buildCreditState({
   boostCredits = 0,
   dailyRefreshedOn = null,
   welcomeGranted = false,
+  dailyAllowance = null,
   now = new Date()
 } = {}) {
   const normalizedPlan = normalizePlan(plan);
   const daily = floorCredits(dailyCredits);
   const boost = floorCredits(boostCredits);
+  const allowance = Number.isFinite(Number(dailyAllowance))
+    ? floorCredits(dailyAllowance)
+    : dailyCreditsForPlan(normalizedPlan);
   return {
     plan: normalizedPlan,
     dailyCredits: daily,
     boostCredits: boost,
     totalCredits: daily + boost,
-    dailyAllowance: dailyCreditsForPlan(normalizedPlan),
+    dailyAllowance: allowance,
     dailyRefreshedOn: dailyRefreshedOn || utcDateKey(now),
     welcomeGranted: Boolean(welcomeGranted),
     spendOrder: ["daily", "boost"]
@@ -142,8 +147,8 @@ function creditMetadataFromState(state) {
 
 /**
  * Initialize or refresh a user's credit balances.
- * Daily credits reset each UTC day to the plan allowance and do not roll over.
- * Boost credits (including remaining welcome credits) persist until spent.
+ * Daily credits reset each UTC day to the plan allowance (or controller override)
+ * and do not roll over. Boost credits persist until spent.
  */
 function ensureCreditState(user = {}, { now = new Date(), forceDailyRefresh = false } = {}) {
   const plan = normalizePlan(user.plan || user.billingPlan || "free");
@@ -160,11 +165,17 @@ function ensureCreditState(user = {}, { now = new Date(), forceDailyRefresh = fa
   let boostCredits;
   let welcomeGranted = Boolean(meta.welcomeGranted);
   let dailyRefreshedOn = cleanString(meta.dailyRefreshedOn, 20) || null;
+  const adminDailyAllowance = Number.isFinite(Number(meta.adminDailyAllowance))
+    ? floorCredits(meta.adminDailyAllowance)
+    : null;
+  const refreshDailyTo = adminDailyAllowance == null
+    ? dailyCreditsForPlan(plan)
+    : adminDailyAllowance;
 
   if (!hasStructured) {
     const legacyTotal = resolveUserCredits({ ...user, plan, metadata: user.metadata || {} });
     const welcome = welcomeCreditsForPlan(plan);
-    const dailyAllowance = dailyCreditsForPlan(plan);
+    const dailyAllowance = refreshDailyTo;
     if (legacyTotal <= 0) {
       dailyCredits = dailyAllowance;
       boostCredits = welcome;
@@ -181,7 +192,7 @@ function ensureCreditState(user = {}, { now = new Date(), forceDailyRefresh = fa
     }
     dailyRefreshedOn = today;
   } else {
-    dailyCredits = floorCredits(meta.dailyCredits, dailyCreditsForPlan(plan));
+    dailyCredits = floorCredits(meta.dailyCredits, refreshDailyTo);
     boostCredits = floorCredits(meta.boostCredits, 0);
     if (!welcomeGranted && welcomeCreditsForPlan(plan) > 0) {
       boostCredits += welcomeCreditsForPlan(plan);
@@ -191,7 +202,7 @@ function ensureCreditState(user = {}, { now = new Date(), forceDailyRefresh = fa
 
   const needsRefresh = forceDailyRefresh || dailyRefreshedOn !== today;
   if (needsRefresh) {
-    dailyCredits = dailyCreditsForPlan(plan);
+    dailyCredits = refreshDailyTo;
     dailyRefreshedOn = today;
   }
 
@@ -201,6 +212,7 @@ function ensureCreditState(user = {}, { now = new Date(), forceDailyRefresh = fa
     boostCredits,
     dailyRefreshedOn,
     welcomeGranted,
+    dailyAllowance: refreshDailyTo,
     now
   });
 }

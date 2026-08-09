@@ -46,6 +46,12 @@ create index if not exists users_plan_status_idx
 create index if not exists users_platform_role_idx
   on public.users (platform_role);
 
+create index if not exists users_metadata_json_gin_idx
+  on public.users using gin (metadata_json jsonb_path_ops);
+
+comment on column public.users.metadata_json is
+  'Credit ledger + controller overrides. Keys: credits, daily_credits, boost_credits, daily_refreshed_on, welcome_granted, admin_daily_allowance, admin_controls{accountStatus,notes,features,updatedAt}.';
+
 drop trigger if exists users_set_updated_at on public.users;
 create trigger users_set_updated_at
 before update on public.users
@@ -98,6 +104,34 @@ execute function public.synapse_set_updated_at();
 insert into public.site_access_allowlist (email, note, granted_by_email)
 values ('shermanzheng8@gmail.com', 'Primary controller', 'system')
 on conflict (email) do nothing;
+
+create or replace view public.synapse_user_billing_overview
+with (security_invoker = true)
+as
+select
+  u.id,
+  u.email,
+  u.display_name,
+  u.platform_role,
+  u.plan,
+  u.subscription_status,
+  u.current_period_end,
+  coalesce((u.metadata_json ->> 'daily_credits')::integer, 0) as daily_credits,
+  coalesce((u.metadata_json ->> 'boost_credits')::integer, 0) as boost_credits,
+  coalesce((u.metadata_json ->> 'credits')::integer,
+    coalesce((u.metadata_json ->> 'daily_credits')::integer, 0)
+    + coalesce((u.metadata_json ->> 'boost_credits')::integer, 0)
+  ) as total_credits,
+  (u.metadata_json ->> 'daily_refreshed_on') as daily_refreshed_on,
+  (u.metadata_json ->> 'admin_daily_allowance')::integer as admin_daily_allowance,
+  coalesce(u.metadata_json -> 'admin_controls' ->> 'accountStatus', 'active') as account_status,
+  u.metadata_json -> 'admin_controls' as admin_controls,
+  u.created_at,
+  u.updated_at
+from public.users u;
+
+revoke all on public.synapse_user_billing_overview from anon, authenticated;
+grant select on public.synapse_user_billing_overview to service_role;
 
 create table if not exists public.generated_contents (
   id text primary key,

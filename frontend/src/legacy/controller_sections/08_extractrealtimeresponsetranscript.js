@@ -1153,7 +1153,7 @@ function openAccountPanel(section = "profile", settingsSection = "general") {
           <i class="bi bi-x-lg"></i>
         </button>
       </div>
-      ${usesSettingsLayout ? `<div class="account-settings-layout">${accountSettingsNavigation(activeSettingsSection)}<div class="account-settings-content">${content}</div></div>` : content}
+      ${usesSettingsLayout ? `<div class="account-settings-layout">${accountSettingsNavigation(activeSettingsSection)}<div class="account-settings-content" data-account-settings-content>${content}</div></div>` : content}
       ${accountPanelStatusHTML()}
     </section>
   `;
@@ -1161,6 +1161,30 @@ function openAccountPanel(section = "profile", settingsSection = "general") {
     if (event.target === overlay) closeAccountPanel();
   });
   document.body.appendChild(overlay);
+
+  // Refresh authoritative daily/boost credits + entitlements when opening billing.
+  if (section === "billing" || activeSettingsSection === "billing") {
+    refreshAccountBillingPanel().catch(() => {});
+  }
+}
+
+async function refreshAccountBillingPanel() {
+  try {
+    if (window.SynapseAuth?.fetchCreditBalance) {
+      await window.SynapseAuth.fetchCreditBalance();
+    } else if (window.SynapseAuth?.fetchBillingEntitlements) {
+      await window.SynapseAuth.fetchBillingEntitlements();
+    } else if (window.SynapseAuth?.syncBillingSessionFromServer) {
+      await window.SynapseAuth.syncBillingSessionFromServer(window.SynapseAuth.getStoredSession?.());
+    }
+  } catch (error) {
+    console.warn("Could not refresh billing balances:", error);
+  }
+  renderAccountMenu();
+  const contentHost = document.querySelector("[data-account-settings-content]");
+  if (!contentHost) return;
+  const nextSession = getCurrentAccountSession();
+  contentHost.innerHTML = accountSettingsContent("billing", nextSession);
 }
 
 async function startBillingCheckout(planId, checkoutMode) {

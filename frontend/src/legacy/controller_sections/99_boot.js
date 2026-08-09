@@ -271,6 +271,10 @@ if (typeof refreshAccountSessionFromProvider === "function") {
 }
 window.addEventListener("synapse-auth-changed", () => {
   renderAccountMenu();
+  const contentHost = document.querySelector("[data-account-settings-content]");
+  if (contentHost && (contentHost.innerHTML.includes("settings-billing-title") || contentHost.innerHTML.includes("Billing & credits"))) {
+    contentHost.innerHTML = accountSettingsContent("billing", getCurrentAccountSession());
+  }
   if (typeof syncHistoryWithDataApi === "function") {
     syncHistoryWithDataApi().catch(error => {
       console.warn("Could not refresh synced generated note history:", error);

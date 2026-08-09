@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { requireEntitlementFeature } from "../middleware/billing.js";
 import { requireUser } from "../middleware/auth.js";
 import { limitValue } from "../utils/validators.js";
 import { asyncRoute, sendNotFound } from "./helpers.js";
@@ -13,8 +14,9 @@ import {
 } from "../repositories/broadcastJobsRepository.js";
 
 const router = Router();
+const requireBroadcast = requireEntitlementFeature("broadcastMode");
 
-router.post("/", requireUser, asyncRoute(async (req, res) => {
+router.post("/", requireUser, requireBroadcast, asyncRoute(async (req, res) => {
   const item = await createBroadcastJob(req.user.id, req.body || {});
   res.status(201).json({ ok: true, item });
 }));
@@ -30,7 +32,7 @@ router.get("/:id", requireUser, asyncRoute(async (req, res) => {
   res.json({ ok: true, item });
 }));
 
-router.patch("/:id", requireUser, asyncRoute(async (req, res) => {
+router.patch("/:id", requireUser, requireBroadcast, asyncRoute(async (req, res) => {
   const item = await patchBroadcastJob(req.user.id, req.params.id, req.body || {});
   if (!item) return sendNotFound(res, "Broadcast job not found.");
   res.json({ ok: true, item });
@@ -42,7 +44,7 @@ router.post("/:id/cancel", requireUser, asyncRoute(async (req, res) => {
   res.json({ ok: true, item });
 }));
 
-router.post("/:id/retry", requireUser, asyncRoute(async (req, res) => {
+router.post("/:id/retry", requireUser, requireBroadcast, asyncRoute(async (req, res) => {
   const item = await retryBroadcastJob(req.user.id, req.params.id);
   if (!item) return sendNotFound(res, "Broadcast job not found.");
   res.json({ ok: true, item });

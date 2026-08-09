@@ -1,18 +1,39 @@
 import { Router } from "express";
 import { isControllerUser } from "../admin/controllers.js";
+import { publicAdminControls } from "../admin/userControls.js";
+import { userEntitlements } from "../billing/plans.js";
 import { requireUser } from "../middleware/auth.js";
 import { patchUser } from "../repositories/usersRepository.js";
 import { asyncRoute } from "./helpers.js";
 
 const router = Router();
 
-router.get("/me", requireUser, (req, res) => {
-  const user = {
-    ...req.user,
-    platformRole: isControllerUser(req.user) ? "controller" : "user",
-    isController: isControllerUser(req.user)
+function publicMeUser(user = {}) {
+  const entitlements = userEntitlements(user);
+  return {
+    ...user,
+    platformRole: isControllerUser(user) ? "controller" : "user",
+    isController: isControllerUser(user),
+    isPro: Boolean(entitlements.isPro),
+    isSuspended: Boolean(entitlements.isSuspended),
+    adminControls: publicAdminControls(user),
+    entitlements
   };
-  res.json({ ok: true, user });
+}
+
+router.get("/me", requireUser, (req, res) => {
+  const user = publicMeUser(req.user);
+  res.json({
+    ok: true,
+    user,
+    entitlements: user.entitlements,
+    credits: {
+      totalCredits: user.credits,
+      dailyCredits: user.dailyCredits,
+      boostCredits: user.boostCredits,
+      dailyAllowance: user.dailyAllowance
+    }
+  });
 });
 
 router.patch("/me", requireUser, asyncRoute(async (req, res) => {
@@ -24,8 +45,9 @@ router.patch("/me", requireUser, asyncRoute(async (req, res) => {
   if (body.displayName !== undefined || body.display_name !== undefined) {
     patch.displayName = body.displayName ?? body.display_name;
   }
-  const user = await patchUser(req.user.id, patch);
-  res.json({ ok: true, user });
+  const updated = await patchUser(req.user.id, patch);
+  const user = publicMeUser(updated || req.user);
+  res.json({ ok: true, user, entitlements: user.entitlements });
 }));
 
 export { router as usersRouter };

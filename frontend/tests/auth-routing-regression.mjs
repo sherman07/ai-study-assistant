@@ -102,7 +102,7 @@ assert.ok(loginPage.includes("auth-client.js?v=signup-email-v1"), "Login should 
 assert.ok(loginPage.includes("landing-auth.js?v=admin-auth-loop-v1") || loginPage.includes("landing-auth.js?v=login-remember-v1"), "Login should cache-bust the landing auth script");
 assert.ok(loginPage.includes("landing-auth.css?v=login-remember-v1"), "Login should cache-bust remember-me styles");
 assert.ok(
-  /style\.css\?v=(?:mindmap-theta-v1|legacy-boot-fix-v1|mindmap-revert-v1|notes-responsive-v2|credits-live-v2|notes-taller-v2)/.test(workspacePage),
+  /style\.css\?v=(?:mindmap-theta-v1|legacy-boot-fix-v1|mindmap-revert-v1|notes-responsive-v2|credits-live-v2|notes-taller-v2|history-degraded-v1)/.test(workspacePage),
   "Workspace should bypass cached pre-fix contrast styles"
 );
 assert.ok(forgotPage.includes("data-testid=\"reset-success\""), "Forgot password should expose a success state");

@@ -41,7 +41,7 @@ const backendBroadcastMode = read("backend/app_sections/13_broadcast_mode.py");
 const studyTools = read("frontend/src/react/components/StudyTools.js");
 const styles = read("frontend/styles/04-section.css");
 const broadcastAssetVersion = "notes-taller-v2";
-const legacyControllerAssetVersion = "settings-modal-pattern-20260720-06";
+const legacyControllerAssetVersion = "history-degraded-v1";
 
 assert.ok(rootIndex.includes("frontend/landing.html"), "root index should keep the landing page as the public entry");
 assert.ok(appShim.includes("frontend/index.html"), "app shim should open the study workspace frontend");

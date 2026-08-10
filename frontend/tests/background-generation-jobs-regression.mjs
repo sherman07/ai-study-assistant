@@ -47,6 +47,10 @@ assert.ok(
   "Generate action should create or reopen a background job"
 );
 assert.ok(
+  uploadController.includes("generationSubmitInFlight"),
+  "Generate submit should lock while fingerprinting to prevent duplicate jobs"
+);
+assert.ok(
   uploadController.includes("runGenerationJobAnalysis"),
   "existing /analyze request should run inside a job runner"
 );

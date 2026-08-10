@@ -13,6 +13,14 @@ const end = controllerSource.indexOf("function getHistory");
 assert.notEqual(start, -1, "sha256Hex should exist");
 assert.notEqual(end, -1, "getHistory should follow fingerprint helpers");
 
+assert.ok(
+  controllerSource.includes("`detail:${detail}`")
+    && controllerSource.includes("`prompt:${mode}`")
+    && controllerSource.includes("`noteLength:${noteLength}`")
+    && controllerSource.includes("`provider:${provider}`"),
+  "Client fingerprint must include detail, prompt mode, note length, and provider so job identity matches backend cache knobs"
+);
+
 const helperSource = controllerSource.slice(start, end);
 const context = vm.createContext({
   console,

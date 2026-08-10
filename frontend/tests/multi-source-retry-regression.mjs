@@ -41,6 +41,36 @@ assert.ok(
   !jobs.includes("Re-upload the source files, then click Generate AI again."),
   "Failed Retry messaging should not force a re-upload as the only path"
 );
+const cancelFn = jobs.match(/function cancelGenerationJob\([^)]*\)\s*\{[\s\S]*?\n\}/);
+assert.ok(cancelFn, "cancelGenerationJob helper should exist");
+assert.ok(
+  !cancelFn[0].includes("runtimeGenerationJobRetryPayloads.delete"),
+  "Cancel must keep retry payloads so Retry can restart without re-upload"
+);
+assert.ok(
+  !cancelFn[0].includes("clearUploadRetryPayload"),
+  "Cancel must not clear IndexedDB upload retry payloads"
+);
+assert.ok(
+  cancelFn[0].includes("processGenerationJobQueue"),
+  "Cancel helper should still advance the generation queue"
+);
+assert.ok(
+  upload.includes("generationSubmitInFlight"),
+  "Generate submit should guard against double-click duplicate jobs"
+);
+assert.ok(
+  upload.includes("CLIENT_MAX_UPLOAD_BYTES") && upload.includes("isAcceptedUploadFile"),
+  "Upload path should validate type and size before accepting files"
+);
+assert.ok(
+  analyze.includes("The links field must be a valid JSON array of URLs."),
+  "Analyze should reject malformed links JSON instead of silently dropping links"
+);
+assert.ok(
+  analyze.includes('startswith("inaccessible:")'),
+  "Analyze should hard-block inaccessible-only webpage sources"
+);
 
 assert.ok(
   youtube.includes("captions_only: bool = False"),

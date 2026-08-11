@@ -282,6 +282,8 @@ create table if not exists public.focus_sessions (
   study_goal text,
   status text not null default 'completed'
     check (status in ('planned', 'active', 'completed', 'cancelled')),
+  focus_trail_date date,
+  focus_timezone text,
   selected_scene text,
   music_type text,
   ambient_sound text,
@@ -296,6 +298,9 @@ create table if not exists public.focus_sessions (
 
 create index if not exists focus_sessions_user_updated_idx
   on public.focus_sessions (user_id, updated_at desc);
+
+create index if not exists focus_sessions_user_trail_date_idx
+  on public.focus_sessions (user_id, focus_trail_date desc);
 
 create index if not exists focus_sessions_room_idx
   on public.focus_sessions (study_room_id);

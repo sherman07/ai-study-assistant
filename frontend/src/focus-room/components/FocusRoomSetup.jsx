@@ -23,7 +23,7 @@ const MUSIC_MOODS = [
   { label: "Deep Focus", icon: Radio, musicType: "Deep Focus", ambientSound: "White Noise" }
 ];
 
-export function FocusRoomSetup({ onWorkspace }) {
+export function FocusRoomSetup({ onWorkspace, onOpenTrail }) {
   const selectedScene = useFocusRoomStore(state => state.selectedScene);
   const pomodoroDuration = useFocusRoomStore(state => state.pomodoroDuration);
   const timerMode = useFocusRoomStore(state => state.timerMode);
@@ -56,10 +56,6 @@ export function FocusRoomSetup({ onWorkspace }) {
     startSession();
   };
 
-  const openHistory = () => {
-    onWorkspace?.("", "history");
-  };
-
   return (
     <section className="focus-setup-stage innook-scene-setup" aria-label="Focus Room setup" data-focus-setup="true">
       <header className="innook-setup-header">
@@ -74,7 +70,7 @@ export function FocusRoomSetup({ onWorkspace }) {
           <button
             type="button"
             className="innook-header-action"
-            onClick={openHistory}
+            onClick={onOpenTrail}
             aria-label="Open Focus Trail"
             title="Open Focus Trail"
           >

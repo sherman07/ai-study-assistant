@@ -161,6 +161,41 @@ assert.equal(data.readFocusRoomSessions().length, 1);
 assert.equal(data.formatFocusRoomDuration(3661), "1h 1m");
 assert.equal(data.formatFocusRoomDuration("bad"), "0m");
 
+const focusTrailIdentity = data.focusTrailIdentity(new Date("2026-08-10T13:30:00.000Z"), "Pacific/Auckland");
+assert.deepEqual(focusTrailIdentity, {
+  focusTrailDate: "2026-08-11",
+  focusTimezone: "Pacific/Auckland"
+});
+
+assert.deepEqual(
+  data.focusTrailIdentity(new Date("2026-08-10T13:30:00.000Z"), "not/a-timezone"),
+  { focusTrailDate: "2026-08-10", focusTimezone: "UTC" }
+);
+
+const trailEntry = data.saveFocusRoomSession({
+  sessionId: "trail-entry-1",
+  status: "active",
+  focusTrailDate: focusTrailIdentity.focusTrailDate,
+  focusTimezone: focusTrailIdentity.focusTimezone,
+  startedAt: "2026-08-10T13:30:00.000Z",
+  endedAt: null
+});
+assert.equal(trailEntry.status, "active");
+assert.equal(trailEntry.focusTrailDate, "2026-08-11");
+assert.equal(trailEntry.focusTimezone, "Pacific/Auckland");
+assert.equal(trailEntry.endedAt, null);
+
+const trail = data.buildFocusTrail([
+  trailEntry,
+  { sessionId: "trail-entry-2", focusTrailDate: "2026-08-11", totalFocusTime: 1500 },
+  { sessionId: "trail-entry-3", focusTrailDate: "2026-08-10", totalFocusTime: 600 },
+  { sessionId: "trail-entry-4", focusTrailDate: "2026-08-08", totalFocusTime: 300 }
+], "2026-08-11");
+assert.equal(trail.activeDays, 3);
+assert.equal(trail.currentStreak, 2);
+assert.equal(trail.today.sessions, 2);
+assert.equal(trail.today.seconds, 1500);
+
 const defaultSession = data.saveFocusRoomSession();
 assert.equal(defaultSession.materialTitle, "Study material");
 assert.equal(defaultSession.totalFocusTime, 0);

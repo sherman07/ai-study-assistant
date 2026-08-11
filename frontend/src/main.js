@@ -1,5 +1,5 @@
 import { App } from "./react/App.js?v=notes-taller-v2";
-import { loadLegacyController } from "./legacy/loadLegacyController.js?v=settings-modal-pattern-20260720-06";
+import { loadLegacyController } from "./legacy/loadLegacyController.js?v=history-hydrate-v1";
 import {
   activateLearningCompanionThread,
   companionHistoryId,

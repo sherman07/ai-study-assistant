@@ -19,7 +19,7 @@ const timeline = read("frontend/src/legacy/controller_sections/03_rendertimeline
 const quiz = read("frontend/src/legacy/controller_sections/05_persistcurrentquiztohistory.js");
 const styles = read("frontend/styles/07-section.css");
 const reactShellAssetVersion = "notes-taller-v2";
-const legacyControllerAssetVersion = "settings-modal-pattern-20260720-06";
+const legacyControllerAssetVersion = "history-hydrate-v1";
 
 assert.ok(controller.includes('"04_masterygraph.js"'), "legacy controller should load the memory engine section");
 assert.ok(index.includes(reactShellAssetVersion), "index should bust cached React shell assets");

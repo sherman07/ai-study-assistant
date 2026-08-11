@@ -41,6 +41,24 @@ assert.ok(
   !jobs.includes("Re-upload the source files, then click Generate AI again."),
   "Failed Retry messaging should not force a re-upload as the only path"
 );
+const cancelFn = jobs.match(/function cancelGenerationJob\([^)]*\)\s*\{[\s\S]*?\n\}/);
+assert.ok(cancelFn, "cancelGenerationJob helper should exist");
+assert.ok(
+  !cancelFn[0].includes("runtimeGenerationJobRetryPayloads.delete"),
+  "Cancel must keep retry payloads so Retry can restart without re-upload"
+);
+assert.ok(
+  !cancelFn[0].includes("clearUploadRetryPayload"),
+  "Cancel must not clear IndexedDB upload retry payloads"
+);
+assert.ok(
+  cancelFn[0].includes("processGenerationJobQueue"),
+  "Cancel helper should still advance the generation queue"
+);
+assert.ok(
+  cancelFn[0].includes("You can retry with the same files"),
+  "Cancel messaging should invite Retry with the same files"
+);
 
 assert.ok(
   youtube.includes("captions_only: bool = False"),

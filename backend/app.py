@@ -165,7 +165,6 @@ from core.config import (
     gemini_vertex_openai_base_url,
     has_openai,
     has_text_ai,
-    is_placeholder_env_value,
     analysis_model_for_active_provider,
     mindmap_model_for_active_provider,
     model_for_depth,

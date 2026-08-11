@@ -750,15 +750,27 @@ function regenerateFlashcards() {
   generateFlashcards();
 }
 
-function flipFlashcard() {
+async function flipFlashcard() {
   if (!currentFlashcards.length) return;
-  flashcardSide = flashcardSide === "front" ? "back" : "front";
-  if (typeof recordStudyActivity === "function") recordStudyActivity("flashcard_flipped", {
-    tool: "flashcards",
-    sectionTitle: currentFlashcards[activeFlashcardIndex]?.sourceReference || currentFlashcards[activeFlashcardIndex]?.front || "",
-    label: `Flipped flashcard ${activeFlashcardIndex + 1}`
+  const stage = document.querySelector(".flashcard-stage");
+  if (stage?.dataset.studyTurning === "true") return;
+  if (stage) stage.dataset.studyTurning = "true";
+  await animateLegacyFlashcardTurn({
+    stage,
+    reducedMotion: prefersReducedStudyMotion(),
+    swap() {
+      flashcardSide = flashcardSide === "front" ? "back" : "front";
+      if (typeof recordStudyActivity === "function") recordStudyActivity("flashcard_flipped", {
+        tool: "flashcards",
+        sectionTitle: currentFlashcards[activeFlashcardIndex]?.sourceReference || currentFlashcards[activeFlashcardIndex]?.front || "",
+        label: `Flipped flashcard ${activeFlashcardIndex + 1}`
+      });
+      renderFlashcardPanel();
+    },
+    replacement() {
+      return document.querySelector(".flashcard-stage");
+    }
   });
-  renderFlashcardPanel();
 }
 
 function gradeFlashcard(rating) {

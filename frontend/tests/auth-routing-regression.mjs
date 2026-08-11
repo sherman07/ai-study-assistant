@@ -87,18 +87,18 @@ assert.ok(authScript.includes("showLoginResume"), "Login page should offer one-c
 assert.ok(!authClientScript.includes("localStorage.setItem(LAST_EMAIL_KEY, password") && !/password.*LAST_EMAIL|LAST_EMAIL.*password/.test(authClientScript), "Remember-me must never store passwords");
 for (const page of [signupPage, forgotPage, resetPage, verifyPage]) {
   assert.ok(page.includes("config.js?v=login-remember-v1"), "Public pages must bypass cached pre-fix runtime config");
-  assert.ok(page.includes("auth-client.js?v=signup-email-v1"), "Public pages must bypass cached pre-fix auth client code");
+  assert.ok(page.includes("auth-client.js?v=auth-singleton-v1"), "Public pages must bypass cached pre-fix auth client code");
 }
 assert.ok(
   /config\.js\?v=(?:legacy-boot-fix-v1|login-remember-v1|credits-model-v1|credits-live-v2|notes-taller-v2)/.test(workspacePage),
   "Workspace must bypass cached runtime config"
 );
 assert.ok(
-  /auth-client\.js\?v=(?:signup-email-v1|credits-model-v1|credits-live-v2|notes-taller-v2)/.test(workspacePage),
+  /auth-client\.js\?v=auth-singleton-v1/.test(workspacePage),
   "Workspace must load the production signup auth client"
 );
 assert.ok(loginPage.includes("config.js?v=login-remember-v1"), "Login should cache-bust the remember-me runtime config");
-assert.ok(loginPage.includes("auth-client.js?v=signup-email-v1"), "Login should cache-bust the remember-me auth client");
+assert.ok(loginPage.includes("auth-client.js?v=auth-singleton-v1"), "Login should cache-bust the auth client singleton");
 assert.ok(loginPage.includes("landing-auth.js?v=admin-auth-loop-v1") || loginPage.includes("landing-auth.js?v=login-remember-v1"), "Login should cache-bust the landing auth script");
 assert.ok(loginPage.includes("landing-auth.css?v=login-remember-v1"), "Login should cache-bust remember-me styles");
 assert.ok(

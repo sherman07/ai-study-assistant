@@ -29,6 +29,7 @@ assert.match(styles, /\.innook-control-rail/, "Innook vertical control rail is s
 assert.match(styles, /\.scene-card-gallery/, "Gallery scene cards are styled");
 assert.match(data, /FOCUS_ROOM_GALLERY_SCENES/, "Gallery scene set is exported for the sitting page");
 assert.match(html, /auth-client\.js/, "Standalone Focus Room loads the shared Synapse auth client");
-assert.match(html, /focus-room-loader-v17/, "Standalone Focus Room loads the cache-busted runtime");
+assert.match(html, /theme-bootstrap\.js\?v=theme-system-v3/, "Standalone Focus Room loads the theme-aware bootstrap runtime");
+assert.match(html, /focus-room-loader-v20/, "Standalone Focus Room loads the cache-busted light-glass runtime");
 
 console.log("focus-room-navigation-regression: passed");

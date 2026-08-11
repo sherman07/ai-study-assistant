@@ -170,7 +170,7 @@ assert.ok(
   "Standalone Focus Room page should redirect direct visitors to the workspace while disabled"
 );
 assert.ok(
-  focusRoomHtml.includes('import("./src/focus-room/static-compatible-loader.js?v=focus-room-loader-v17")'),
+  focusRoomHtml.includes('import("./src/focus-room/static-compatible-loader.js?v=focus-room-loader-v20")'),
   "Standalone Focus Room page should only import the loader after the feature flag allows it"
 );
 assert.ok(
@@ -182,19 +182,19 @@ assert.ok(
   "Standalone Focus Room page should not boot the loader unconditionally while disabled"
 );
 assert.ok(
-  focusRoomHtml.includes("styles/09-focus-room.css?v=timer-controls-v3"),
-  "Focus Room HTML should cache-bust the CSS after portal stacking fixes"
+  focusRoomHtml.includes("styles/09-focus-room.css?v=blue-motion-v6"),
+  "Focus Room HTML should cache-bust the light liquid-glass stylesheet"
 );
 assert.ok(
-  focusRoomHtml.includes("static-compatible-loader.js?v=focus-room-loader-v17"),
-  "Focus Room HTML should cache-bust the standalone loader after boot fixes"
+  focusRoomHtml.includes("static-compatible-loader.js?v=focus-room-loader-v20"),
+  "Focus Room HTML should cache-bust the standalone loader after light-theme support"
 );
 assert.ok(focusRoomHtml.includes("styles/09-focus-room.css"), "Standalone Focus Room page should load Focus Room styles directly");
 assert.ok(!focusRoomHtml.includes("react@18"), "Standalone Focus Room should rely on Vite/npm React, not CDN React");
 assert.ok(focusRoomStaticLoader.includes("focus-room-static.js"), "Focus Room static loader should import the prebuilt static bundle");
 assert.ok(
-  focusRoomStaticLoader.includes("focus-room-static.js?v=focus-room-static-v17"),
-  "Focus Room loader should cache-bust the static bundle after portal stacking fixes"
+  focusRoomStaticLoader.includes("focus-room-static.js?v=focus-room-static-v20"),
+  "Focus Room loader should cache-bust the static bundle after light-glass support"
 );
 assert.ok(
   !focusRoomStaticLoader.includes("./standalone.js"),
@@ -215,8 +215,8 @@ assert.ok(
   "Innook brand must stay transparent under light account theme"
 );
 assert.ok(
-  focusStyle.includes("scrollbar-color: rgba(255, 250, 240, .72)"),
-  "Topics queue scrollbar should stay readable on dark glass"
+  focusStyle.includes("scrollbar-color: rgba(239, 244, 255, .72)"),
+  "Topics queue scrollbar should stay readable in Synapse blue on dark glass"
 );
 const themeStyle = read("frontend/styles/00-theme.css");
 assert.ok(

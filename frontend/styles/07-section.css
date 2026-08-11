@@ -79,6 +79,37 @@
   display: grid;
   gap: 10px;
   justify-items: center;
+  animation: flashcardGradeIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.flashcard-study-shell {
+  perspective: 1200px;
+}
+
+.flashcard-stage {
+  transform-origin: center center;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+}
+
+.flashcard-stage[data-study-turning="true"] {
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+@keyframes flashcardGradeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flashcard-grade-row {
+    animation: none;
+  }
+
+  .flashcard-stage[data-study-turning="true"] {
+    will-change: auto;
+  }
 }
 
 .flashcard-grade-label {

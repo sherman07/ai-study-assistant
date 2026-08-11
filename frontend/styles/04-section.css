@@ -2073,7 +2073,12 @@ html[data-theme="dark"] .mobile-menu-btn {
   box-shadow: 0 16px 40px rgba(25, 40, 80, 0.16);
   color: #243356;
   font-weight: 600;
-  animation: studyToolNoticeIn 0.24s ease;
+  animation: studyToolNoticeIn 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.study-tool-notice.is-exiting {
+  pointer-events: none;
+  animation: studyToolNoticeOut 0.17s cubic-bezier(0.4, 0, 1, 1) both;
 }
 
 .study-tool-notice--success {
@@ -2089,18 +2094,51 @@ html[data-theme="dark"] .mobile-menu-btn {
 }
 
 .study-tool-notice button {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
   border: 0;
+  border-radius: 50%;
   background: transparent;
   color: inherit;
   font-size: 1.1rem;
   line-height: 1;
   padding: 0;
   opacity: 0.7;
+  cursor: pointer;
+  transition: opacity 0.16s ease, background 0.16s ease, transform 0.12s ease;
+}
+
+.study-tool-notice button:hover,
+.study-tool-notice button:focus-visible {
+  opacity: 1;
+  background: color-mix(in srgb, currentColor 10%, transparent);
+  outline: 2px solid color-mix(in srgb, currentColor 46%, transparent);
+  outline-offset: 1px;
+}
+
+.study-tool-notice button:active {
+  transform: scale(0.94);
 }
 
 @keyframes studyToolNoticeIn {
-  from { opacity: 0; transform: translateY(8px); }
+  from { opacity: 0; transform: translateY(10px); filter: blur(4px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes studyToolNoticeOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(5px); filter: blur(2px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .study-tool-notice,
+  .study-tool-notice.is-exiting {
+    animation-duration: .01ms !important;
+    transform: none !important;
+    filter: none !important;
+  }
 }
 
 .study-tool-launch-icon {
@@ -2716,5 +2754,75 @@ html[data-theme="dark"] .mobile-menu-btn {
 
   .broadcast-setup-summary {
     display: flex;
+  }
+}
+
+/* Synapse in-place workspace polish — tactile feedback on the existing legacy
+   controls only. Footprints, flex/grid rules, panel logic and DOM stay intact. */
+.tool-switch-btn {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  transition: color .2s ease, border-color .2s ease, background .2s ease, box-shadow .2s ease, transform .16s ease;
+}
+
+.tool-switch-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--color-accent, #4a7cff) 26%, transparent), transparent 68%);
+  opacity: 0;
+  transition: opacity .2s ease;
+}
+
+.tool-switch-btn:hover {
+  border-color: color-mix(in srgb, var(--color-accent, #4a7cff) 48%, var(--color-border));
+  color: var(--color-accent, #4a7cff);
+  box-shadow: 0 8px 20px rgba(37, 83, 190, .12);
+}
+
+.tool-switch-btn:hover::after,
+.tool-switch-btn:focus-visible::after,
+.tool-switch-btn.active::after {
+  opacity: 1;
+}
+
+.tool-switch-btn:active {
+  transform: scale(.98);
+}
+
+.tool-switch-btn.active {
+  background: var(--button-gradient);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 8px 20px rgba(37, 83, 190, .24), inset 0 1px 0 rgba(198, 215, 255, .24);
+}
+
+.history-item {
+  transition: transform .18s ease, border-color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.history-item:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-accent, #4a7cff) 62%, transparent);
+  outline-offset: 2px;
+  border-color: var(--color-accent, #4a7cff);
+  box-shadow: 0 8px 22px rgba(37, 83, 190, .13);
+}
+
+.history-item:active {
+  transform: scale(.99);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tool-switch-btn,
+  .tool-switch-btn::after,
+  .history-item,
+  .tool-panel.active {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
   }
 }

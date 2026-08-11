@@ -43,8 +43,30 @@ export function BottomControlDock({ onFocusMode, audioState }) {
   const topicDescription = activeTopic?.description || "";
   const canFinishTopic = Boolean(activeTopic && activeTopic.status !== "done");
 
+  function handleDockPointerMove(event) {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = Math.max(0, Math.min(100, ((event.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(0, Math.min(100, ((event.clientY - rect.top) / rect.height) * 100));
+    event.currentTarget.style.setProperty("--dock-light-x", `${x}%`);
+    event.currentTarget.style.setProperty("--dock-light-y", `${y}%`);
+    event.currentTarget.style.setProperty("--glass-x", `${x}%`);
+    event.currentTarget.style.setProperty("--glass-y", `${y}%`);
+  }
+
+  function handleDockPointerLeave(event) {
+    event.currentTarget.style.setProperty("--dock-light-x", "50%");
+    event.currentTarget.style.setProperty("--dock-light-y", "0%");
+    event.currentTarget.style.setProperty("--glass-x", "50%");
+    event.currentTarget.style.setProperty("--glass-y", "0%");
+  }
+
   return (
-    <div className="focus-session-dock liquid-glass" aria-label="Focus session controls">
+    <div
+      className="focus-session-dock liquid-glass"
+      aria-label="Focus session controls"
+      onPointerMove={handleDockPointerMove}
+      onPointerLeave={handleDockPointerLeave}
+    >
       <div className="dock-timer-block">
         <div className="dock-eyebrow">POMODORO #{currentSession?.pomodoroNumber || 1}</div>
         <div className="dock-status"><span className={`dock-status-dot ${isPaused || !isRunning ? "is-paused" : ""}`} />{statusLabel}</div>

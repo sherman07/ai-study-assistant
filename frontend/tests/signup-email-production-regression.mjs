@@ -19,6 +19,6 @@ assert.ok(backend.includes("synapse_link_from_generate_payload"), "confirmation 
 assert.ok(backend.includes('params={"page": 1, "per_page": 200, "filter": target}'), "filtered user lookup required");
 assert.ok(authClient.includes("token_hash: tokenHash"), "verify page must exchange token_hash links");
 assert.ok(render.includes("SYNAPSE_CANONICAL_FRONTEND_BASE_URL"), "Render must ship canonical frontend URL");
-assert.ok(signupPage.includes("auth-client.js?v=signup-email-v1"), "signup page must cache-bust auth client");
+assert.ok(signupPage.includes("auth-client.js?v=auth-singleton-v1"), "signup page must cache-bust auth client");
 
 console.log("signup-email-production-regression: passed");

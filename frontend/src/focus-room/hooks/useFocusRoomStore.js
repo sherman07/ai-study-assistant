@@ -1183,12 +1183,24 @@ export const useFocusRoomStore = create((set, get) => {
       const question = focusQuizQuestions(get().selectedMaterial)[questionIndex];
       if (!question) return;
       const key = String(questionIndex);
-      set(state => ({
-        quizAnswers: {
-          ...state.quizAnswers,
-          [key]: coerceQuizAnswer(question, value, state.quizAnswers[key])
-        }
-      }));
+      set(state => {
+        const previousAnswer = state.quizAnswers[key];
+        const nextAnswer = coerceQuizAnswer(question, value, previousAnswer);
+        const answersMatch = Array.isArray(previousAnswer) && Array.isArray(nextAnswer)
+          ? previousAnswer.length === nextAnswer.length && previousAnswer.every((item, itemIndex) => Object.is(item, nextAnswer[itemIndex]))
+          : Object.is(previousAnswer, nextAnswer);
+        if (answersMatch) return state;
+
+        const quizChecked = { ...state.quizChecked };
+        delete quizChecked[key];
+        return {
+          quizAnswers: {
+            ...state.quizAnswers,
+            [key]: nextAnswer
+          },
+          quizChecked
+        };
+      });
     },
 
     checkQuizQuestion(index) {

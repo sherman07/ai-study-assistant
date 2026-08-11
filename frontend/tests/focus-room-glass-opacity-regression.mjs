@@ -10,8 +10,8 @@ const styles = fs.readFileSync(path.join(root, "frontend/styles/09-focus-room.cs
 // surface and control reads as the same piece of glass over the scene.
 assert.match(styles, /Unified glass system/, "Focus Room should document the unified glass system");
 assert.match(styles, /--fr-glass:\s*linear-gradient/, "the shared glass fill token must be defined");
-assert.match(styles, /--fr-glass-soft:\s*rgba\(250, 245, 237, 0\.1\)/, "the shared control fill token must be defined");
-assert.match(styles, /--fr-border:\s*rgba\(250, 245, 237, 0\.22\)/, "the shared glass border token must be defined");
+assert.match(styles, /--fr-glass-soft:\s*rgba\(224, 233, 255, 0\.1\)/, "the shared blue control fill token must be defined");
+assert.match(styles, /--fr-border:\s*rgba\(224, 233, 255, 0\.22\)/, "the shared blue glass border token must be defined");
 
 // The same material must cover panels, dock, timer, and control surfaces.
 assert.match(
@@ -28,8 +28,8 @@ assert.match(
 );
 
 // Readability floor: solid fallbacks when transparency/blur is unavailable.
-assert.match(styles, /@supports not \(backdrop-filter: blur\(1px\)\)[\s\S]*?rgba\(24, 21, 19, 0\.82\)/, "a no-backdrop-filter fallback must keep contrast");
-assert.match(styles, /@media \(prefers-reduced-transparency: reduce\)[\s\S]*?rgba\(24, 21, 19, 0\.9\)/, "reduced-transparency users must get a near-solid surface");
+assert.match(styles, /@supports not \(backdrop-filter: blur\(1px\)\)[\s\S]*?rgba\(8, 25, 58, 0\.82\)/, "a blue no-backdrop-filter fallback must keep contrast");
+assert.match(styles, /@media \(prefers-reduced-transparency: reduce\)[\s\S]*?rgba\(8, 25, 58, 0\.9\)/, "reduced-transparency users must get a near-solid blue surface");
 
 // The settings panel is the wide two-column CONTROL layout.
 assert.match(styles, /\.react-focus-room \.focus-utility-panel\.room-control-panel/, "the room control panel should have a dedicated wide layout");

@@ -12,6 +12,7 @@
   ];
 
   let supabaseClient = null;
+  let supabaseClientPromise = null;
   let supabaseScriptPromise = null;
 
   function readConfig() {
@@ -635,30 +636,40 @@
   async function getSupabaseClient() {
     if (!isConfigured()) return null;
     if (supabaseClient) return supabaseClient;
-    const loaded = await loadSupabaseScript();
-    if (!loaded?.createClient) throw new Error("Supabase Auth library is unavailable.");
-    const config = readConfig();
-    supabaseClient = loaded.createClient(config.supabaseUrl, config.supabaseAnonKey, {
-      auth: {
-        autoRefreshToken: true,
-        detectSessionInUrl: true,
-        persistSession: true,
-        storage: createSupabaseStorageAdapter()
-      }
-    });
-    supabaseClient.auth.onAuthStateChange((event, sessionPayload) => {
-      if (sessionPayload?.user) {
-        const previous = getStoredSession();
-        // Preserve server billing across token refresh; never trust Auth metadata for plan/credits.
-        const next = saveSession(publicSessionFromSupabase(sessionPayload, previous));
-        if (event !== "SIGNED_OUT" && event !== "USER_DELETED") {
-          queueBillingSync(next);
+    if (supabaseClientPromise) return supabaseClientPromise;
+
+    supabaseClientPromise = (async () => {
+      const loaded = await loadSupabaseScript();
+      if (!loaded?.createClient) throw new Error("Supabase Auth library is unavailable.");
+      const config = readConfig();
+      const client = loaded.createClient(config.supabaseUrl, config.supabaseAnonKey, {
+        auth: {
+          autoRefreshToken: true,
+          detectSessionInUrl: true,
+          persistSession: true,
+          storage: createSupabaseStorageAdapter()
         }
-      } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
-        saveSession(null);
-      }
+      });
+      client.auth.onAuthStateChange((event, sessionPayload) => {
+        if (sessionPayload?.user) {
+          const previous = getStoredSession();
+          // Preserve server billing across token refresh; never trust Auth metadata for plan/credits.
+          const next = saveSession(publicSessionFromSupabase(sessionPayload, previous));
+          if (event !== "SIGNED_OUT" && event !== "USER_DELETED") {
+            queueBillingSync(next);
+          }
+        } else if (event === "SIGNED_OUT" || event === "USER_DELETED") {
+          saveSession(null);
+        }
+      });
+      supabaseClient = client;
+      return client;
+    })().catch(error => {
+      supabaseClientPromise = null;
+      throw error;
     });
-    return supabaseClient;
+
+    return supabaseClientPromise;
   }
 
   async function syncSessionFromProvider() {

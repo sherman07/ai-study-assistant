@@ -623,14 +623,19 @@ function renderQuizAnswerInput(question) {
       : ["True", "False"];
     return `
       <div class="d-grid gap-2">
-        ${[true, false].map((value, index) => `
-          <label class="quiz-option-label ${quizAnswers[question.id] === value ? "selected" : ""} border rounded-3 p-3 bg-white">
+        ${[true, false].map((value, index) => {
+          const selected = quizAnswers[question.id] === value;
+          const state = quizChoiceVisualState(question, index, selected);
+          return `
+          <label class="quiz-option-label ${selected ? "selected" : ""} is-${state} border rounded-3 p-3 bg-white" data-state="${state}">
             <input class="form-check-input me-2" type="radio" name="quiz-${escapeAttr(question.id)}" value="${value}"
-              ${quizAnswers[question.id] === value ? "checked" : ""}
+              ${selected ? "checked" : ""}
+              ${quizRevealedAnswers.has(question.id) ? `aria-describedby="quiz-feedback-${escapeAttr(question.id)}"` : ""}
               onchange="updateQuizAnswer('${escapeAttr(question.id)}', ${value}, true)">
             <div class="quiz-option-text">${inlineMarkdownHTML(labels[index])}</div>
           </label>
-        `).join("")}
+        `;
+        }).join("")}
       </div>
     `;
   }
@@ -642,6 +647,14 @@ function renderQuizAnswerInput(question) {
   `;
 }
 
+function quizChoiceVisualState(question, optionIndex, selected) {
+  const revealed = quizRevealedAnswers.has(question.id) && !currentQuiz?.examMode;
+  const correct = question.type === "true_false"
+    ? optionIndex === (question.correctBoolean ? 0 : 1)
+    : (Array.isArray(question.correctOptionIndexes) && question.correctOptionIndexes.includes(optionIndex));
+  return legacyQuizOptionState({ selected, correct, revealed });
+}
+
 function renderChoiceOptions(question, inputType) {
   const selected = quizAnswers[question.id];
   return `
@@ -650,10 +663,12 @@ function renderChoiceOptions(question, inputType) {
         const checked = inputType === "checkbox"
           ? Array.isArray(selected) && selected.includes(optionIndex)
           : selected === optionIndex;
+        const state = quizChoiceVisualState(question, optionIndex, checked);
         return `
-          <label class="quiz-option-label ${checked ? "selected" : ""} border rounded-3 p-3 bg-white">
+          <label class="quiz-option-label ${checked ? "selected" : ""} is-${state} border rounded-3 p-3 bg-white" data-state="${state}">
             <input class="form-check-input me-2" type="${inputType}" name="quiz-${escapeAttr(question.id)}" value="${optionIndex}"
               ${checked ? "checked" : ""}
+              ${quizRevealedAnswers.has(question.id) ? `aria-describedby="quiz-feedback-${escapeAttr(question.id)}"` : ""}
               onchange="updateQuizChoiceAnswer('${escapeAttr(question.id)}', ${optionIndex}, '${inputType}', this.checked)">
             <span class="fw-semibold quiz-option-letter">${String.fromCharCode(65 + optionIndex)}.</span><div class="quiz-option-text">${inlineMarkdownHTML(option)}</div>
           </label>
@@ -787,7 +802,7 @@ function renderQuizReport(report) {
     : `${report.objectiveEarned}/${report.objectivePossible} (${report.objectivePercent}%)`;
   const weakItems = report.missed.slice(0, 3).map(row => escapeHTML(cleanMindText(row.question.sourceReference || row.question.question))).join("</li><li>");
   return `
-    <div class="alert alert-primary">
+    <div class="alert alert-primary quiz-report-motion" role="status" aria-live="polite">
       <div class="fw-bold mb-1">Quiz report</div>
       <div>Objective score: ${score}</div>
       ${report.subjectiveCount ? `<div>Written questions: ${report.subjectiveAnswered}/${report.subjectiveCount} answered. Self-check with the model answer and rubric.</div>` : ""}
@@ -807,7 +822,7 @@ function renderQuestionFeedback(question, answer) {
     ? (grade.correct ? `<span class="badge text-bg-success">Correct</span>` : `<span class="badge text-bg-danger">Review needed</span>`)
     : `<span class="badge text-bg-info">Model answer</span>`;
   return `
-    <div class="quiz-feedback mt-3 border-top pt-3">
+    <div id="quiz-feedback-${escapeAttr(question.id)}" class="quiz-feedback quiz-feedback-motion ${grade.objective ? (grade.correct ? "is-correct" : "is-incorrect") : "is-review"} mt-3 border-top pt-3" role="status" aria-live="polite">
       <div class="mb-2">${status}</div>
       ${grade.objective ? `
         <div class="quiz-feedback-block">

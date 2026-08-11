@@ -50,6 +50,7 @@ import {
   shouldCollapseSecondarySections
 } from "./notesSurface.js";
 import { buildGeneratedNoteNavigation } from "./notesNavigation.js";
+import { animateLegacyFlashcardTurn, legacyQuizOptionState, prefersReducedStudyMotion } from "./studyMotion.js";
 import {
   cleanMindText,
   configureMarkdownRenderer,
@@ -134,6 +135,8 @@ function renderStudyToolLaunch({
 function showStudyToolNotice(message, tone = "info") {
   const text = String(message || "").trim();
   if (!text) return;
+  const normalizedTone = tone === "error" ? "error" : tone === "success" ? "success" : "info";
+  const noticeSignature = `${normalizedTone}\n${text}`;
   let host = document.getElementById("studyToolNoticeHost");
   if (!host) {
     host = document.createElement("div");
@@ -142,13 +145,49 @@ function showStudyToolNotice(message, tone = "info") {
     host.setAttribute("aria-live", "polite");
     document.body.appendChild(host);
   }
+  const removeStudyNotice = item => {
+    item?.cancelStudyNoticeDismiss?.();
+    item?.remove();
+  };
+  removeStudyNotice(Array.from(host.children).find(item => item.dataset.noticeSignature === noticeSignature));
+  while (host.children.length >= 3) removeStudyNotice(host.firstElementChild);
   const note = document.createElement("div");
-  note.className = `study-tool-notice study-tool-notice--${tone === "error" ? "error" : tone === "success" ? "success" : "info"}`;
-  note.innerHTML = `<span>${typeof escapeHTML === "function" ? escapeHTML(text) : text}</span><button type="button" aria-label="Dismiss">×</button>`;
-  const dismiss = () => note.remove();
+  note.className = `study-tool-notice study-tool-notice--${normalizedTone}`;
+  note.dataset.noticeSignature = noticeSignature;
+  note.setAttribute("role", tone === "error" ? "alert" : "status");
+  note.innerHTML = `<span>${typeof escapeHTML === "function" ? escapeHTML(text) : text}</span><button type="button" aria-label="Dismiss notification"><i class="bi bi-x-lg" aria-hidden="true"></i></button>`;
+  let dismissTimer = null;
+  let dismissStartedAt = 0;
+  let dismissRemaining = normalizedTone === "error" ? 7000 : 4200;
+  const dismiss = () => {
+    if (!note.isConnected || note.classList.contains("is-exiting")) return;
+    window.clearTimeout(dismissTimer);
+    dismissTimer = null;
+    note.classList.add("is-exiting");
+    window.setTimeout(() => note.remove(), prefersReducedStudyMotion() ? 0 : 170);
+  };
+  const scheduleStudyNoticeDismiss = () => {
+    if (!note.isConnected || note.classList.contains("is-exiting") || dismissTimer !== null) return;
+    dismissStartedAt = Date.now();
+    dismissTimer = window.setTimeout(dismiss, dismissRemaining);
+  };
+  const pauseStudyNoticeDismiss = () => {
+    if (dismissTimer === null) return;
+    dismissRemaining = Math.max(0, dismissRemaining - (Date.now() - dismissStartedAt));
+    window.clearTimeout(dismissTimer);
+    dismissTimer = null;
+  };
+  const resumeStudyNoticeDismiss = () => scheduleStudyNoticeDismiss();
+  note.cancelStudyNoticeDismiss = pauseStudyNoticeDismiss;
+  note.addEventListener("pointerenter", pauseStudyNoticeDismiss);
+  note.addEventListener("pointerleave", resumeStudyNoticeDismiss);
+  note.addEventListener("focusin", pauseStudyNoticeDismiss);
+  note.addEventListener("focusout", event => {
+    if (!note.contains(event.relatedTarget)) resumeStudyNoticeDismiss();
+  });
   note.querySelector("button")?.addEventListener("click", dismiss);
   host.appendChild(note);
-  window.setTimeout(dismiss, tone === "error" ? 7000 : 4200);
+  scheduleStudyNoticeDismiss();
 }
 
 function syncStudyToolTabState(toolName) {
@@ -180,6 +219,7 @@ const controllerLoader = new LegacyControllerLoader({
     API_BASE,
     DATA_API_BASE,
     ApiConnectionError,
+    animateLegacyFlashcardTurn,
     apiClient,
     cacheRecordKeys,
     cancelBroadcastJobInDataApi,
@@ -194,6 +234,7 @@ const controllerLoader = new LegacyControllerLoader({
     getYoutubeTranscriptState,
     hydrateSectionsFromSummary,
     inlineMarkdownHTML,
+    legacyQuizOptionState,
     buildGeneratedNoteNavigation,
     loadFirstCacheItems,
     markdownToHTML,
@@ -207,6 +248,7 @@ const controllerLoader = new LegacyControllerLoader({
     fetchGeneratedContentSectionsFromDataApi,
     patchBroadcastJobInDataApi,
     persistGeneratedContentToDataApi,
+    prefersReducedStudyMotion,
     removeAutoBilingualHeadings,
     removeDetectedUrlsClient,
     renderStudyToolLaunch,

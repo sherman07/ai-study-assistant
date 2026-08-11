@@ -19,6 +19,7 @@ function VolumeSlider({ label, icon, value, onChange }) {
       </span>
       <Slider.Root
         className="radix-slider-root"
+        style={{ "--slider-progress": `${value}%` }}
         value={[value]}
         min={0}
         max={100}

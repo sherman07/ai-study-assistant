@@ -337,6 +337,9 @@ html[data-theme="light"] .atmosphere-particle {
 }
 
 .button {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   border: 0;
   border-radius: 999px;
   display: inline-flex;
@@ -350,6 +353,22 @@ html[data-theme="light"] .atmosphere-particle {
   text-decoration: none;
   cursor: pointer;
   transition: transform 180ms var(--ease), box-shadow 180ms var(--ease), background 180ms var(--ease), color 180ms var(--ease);
+}
+
+.button::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(112deg, transparent 22%, rgba(211, 224, 255, 0.38) 42%, transparent 62%);
+  transform: translateX(-115%);
+  transition: transform 520ms var(--ease);
+}
+
+.button:hover::before,
+.button:focus-visible::before {
+  transform: translateX(115%);
 }
 
 .button-primary {
@@ -394,13 +413,35 @@ html[data-theme="light"] .atmosphere-particle {
 }
 
 .glass-surface {
+  --glass-surface-x: 50%;
+  --glass-surface-y: 0%;
+  position: relative;
+  isolation: isolate;
   border: 1px solid var(--border);
   background:
+    radial-gradient(circle at var(--glass-surface-x) var(--glass-surface-y), rgba(139, 174, 255, 0.24), transparent 13rem),
     linear-gradient(145deg, rgba(255, 255, 255, 0.14), rgba(74, 124, 255, 0.07)),
     var(--surface);
   box-shadow: var(--shadow-soft);
   backdrop-filter: blur(24px) saturate(165%);
   -webkit-backdrop-filter: blur(24px) saturate(165%);
+}
+
+.glass-surface::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(118deg, rgba(191, 211, 255, 0.16), transparent 34%, rgba(74, 124, 255, 0.08) 72%, rgba(198, 216, 255, 0.12));
+  opacity: 0.72;
+  transition: opacity 220ms var(--ease);
+}
+
+.glass-surface > * {
+  position: relative;
+  z-index: 1;
 }
 
 .glass-surface,
@@ -1062,8 +1103,39 @@ html[data-theme="light"] .atmosphere-particle {
 }
 
 .magic-bento-card {
+  --bento-x: 50%;
+  --bento-y: 10%;
+  --bento-rotate-x: 0deg;
+  --bento-rotate-y: 0deg;
+  position: relative;
+  isolation: isolate;
   grid-column: span 2;
   min-height: 280px;
+  transform: perspective(900px) rotateX(var(--bento-rotate-x)) rotateY(var(--bento-rotate-y));
+  transform-origin: center;
+  transition: transform 260ms var(--ease);
+}
+
+.magic-bento-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: var(--radius-lg);
+  pointer-events: none;
+  background: radial-gradient(circle at var(--bento-x) var(--bento-y), rgba(113, 153, 255, 0.2), transparent 11rem);
+  mix-blend-mode: screen;
+  opacity: 0;
+  transition: opacity 220ms var(--ease);
+}
+
+.magic-bento-card:hover::before {
+  opacity: 1;
+}
+
+.magic-bento-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .magic-bento-card.is-large {
@@ -1460,14 +1532,34 @@ html[data-theme="light"] .atmosphere-particle {
 }
 
 .border-glow {
+  --border-glow-x: 50%;
+  --border-glow-y: 0%;
   position: relative;
+  isolation: isolate;
   border-radius: var(--radius-xl);
   padding: 1px;
-  background: conic-gradient(from 120deg, var(--primary), var(--accent), var(--accent-deep), var(--primary));
+  background:
+    radial-gradient(circle at var(--border-glow-x) var(--border-glow-y), rgba(191, 211, 255, 0.98), transparent 8rem),
+    conic-gradient(from 120deg, var(--primary), var(--accent), var(--accent-deep), var(--primary));
   box-shadow: 0 22px 58px rgba(74, 124, 255, 0.18);
 }
 
+.border-glow::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  z-index: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--border-glow-x) var(--border-glow-y), rgba(74, 124, 255, 0.42), transparent 9rem);
+  filter: blur(8px);
+  opacity: 0.78;
+  transition: opacity 220ms var(--ease);
+}
+
 .border-glow-inner {
+  position: relative;
+  z-index: 1;
   height: 100%;
   border-radius: inherit;
 }
@@ -2490,6 +2582,21 @@ html[data-theme="light"] .auth-modal-overlay {
 
   .magnet-wrap {
     transform: none !important;
+  }
+
+  .magic-bento-card {
+    transform: none !important;
+  }
+
+  .button::before {
+    opacity: 0;
+    transform: none !important;
+  }
+
+  .magic-bento-card::before,
+  .border-glow::before,
+  .glass-surface::before {
+    opacity: 0.35;
   }
 }
 

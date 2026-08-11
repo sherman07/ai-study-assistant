@@ -6,9 +6,21 @@ function updateSpotlight(event) {
   event.currentTarget.style.setProperty("--spotlight-y", `${y}%`);
 }
 
-export function SpotlightCard({ as: Tag = "article", children, className = "", ...props }) {
+export function SpotlightCard({ as: Tag = "article", children, className = "", onPointerMove, onPointerLeave, ...props }) {
   return (
-    <Tag className={`spotlight-card ${className}`} onMouseMove={updateSpotlight} {...props}>
+    <Tag
+      className={`spotlight-card ${className}`}
+      onPointerMove={event => {
+        updateSpotlight(event);
+        onPointerMove?.(event);
+      }}
+      onPointerLeave={event => {
+        event.currentTarget.style.setProperty("--spotlight-x", "50%");
+        event.currentTarget.style.setProperty("--spotlight-y", "20%");
+        onPointerLeave?.(event);
+      }}
+      {...props}
+    >
       {children}
     </Tag>
   );

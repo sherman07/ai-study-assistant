@@ -223,10 +223,10 @@ export function FocusMaterialContent({ mode = "materials", materials = [], statu
   };
 
   if (!material && status === "loading") {
-    return <p className="focus-panel-empty">Generating study materials...</p>;
+    return <p className="focus-panel-empty is-loading" role="status">Generating study materials...</p>;
   }
   if (!material && status === "error") {
-    return <p className="focus-panel-empty">Unable to load materials. Try again. {error ? `(${error})` : ""}</p>;
+    return <p className="focus-panel-empty is-error" role="alert">Unable to load materials. Try again. {error ? `(${error})` : ""}</p>;
   }
   if (!material) {
     return <p className="focus-panel-empty">No generated materials yet</p>;

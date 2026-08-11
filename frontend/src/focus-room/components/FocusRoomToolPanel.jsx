@@ -18,6 +18,7 @@ import { FocusWorkspaceNotes } from "./FocusWorkspaceNotes.jsx";
 import { GlassButton } from "./GlassButton.jsx";
 import { MindMapViewer } from "./MindMapViewer.jsx";
 import { QuizStudyMode } from "./QuizStudyMode.jsx";
+import { StudyToastViewport } from "./StudyFeedback.jsx";
 
 function HistoryTabContent({ onWorkspace }) {
   const { data: sessions = [] } = useSessionHistory();
@@ -237,6 +238,7 @@ export function FocusRoomToolPanel({ onWorkspace }) {
   const materialsError = useFocusRoomStore(state => state.materialsError);
 
   return (
+    <>
     <Dialog.Root modal={false} open={open} onOpenChange={toggleAIPanel}>
       <AnimatePresence>
         {open ? (
@@ -295,5 +297,7 @@ export function FocusRoomToolPanel({ onWorkspace }) {
         ) : null}
       </AnimatePresence>
     </Dialog.Root>
+    <StudyToastViewport />
+    </>
   );
 }

@@ -2,8 +2,16 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import * as Slider from "@radix-ui/react-slider";
 import { Check, Dices, Footprints, Save, Settings2, Shuffle, Users, Volume2, Waves, X } from "lucide-react";
-import { FOCUS_ROOM_AMBIENT_SOUNDS, FOCUS_ROOM_MUSIC_TRACKS, FOCUS_ROOM_SCENES } from "../data.js";
+import {
+  buildFocusTrail,
+  FOCUS_ROOM_AMBIENT_SOUNDS,
+  FOCUS_ROOM_MUSIC_TRACKS,
+  FOCUS_ROOM_SCENES,
+  focusTrailIdentity,
+  formatFocusRoomDuration
+} from "../data.js";
 import { useFocusRoomStore } from "../hooks/useFocusRoomStore.js";
+import { useSessionHistory } from "../hooks/useSessionHistory.js";
 import { spring } from "../utils.js";
 import { GlassButton } from "./GlassButton.jsx";
 import { SceneSelector } from "./SceneSelector.jsx";
@@ -247,10 +255,45 @@ function useSynapseSession() {
   return session;
 }
 
+function trailDayRange(today) {
+  const date = new Date(`${today}T00:00:00.000Z`);
+  return Array.from({ length: 30 }, (_, index) => {
+    const day = new Date(date);
+    day.setUTCDate(date.getUTCDate() - (29 - index));
+    return day.toISOString().slice(0, 10);
+  });
+}
+
 function FocusTrailPanel({ onWorkspace, session }) {
   const authenticated = Boolean(session);
+  const { data: sessions = [], isPending } = useSessionHistory();
+  const identity = focusTrailIdentity();
+  const trail = buildFocusTrail(sessions, identity.focusTrailDate);
+  const activeDays = new Set(trail.days.map(day => day.date));
   return authenticated ? (
-    <div className="utility-empty-state"><Footprints size={28} aria-hidden="true" /><h3>Your Focus Trail</h3><p>Recent sessions and progress remain available through Synapse history.</p><GlassButton variant="primary" onClick={() => onWorkspace?.("", "history")}>Open session history</GlassButton></div>
+    <div className="focus-trail-panel" data-focus-trail="true">
+      <section className="focus-trail-calendar" aria-label="30-day trail">
+        <div className="focus-trail-section-head"><span>30-day trail</span><small>Local time · {identity.focusTimezone}</small></div>
+        <div className="focus-trail-grid" role="list" aria-label="Focus days in the last 30 days">
+          {trailDayRange(identity.focusTrailDate).map(day => {
+            const active = activeDays.has(day);
+            return <span key={day} className={`focus-trail-day ${active ? "is-active" : ""}`.trim()} role="listitem" title={active ? `Focused on ${day}` : day} aria-label={active ? `Focused on ${day}` : `No focus session on ${day}`} />;
+          })}
+        </div>
+      </section>
+      <div className="focus-trail-stats" aria-label="Focus Trail summary">
+        <article><span>Current streak</span><strong>{trail.currentStreak}</strong><small>{trail.currentStreak === 1 ? "day in rhythm" : "days in rhythm"}</small></article>
+        <article><span>Today</span><strong>{formatFocusRoomDuration(trail.today.seconds)}</strong><small>{trail.today.sessions} {trail.today.sessions === 1 ? "session" : "sessions"}</small></article>
+        <article><span>Active days</span><strong>{trail.activeDays}</strong><small>all time</small></article>
+      </div>
+      <section className="focus-trail-recent" aria-label="Recent focus sessions">
+        <div className="focus-trail-section-head"><span>Recent sessions</span><small>{isPending ? "Syncing…" : "Synced across devices"}</small></div>
+        {trail.days.length ? trail.days.slice(0, 3).map(day => (
+          <div key={day.date} className="focus-trail-recent-row"><span>{day.date}</span><strong>{formatFocusRoomDuration(day.seconds)}</strong><small>{day.sessions} {day.sessions === 1 ? "session" : "sessions"}</small></div>
+        )) : <p className="focus-trail-empty">Enter the Focus Room to mark your first day.</p>}
+      </section>
+      <GlassButton variant="primary" onClick={() => onWorkspace?.("", "history")}>View full session history</GlassButton>
+    </div>
   ) : (
     <div className="utility-login-state"><Footprints size={28} aria-hidden="true" /><span className="focus-kicker">Your rhythm, remembered</span><h3>Sign in to view your Focus Trail</h3><p>Track deep-work time, completed goals, and your study streak across devices.</p><GlassButton variant="primary" onClick={() => onWorkspace?.()}>Sign in with Synapse</GlassButton><small>Your current session continues without an account.</small></div>
   );

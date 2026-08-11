@@ -5804,6 +5804,37 @@ html[data-theme="light"] .react-focus-room .innook-duration {
   }
 }
 
+/* Focus Trail stays inside the existing utility drawer: activity is a quiet
+   blue glass layer, never a separate dashboard or a new room layout. */
+.react-focus-room .focus-trail-panel { display: grid; gap: 14px; padding: 4px 1px 2px; }
+.react-focus-room .focus-trail-calendar,
+.react-focus-room .focus-trail-recent,
+.react-focus-room .focus-trail-stats article { border: 1px solid rgba(169, 199, 255, .24); border-radius: 16px; background: linear-gradient(135deg, rgba(104, 151, 250, .12), rgba(6, 23, 57, .18)); box-shadow: inset 0 1px 0 rgba(227, 239, 255, .1); }
+.react-focus-room .focus-trail-calendar,
+.react-focus-room .focus-trail-recent { padding: 14px; }
+.react-focus-room .focus-trail-section-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; color: var(--room-ink); font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.react-focus-room .focus-trail-section-head small { color: var(--room-soft); font-size: 10px; font-weight: 500; }
+.react-focus-room .focus-trail-grid { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); gap: 6px; margin-top: 13px; }
+.react-focus-room .focus-trail-day { aspect-ratio: 1; min-height: 17px; border: 1px solid rgba(193, 213, 255, .17); border-radius: 5px; background: rgba(176, 205, 255, .07); transition: background .2s ease, border-color .2s ease, transform .2s ease; }
+.react-focus-room .focus-trail-day.is-active { border-color: rgba(153, 190, 255, .78); background: linear-gradient(135deg, rgba(115, 164, 255, .78), rgba(45, 100, 230, .6)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .34), 0 0 12px rgba(70, 128, 255, .28); }
+.react-focus-room .focus-trail-day.is-active:hover { transform: translateY(-1px); }
+.react-focus-room .focus-trail-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+.react-focus-room .focus-trail-stats article { min-width: 0; padding: 13px; }
+.react-focus-room .focus-trail-stats span,
+.react-focus-room .focus-trail-stats small { display: block; color: var(--room-soft); font-size: 10px; line-height: 1.35; }
+.react-focus-room .focus-trail-stats strong { display: block; margin: 4px 0 2px; overflow: hidden; color: var(--room-ink); font-size: 22px; line-height: 1; letter-spacing: -.04em; text-overflow: ellipsis; white-space: nowrap; }
+.react-focus-room .focus-trail-recent-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid rgba(191, 213, 255, .13); color: var(--room-soft); font-size: 11px; }
+.react-focus-room .focus-trail-recent-row:last-child { padding-bottom: 0; border-bottom: 0; }
+.react-focus-room .focus-trail-recent-row strong { color: var(--room-ink); font-size: 12px; }
+.react-focus-room .focus-trail-recent-row small { min-width: 52px; color: var(--room-soft); font-size: 10px; text-align: right; }
+.react-focus-room .focus-trail-empty { margin: 14px 0 0; color: var(--room-soft); font-size: 12px; }
+html[data-theme="light"] .react-focus-room .focus-trail-calendar,
+html[data-theme="light"] .react-focus-room .focus-trail-recent,
+html[data-theme="light"] .react-focus-room .focus-trail-stats article { border-color: rgba(255, 255, 255, .48); background: linear-gradient(135deg, rgba(255, 255, 255, .25), rgba(187, 215, 255, .14)); }
+html[data-theme="light"] .react-focus-room .focus-trail-day { border-color: rgba(91, 139, 226, .2); background: rgba(255, 255, 255, .19); }
+@media (max-width: 560px) { .react-focus-room .focus-trail-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }.react-focus-room .focus-trail-stats { gap: 6px; }.react-focus-room .focus-trail-stats article { padding: 10px; }.react-focus-room .focus-trail-stats strong { font-size: 18px; }.react-focus-room .focus-trail-section-head small { max-width: 145px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+@media (prefers-reduced-motion: reduce) { .react-focus-room .focus-trail-day { transition: none; }.react-focus-room .focus-trail-day.is-active:hover { transform: none; } }
+
 /* Synapse blue palette lock — preserve every Focus Room layout and material
    pattern while keeping all surfaces within the brand-blue family. */
 .react-focus-room,

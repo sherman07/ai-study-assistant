@@ -18,6 +18,21 @@ function normalizeDate(value) {
   return date.toISOString().slice(0, 23).replace("T", " ");
 }
 
+function focusTrailDate(value) {
+  const raw = cleanString(value, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(raw)) return null;
+  const date = new Date(`${raw}T00:00:00.000Z`);
+  return Number.isNaN(date.getTime()) || date.toISOString().slice(0, 10) !== raw
+    ? null
+    : raw;
+}
+
+function focusTimezone(value) {
+  if (typeof value !== "string") return null;
+  const timezone = value.trim();
+  return timezone && timezone.length <= 120 ? timezone : null;
+}
+
 function mapFocusSession(row = {}) {
   const metrics = jsonValue(row.metrics_json, {});
   return {
@@ -30,6 +45,8 @@ function mapFocusSession(row = {}) {
     materialTitle: row.material_title || "",
     studyGoal: row.study_goal || "",
     status: row.status || "completed",
+    focusTrailDate: row.focus_trail_date || metrics?.focusTrailDate || "",
+    focusTimezone: row.focus_timezone || metrics?.focusTimezone || "",
     selectedScene: row.selected_scene || metrics?.selectedScene || "",
     musicType: row.music_type || metrics?.musicType || "",
     ambientSound: row.ambient_sound || metrics?.ambientSound || "",
@@ -62,6 +79,8 @@ function rowFromPayload(userId, payload = {}) {
     material_title: nullableString(firstValue(payload, ["material_title", "materialTitle"]), 500),
     study_goal: nullableString(firstValue(payload, ["study_goal", "studyGoal"]), 8000),
     status: allowedValue(payload.status, ["planned", "active", "completed", "cancelled"], "completed"),
+    focus_trail_date: focusTrailDate(firstValue(payload, ["focus_trail_date", "focusTrailDate"])),
+    focus_timezone: focusTimezone(firstValue(payload, ["focus_timezone", "focusTimezone"])),
     selected_scene: nullableString(firstValue(payload, ["selected_scene", "selectedScene"]), 120),
     music_type: nullableString(firstValue(payload, ["music_type", "musicType"]), 120),
     ambient_sound: nullableString(firstValue(payload, ["ambient_sound", "ambientSound"]), 120),
@@ -99,6 +118,8 @@ function supabaseFocusSessionRow(row = {}) {
     material_title: row.material_title,
     study_goal: row.study_goal,
     status: row.status,
+    focus_trail_date: row.focus_trail_date,
+    focus_timezone: row.focus_timezone,
     selected_scene: row.selected_scene,
     music_type: row.music_type,
     ambient_sound: row.ambient_sound,
@@ -186,4 +207,12 @@ async function patchFocusSession(userId, sessionId, patch = {}) {
 async function deleteFocusSession(userId, sessionId) {
   return supabaseDeleteFocusSession(userId, sessionId);
 }
-export { createFocusSession, deleteFocusSession, getFocusSession, listFocusSessions, patchFocusSession };
+export {
+  createFocusSession,
+  deleteFocusSession,
+  getFocusSession,
+  listFocusSessions,
+  mapFocusSession,
+  patchFocusSession,
+  rowFromPayload
+};

@@ -941,13 +941,91 @@ function finiteNumber(value, fallback) {
   return Number.isFinite(number) ? number : fallback;
 }
 
+function focusTrailIdentity(value = new Date(), timezone = "") {
+  const date = value instanceof Date ? value : new Date(value);
+  let focusTimezone = String(timezone || "").trim() || (() => {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch {
+      return "UTC";
+    }
+  })();
+  let parts = [];
+  if (!Number.isNaN(date.getTime())) {
+    try {
+      parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: focusTimezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).formatToParts(date);
+    } catch {
+      focusTimezone = "UTC";
+      parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: focusTimezone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).formatToParts(date);
+    }
+  }
+  const valueFor = type => parts.find(part => part.type === type)?.value || "";
+  const focusTrailDate = `${valueFor("year")}-${valueFor("month")}-${valueFor("day")}`;
+  return {
+    focusTrailDate: /^\d{4}-\d{2}-\d{2}$/.test(focusTrailDate)
+      ? focusTrailDate
+      : date.toISOString().slice(0, 10),
+    focusTimezone
+  };
+}
+
+function focusTrailDay(value) {
+  const day = String(value || "").trim();
+  return /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : "";
+}
+
+function previousFocusTrailDay(day) {
+  const date = new Date(`${day}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function buildFocusTrail(sessions = [], today = focusTrailIdentity().focusTrailDate) {
+  const byDay = new Map();
+  for (const session of Array.isArray(sessions) ? sessions : []) {
+    const day = focusTrailDay(session?.focusTrailDate || session?.focus_trail_date);
+    if (!day) continue;
+    const prior = byDay.get(day) || { date: day, sessions: 0, seconds: 0 };
+    prior.sessions += 1;
+    prior.seconds += Math.max(0, finiteNumber(session?.totalFocusTime ?? session?.total_focus_seconds, 0));
+    byDay.set(day, prior);
+  }
+  const safeToday = focusTrailDay(today) || focusTrailIdentity().focusTrailDate;
+  let currentStreak = 0;
+  let cursor = safeToday;
+  while (byDay.has(cursor)) {
+    currentStreak += 1;
+    cursor = previousFocusTrailDay(cursor);
+  }
+  return {
+    activeDays: byDay.size,
+    currentStreak,
+    today: byDay.get(safeToday) || { date: safeToday, sessions: 0, seconds: 0 },
+    days: [...byDay.values()].sort((left, right) => right.date.localeCompare(left.date))
+  };
+}
+
 function saveFocusRoomSession(session = {}) {
   const now = new Date().toISOString();
+  const trailIdentity = focusTrailIdentity(session.startedAt || now, session.focusTimezone);
   const record = {
     sessionId: session.sessionId || `focus-${Date.now()}`,
     materialId: String(session.materialId || ""),
     materialTitle: session.materialTitle || "Study material",
     studyGoal: session.studyGoal || "",
+    status: ["planned", "active", "completed", "cancelled"].includes(session.status) ? session.status : "completed",
+    focusTrailDate: focusTrailDay(session.focusTrailDate) || trailIdentity.focusTrailDate,
+    focusTimezone: String(session.focusTimezone || trailIdentity.focusTimezone).trim().slice(0, 120),
     selectedScene: session.selectedScene || "morning-window",
     musicType: session.musicType || "Deep Focus",
     ambientSound: session.ambientSound || "Nature",
@@ -955,7 +1033,7 @@ function saveFocusRoomSession(session = {}) {
     ambientVolume: finiteNumber(session.ambientVolume ?? 50, 50),
     pomodoroDuration: finiteNumber(session.pomodoroDuration || 25, 25),
     startedAt: session.startedAt || now,
-    endedAt: session.endedAt || now,
+    endedAt: Object.prototype.hasOwnProperty.call(session, "endedAt") ? session.endedAt : now,
     totalFocusTime: Math.max(0, finiteNumber(session.totalFocusTime || 0, 0)),
     flashcardsCompleted: Math.max(0, finiteNumber(session.flashcardsCompleted || 0, 0)),
     quizScore: session.quizScore === null || session.quizScore === undefined || session.quizScore === ""
@@ -1002,6 +1080,7 @@ export {
   FOCUS_ROOM_SCENES,
   FOCUS_ROOM_SESSION_KEY,
   FOCUS_ROOM_TIMER_STATES,
+  buildFocusTrail,
   buildFocusRoomStudyPlan,
   clearFocusRoomActiveSession,
   formatFocusRoomDuration,
@@ -1020,6 +1099,7 @@ export {
   saveFocusRoomActiveSession,
   saveFocusRoomSession,
   focusRoomLegacyTimerStatus,
+  focusTrailIdentity,
   focusRoomAudioPreset,
   focusRoomAudioPresetForConfig,
   normalizeFocusRoomTimerSnapshot,

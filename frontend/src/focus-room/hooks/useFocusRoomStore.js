@@ -2,6 +2,7 @@ import { create } from "zustand/react";
 import {
   clearFocusRoomActiveSession,
   FOCUS_ROOM_SCENES,
+  focusTrailIdentity,
   focusRoomAudioPreset,
   formatFocusRoomDuration,
   getFocusRoomMaterial,
@@ -866,6 +867,26 @@ export const useFocusRoomStore = create((set, get) => {
     startSession() {
       const state = get();
       const timerMode = state.timerMode === "countup" ? "countup" : "countdown";
+      const enteredAt = new Date(clockNowMs()).toISOString();
+      const trailIdentity = focusTrailIdentity(enteredAt);
+      const currentSession = {
+        sessionId: `focus-${Date.now()}`,
+        materialId: "focus-room",
+        studyGoal: state.studyGoal,
+        selectedScene: state.selectedScene,
+        musicType: state.musicType,
+        ambientSound: state.ambientSound,
+        musicVolume: state.musicVolume,
+        ambientVolume: state.ambientVolume,
+        pomodoroDuration: state.pomodoroDuration,
+        status: "active",
+        focusTrailDate: trailIdentity.focusTrailDate,
+        focusTimezone: trailIdentity.focusTimezone,
+        startedAt: enteredAt,
+        endedAt: null,
+        totalFocusTime: 0
+      };
+      const entryRecord = saveFocusRoomSession(currentSession);
       persistDraftFromState(state);
       set({
         route: "session",
@@ -882,22 +903,12 @@ export const useFocusRoomStore = create((set, get) => {
         timerRestoredAtMs: null,
         timerDurationSeconds: timerMode === "countup" ? 0 : configuredDurationSeconds(state),
         elapsedSeconds: 0,
-        startedAt: null,
+        startedAt: enteredAt,
         summaryRecord: null,
         aiPanelOpen: false,
         activeDrawer: "",
-        currentSession: {
-          sessionId: `focus-${Date.now()}`,
-          materialId: "focus-room",
-          studyGoal: state.studyGoal,
-          selectedScene: state.selectedScene,
-          musicType: state.musicType,
-          ambientSound: state.ambientSound,
-          musicVolume: state.musicVolume,
-          ambientVolume: state.ambientVolume,
-          pomodoroDuration: state.pomodoroDuration,
-          startedAt: null
-        },
+        currentSession,
+        sessionHistory: [entryRecord, ...readFocusRoomSessions().filter(item => item.sessionId !== entryRecord.sessionId)],
         ...resetProgressState(),
         chatMessages: [],
         chatPending: false,
@@ -1057,6 +1068,9 @@ export const useFocusRoomStore = create((set, get) => {
         materialId: "focus-room",
         materialTitle: "Focus Room",
         studyGoal: state.studyGoal,
+        status: "completed",
+        focusTrailDate: state.currentSession?.focusTrailDate,
+        focusTimezone: state.currentSession?.focusTimezone,
         selectedScene: state.selectedScene,
         musicType: state.musicType,
         ambientSound: state.ambientSound,

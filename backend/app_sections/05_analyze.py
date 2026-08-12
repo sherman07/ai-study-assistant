@@ -650,7 +650,7 @@ def search_web_duckduckgo_instant(query: str, max_results: int = 4) -> List[dict
     })
     request = urllib.request.Request(api_url, headers={"User-Agent": "Mozilla/5.0 SynapseTutor/1.0"})
     try:
-        raw = urlopen_bytes(request, timeout=12, max_bytes=1_000_000)
+        raw = urlopen_bytes(request, timeout=4, max_bytes=1_000_000)
         payload = json.loads(raw.decode("utf-8", errors="ignore") or "{}")
     except Exception:
         return []
@@ -712,13 +712,13 @@ def search_web_wikipedia(query: str, max_results: int = 4) -> List[dict]:
     payload = {}
     try:
         if "requests" in globals() and requests is not None:
-            response = requests.get(api_url, headers=headers, timeout=10)
+            response = requests.get(api_url, headers=headers, timeout=4)
             response.raise_for_status()
             payload = response.json() if response.content else {}
         else:
             raw = urlopen_bytes(
                 urllib.request.Request(api_url, headers=headers),
-                timeout=10,
+                timeout=4,
                 max_bytes=500_000,
             )
             payload = json.loads(raw.decode("utf-8", errors="ignore") or "{}")
@@ -733,13 +733,13 @@ def search_web_wikipedia(query: str, max_results: int = 4) -> List[dict]:
                 "format": "json",
             })
             if "requests" in globals() and requests is not None:
-                response = requests.get(open_url, headers=headers, timeout=10)
+                response = requests.get(open_url, headers=headers, timeout=4)
                 response.raise_for_status()
                 open_payload = response.json() if response.content else []
             else:
                 raw = urlopen_bytes(
                     urllib.request.Request(open_url, headers=headers),
-                    timeout=10,
+                    timeout=4,
                     max_bytes=500_000,
                 )
                 open_payload = json.loads(raw.decode("utf-8", errors="ignore") or "[]")
@@ -927,20 +927,20 @@ def gather_tutor_web_research(question: str, selected_section: str, source_ident
         return "", []
 
     query = build_tutor_search_query(question, selected_section, source_identity, title)
-    # Prefer Wikipedia first on cloud hosts: DuckDuckGo HTML/Instant Answer are often
-    # empty or slow from datacenter IPs, which made Open Tutor look offline.
+    # Prefer Wikipedia first on cloud hosts, while keeping research within the hosted
+    # request budget. DuckDuckGo HTML and arbitrary result-page fetches are routinely
+    # slow or blocked from datacenter IPs.
     results = search_web_wikipedia(query, max_results=MAX_TUTOR_SEARCH_RESULTS)
     if not results:
-        results = search_web_duckduckgo(query, max_results=MAX_TUTOR_SEARCH_RESULTS)
+        results = search_web_duckduckgo_instant(query, max_results=MAX_TUTOR_SEARCH_RESULTS)
+        for item in results:
+            item.setdefault("provider", "duckduckgo_instant")
     enriched = []
     total = 0
     for item in results:
-        # Wikipedia snippets/summaries are usually enough; skip heavy HTML fetch when present.
-        if item.get("provider") == "wikipedia" and normalise_space(item.get("snippet") or ""):
-            enriched_item = dict(item)
-            enriched_item["content"] = truncate_text(item.get("snippet") or "", 2400)
-        else:
-            enriched_item = fetch_research_result_text(item, max_chars=2400)
+        # Search snippets are enough to ground a tutor reply and avoid serial page fetches.
+        enriched_item = dict(item)
+        enriched_item["content"] = truncate_text(item.get("snippet") or "", 2400)
         content = enriched_item.get("content") or enriched_item.get("snippet") or ""
         total += len(content)
         enriched.append(enriched_item)

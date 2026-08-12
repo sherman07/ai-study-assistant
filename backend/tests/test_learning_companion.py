@@ -89,6 +89,34 @@ class LearningCompanionEndpointTests(unittest.TestCase):
         self.assertEqual(response.json()["research_sources"], [{"title": "Camera Manual", "url": "https://example.com/manual"}])
         research.assert_called_once()
 
+    def test_tutor_research_skips_html_scrape_when_wikipedia_is_unavailable(self):
+        instant_result = [{
+            "title": "Photosynthesis",
+            "url": "https://example.com/photosynthesis",
+            "snippet": "Light-dependent reactions capture light energy.",
+            "provider": "duckduckgo_instant",
+        }]
+        model_reply = "The light-dependent reactions capture light energy."
+        with (
+            patch("backend.app.require_text_ai"),
+            patch("backend.app.generate_chat", return_value=model_reply),
+            patch("backend.app.search_web_wikipedia", return_value=[]),
+            patch("backend.app.search_web_duckduckgo_instant", return_value=instant_result) as instant_search,
+            patch("backend.app.search_web_duckduckgo", side_effect=AssertionError("HTML search must not run")),
+            patch("backend.app.fetch_research_result_text", side_effect=AssertionError("research pages must not be fetched")),
+        ):
+            response = TestClient(app).post("/ask", json={
+                "question": "What happens in the light-dependent reactions?",
+                "title": "Photosynthesis",
+                "summary": "Photosynthesis uses light energy.",
+                "sections": {"Overview": "Light reactions make energy carriers."},
+            })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["used_external_research"])
+        self.assertEqual(response.json()["research_provider"], "duckduckgo_instant")
+        instant_search.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

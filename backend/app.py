@@ -29,6 +29,8 @@ from dotenv import dotenv_values
 from fastapi import BackgroundTasks, FastAPI, File, Form, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.routing import APIRoute
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 BACKEND_PACKAGE_DIR = Path(__file__).resolve().parent
 if str(BACKEND_PACKAGE_DIR) not in sys.path:
@@ -342,7 +344,27 @@ class AnalyzeRequestLimitMiddleware:
         return await self.app(scope, replay_receive, send)
 
 
+class AnalyzeMultipartLimitRoute(APIRoute):
+    """Apply the analyze file ceiling inside Starlette's multipart parser."""
+
+    def get_route_handler(self):
+        route_handler = super().get_route_handler()
+
+        async def capped_route_handler(request: Request):
+            if self.path == "/analyze":
+                try:
+                    await request.form(max_files=MAX_ANALYZE_FILES)
+                except StarletteHTTPException as exc:
+                    if exc.status_code == 400 and str(exc.detail).startswith("Too many files."):
+                        exc.status_code = 413
+                    raise
+            return await route_handler(request)
+
+        return capped_route_handler
+
+
 app = FastAPI(title="Synapse Backend")
+app.router.route_class = AnalyzeMultipartLimitRoute
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ALLOW_ORIGINS,

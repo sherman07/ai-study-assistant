@@ -287,6 +287,25 @@ class AnalyzeAggregateUploadLimitTests(unittest.TestCase):
 
         self.assertEqual(response.status_code, 413)
 
+    def test_analyze_parser_rejects_excess_file_before_spooling_it(self):
+        with (
+            patch.object(appmod, "MAX_ANALYZE_FILES", 1),
+            patch(
+                "starlette.formparsers.SpooledTemporaryFile",
+                wraps=appmod.tempfile.SpooledTemporaryFile,
+            ) as spooled_file,
+        ):
+            response = self.client.post(
+                "/analyze",
+                files=[
+                    ("files", ("one.txt", b"one", "text/plain")),
+                    ("files", ("two.txt", b"two", "text/plain")),
+                ],
+            )
+
+        self.assertEqual(response.status_code, 413)
+        self.assertEqual(spooled_file.call_count, 1)
+
     def test_analyze_rejects_aggregate_upload_bytes_over_limit(self):
         with (
             patch.object(appmod, "MAX_ANALYZE_FILES", 2),

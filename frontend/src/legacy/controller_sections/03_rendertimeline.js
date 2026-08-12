@@ -495,6 +495,7 @@ function toggleTimelineComplete(eventId) {
 }
 
 async function generateTimeline(force = false) {
+  if (isTimelineGenerating) return;
   if (!fullSummary || !fullSummary.trim()) {
     alert("Generate notes first, then create a study path.");
     return;

@@ -138,8 +138,16 @@ function getRememberedStudyTool() {
 
 function deleteStudyToolMemory(historyId = "", sourceFingerprint = "") {
   const store = getStudyToolMemoryStore();
-  const keys = [studyToolMemoryIdentity(historyId, sourceFingerprint)];
-  keys.filter(Boolean).forEach(key => delete store[key]);
+  // Delete both identity forms so fingerprint-only leftovers cannot resurrect
+  // quiz/timeline/flashcard UI after a note with a history id is removed.
+  const keys = new Set();
+  const id = String(historyId || "").trim();
+  const fingerprint = String(sourceFingerprint || "").trim();
+  if (id) keys.add(`history:${id}`);
+  if (fingerprint) keys.add(`fingerprint:${fingerprint}`);
+  const combined = studyToolMemoryIdentity(historyId, sourceFingerprint);
+  if (combined) keys.add(combined);
+  keys.forEach(key => delete store[key]);
   return safeWriteJSONStorage(STUDY_TOOL_MEMORY_STORAGE_KEY, store);
 }
 

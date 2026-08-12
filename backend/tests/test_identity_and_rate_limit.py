@@ -1,3 +1,4 @@
+import asyncio
 import types
 import unittest
 import urllib.request
@@ -69,9 +70,11 @@ class GenerationRateLimitTests(unittest.TestCase):
 
 class PublicUrlRedirectSafetyTests(unittest.TestCase):
     class _Response:
-        def __init__(self, url, body=b"public response"):
+        def __init__(self, url, body=b"public response", status=200, location=None):
             self._url = url
             self._body = body
+            self.status = status
+            self._location = location
 
         def __enter__(self):
             return self
@@ -82,48 +85,83 @@ class PublicUrlRedirectSafetyTests(unittest.TestCase):
         def geturl(self):
             return self._url
 
+        def getheader(self, name):
+            return self._location if name.lower() == "location" else None
+
         def read(self, _limit=None):
             return self._body
 
+        def close(self):
+            pass
+
     def test_urlopen_bytes_rejects_public_url_redirecting_to_private_target(self):
-        def fake_build_opener(*handlers):
-            redirect_handler = next(
-                handler for handler in handlers
-                if isinstance(handler, appmod.PublicHttpRedirectHandler)
-            )
-
-            class RedirectingOpener:
-                def open(self, request, timeout):
-                    return redirect_handler.redirect_request(
-                        request,
-                        None,
-                        302,
-                        "Found",
-                        {},
-                        "http://127.0.0.1/admin",
-                    )
-
-            return RedirectingOpener()
-
         request = urllib.request.Request("https://public.example/start")
-        with patch.object(appmod.urllib.request, "build_opener", side_effect=fake_build_opener):
+        redirect = self._Response(
+            "https://public.example/start",
+            status=302,
+            location="http://127.0.0.1/admin",
+        )
+        with (
+            patch.object(
+                appmod,
+                "resolve_public_http_target",
+                side_effect=[
+                    ("https://public.example/start", "93.184.216.34"),
+                    ValueError("fetch URL points to a private or local network address."),
+                ],
+            ),
+            patch.object(appmod, "_open_pinned_http_response", return_value=redirect),
+        ):
             with self.assertRaisesRegex(ValueError, "private or local"):
                 appmod.urlopen_bytes(request)
 
     def test_urlopen_bytes_preserves_public_to_public_redirects(self):
+        redirect = self._Response(
+            "https://public.example/start",
+            status=302,
+            location="https://cdn.example/article",
+        )
         response = self._Response("https://cdn.example/article", b"article")
 
-        class PublicRedirectOpener:
-            def open(self, request, timeout=None):
-                return response
-
         with (
-            patch.object(appmod.urllib.request, "build_opener", return_value=PublicRedirectOpener()),
-            patch("backend.core.url_security._resolved_addresses", return_value=["203.0.113.20"]),
+            patch.object(
+                appmod,
+                "resolve_public_http_target",
+                side_effect=[
+                    ("https://public.example/start", "93.184.216.34"),
+                    ("https://cdn.example/article", "93.184.216.35"),
+                ],
+            ),
+            patch.object(
+                appmod,
+                "_open_pinned_http_response",
+                side_effect=[redirect, response],
+            ),
         ):
             body = appmod.urlopen_bytes(urllib.request.Request("https://public.example/start"))
 
         self.assertEqual(body, b"article")
+
+    def test_urlopen_bytes_connects_to_the_address_validated_for_each_hop(self):
+        response = types.SimpleNamespace(
+            status=200,
+            getheader=lambda _name: None,
+            read=lambda _limit=None: b"pinned",
+            close=lambda: None,
+        )
+        with (
+            patch.object(
+                appmod,
+                "resolve_public_http_target",
+                return_value=("https://public.example/article", "203.0.113.40"),
+            ) as resolve_target,
+            patch.object(appmod, "_open_pinned_http_response", return_value=response) as open_pinned,
+        ):
+            body = appmod.urlopen_bytes("https://public.example/article")
+
+        self.assertEqual(body, b"pinned")
+        resolve_target.assert_called_once_with("https://public.example/article", "fetch URL")
+        self.assertEqual(open_pinned.call_args.args[1], "203.0.113.40")
 
 
 class AuthEmailRateLimitTests(unittest.TestCase):
@@ -179,6 +217,7 @@ class AuthEmailRateLimitTests(unittest.TestCase):
         with (
             patch.object(appmod, "AUTH_EMAIL_SOURCE_RATE_LIMIT", 2),
             patch.object(appmod, "AUTH_EMAIL_RECIPIENT_RATE_LIMIT", 2),
+            patch.object(appmod, "TRUSTED_PROXY_HOPS", 1),
             patch.object(appmod, "_RATE_EXEMPT_HOSTS", set()),
         ):
             for email in ("one@example.com", "two@example.com"):
@@ -209,6 +248,27 @@ class AuthEmailRateLimitTests(unittest.TestCase):
                 headers={"X-Forwarded-For": "198.51.100.12"},
             )
             self.assertEqual(recipient_limited.status_code, 429)
+
+    def test_auth_email_source_limit_ignores_rotated_xff_by_default(self):
+        with (
+            patch.object(appmod, "AUTH_EMAIL_SOURCE_RATE_LIMIT", 1),
+            patch.object(appmod, "AUTH_EMAIL_RECIPIENT_RATE_LIMIT", 10),
+            patch.object(appmod, "TRUSTED_PROXY_HOPS", 0),
+            patch.object(appmod, "_RATE_EXEMPT_HOSTS", set()),
+        ):
+            first = self.client.post(
+                "/api/auth/request-password-reset",
+                json={"email": "one@example.com"},
+                headers={"X-Forwarded-For": "198.51.100.1"},
+            )
+            limited = self.client.post(
+                "/api/auth/request-password-reset",
+                json={"email": "two@example.com"},
+                headers={"X-Forwarded-For": "198.51.100.2"},
+            )
+
+        self.assertNotEqual(first.status_code, 429)
+        self.assertEqual(limited.status_code, 429)
 
 
 class AnalyzeAggregateUploadLimitTests(unittest.TestCase):
@@ -258,6 +318,66 @@ class AnalyzeAggregateUploadLimitTests(unittest.TestCase):
             )
 
         self.assertNotEqual(response.status_code, 413)
+
+    def test_request_limit_rejects_declared_oversize_body_before_downstream(self):
+        downstream_called = False
+
+        async def downstream(_scope, _receive, _send):
+            nonlocal downstream_called
+            downstream_called = True
+
+        middleware = appmod.AnalyzeRequestLimitMiddleware(downstream)
+        messages = []
+
+        async def receive():
+            raise AssertionError("oversize Content-Length must be rejected before reading")
+
+        async def send(message):
+            messages.append(message)
+
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/analyze",
+            "headers": [(b"content-length", b"101"), (b"content-type", b"multipart/form-data; boundary=x")],
+        }
+        with patch.object(appmod, "MAX_ANALYZE_REQUEST_BYTES", 100):
+            asyncio.run(middleware(scope, receive, send))
+
+        self.assertFalse(downstream_called)
+        self.assertEqual(messages[0]["status"], 413)
+
+    def test_request_limit_caps_streamed_body_before_multipart_parser(self):
+        downstream_called = False
+        chunks = iter([
+            {"type": "http.request", "body": b"a" * 60, "more_body": True},
+            {"type": "http.request", "body": b"b" * 60, "more_body": False},
+        ])
+
+        async def downstream(_scope, _receive, _send):
+            nonlocal downstream_called
+            downstream_called = True
+
+        async def receive():
+            return next(chunks)
+
+        messages = []
+
+        async def send(message):
+            messages.append(message)
+
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/analyze",
+            "headers": [(b"content-type", b"multipart/form-data; boundary=x")],
+        }
+        middleware = appmod.AnalyzeRequestLimitMiddleware(downstream)
+        with patch.object(appmod, "MAX_ANALYZE_REQUEST_BYTES", 100):
+            asyncio.run(middleware(scope, receive, send))
+
+        self.assertFalse(downstream_called)
+        self.assertEqual(messages[0]["status"], 413)
 
 
 if __name__ == "__main__":

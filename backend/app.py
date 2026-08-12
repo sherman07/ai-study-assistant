@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import html
+import http.client
 import json
 import mimetypes
 import smtplib
@@ -21,7 +22,7 @@ from functools import partial
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import parse_qs, quote, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qs, quote, urlencode, urljoin, urlparse, urlunparse
 
 import requests
 from dotenv import dotenv_values
@@ -178,7 +179,7 @@ from core.source_extractors import (
     extract_text_file,
     source_unit_visual_parts,
 )
-from core.url_security import normalize_public_http_url
+from core.url_security import normalize_public_http_url, resolve_public_http_target
 from core.text_utils import (
     canonicalize_youtube_watch_url,
     clean_detected_url,
@@ -267,6 +268,80 @@ for _latex_env_name in (
     globals()[_latex_env_name] = "{" + _latex_env_name + "}"
 del _latex_env_name
 
+MAX_ANALYZE_REQUEST_BYTES = max(
+    1,
+    env_int(
+        "MAX_ANALYZE_REQUEST_BYTES",
+        MAX_ANALYZE_TOTAL_UPLOAD_BYTES + (MAX_ANALYZE_FILES * 64 * 1024) + (1024 * 1024),
+    ),
+)
+
+
+class AnalyzeRequestLimitMiddleware:
+    """Reject oversized /analyze bodies before multipart parsing allocates them."""
+
+    def __init__(self, app):
+        self.app = app
+
+    @staticmethod
+    async def _send_too_large(send) -> None:
+        body = b'{"error":"Analyze request body is too large."}'
+        await send({
+            "type": "http.response.start",
+            "status": 413,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode("ascii")),
+            ],
+        })
+        await send({"type": "http.response.body", "body": body})
+
+    async def __call__(self, scope, receive, send):
+        if not (
+            scope.get("type") == "http"
+            and scope.get("method") == "POST"
+            and scope.get("path") == "/analyze"
+        ):
+            return await self.app(scope, receive, send)
+
+        headers = {
+            name.lower(): value
+            for name, value in scope.get("headers", ())
+        }
+        declared_length = headers.get(b"content-length")
+        if declared_length is not None:
+            try:
+                if int(declared_length) > MAX_ANALYZE_REQUEST_BYTES:
+                    return await self._send_too_large(send)
+            except (TypeError, ValueError):
+                pass
+
+        buffered_messages = []
+        received_bytes = 0
+        while True:
+            message = await receive()
+            buffered_messages.append(message)
+            if message.get("type") != "http.request":
+                break
+            received_bytes += len(message.get("body", b""))
+            if received_bytes > MAX_ANALYZE_REQUEST_BYTES:
+                return await self._send_too_large(send)
+            if not message.get("more_body", False):
+                break
+
+        message_index = 0
+
+        async def replay_receive():
+            nonlocal message_index
+            if message_index < len(buffered_messages):
+                message = buffered_messages[message_index]
+                message_index += 1
+                return message
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        return await self.app(scope, replay_receive, send)
+
+
 app = FastAPI(title="Synapse Backend")
 app.add_middleware(
     CORSMiddleware,
@@ -276,6 +351,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(AnalyzeRequestLimitMiddleware)
 RUNTIME_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
@@ -294,6 +370,7 @@ GENERATION_RATE_WINDOW_SECONDS = max(1, env_int("SYNAPSE_GENERATION_RATE_WINDOW_
 AUTH_EMAIL_SOURCE_RATE_LIMIT = max(1, env_int("SYNAPSE_AUTH_EMAIL_SOURCE_RATE_LIMIT", 10))
 AUTH_EMAIL_RECIPIENT_RATE_LIMIT = max(1, env_int("SYNAPSE_AUTH_EMAIL_RECIPIENT_RATE_LIMIT", 3))
 AUTH_EMAIL_RATE_WINDOW_SECONDS = max(1, env_int("SYNAPSE_AUTH_EMAIL_RATE_WINDOW_SECONDS", 600))
+TRUSTED_PROXY_HOPS = max(0, env_int("SYNAPSE_TRUSTED_PROXY_HOPS", 0))
 AUTH_EMAIL_RATE_LIMITED_PATHS = frozenset({
     "/api/auth/signup",
     "/api/auth/resend-confirmation",
@@ -327,7 +404,10 @@ _auth_email_rate_limit_hits: Dict[str, List[float]] = {}
 def _rate_limit_client_key(request: Request) -> Tuple[str, str]:
     host = (request.client.host if request.client else "") or ""
     forwarded = request.headers.get("x-forwarded-for", "")
-    key = forwarded.split(",")[0].strip() if forwarded else host
+    forwarded_chain = [part.strip() for part in forwarded.split(",") if part.strip()]
+    key = host
+    if TRUSTED_PROXY_HOPS and len(forwarded_chain) >= TRUSTED_PROXY_HOPS:
+        key = forwarded_chain[-TRUSTED_PROXY_HOPS]
     return key or "unknown", host
 
 
@@ -335,7 +415,7 @@ def _rate_limit_client_key(request: Request) -> Tuple[str, str]:
 async def generation_rate_limit_middleware(request: Request, call_next):
     if request.method == "POST" and request.url.path in AUTH_EMAIL_RATE_LIMITED_PATHS:
         key, host = _rate_limit_client_key(request)
-        if key not in _RATE_EXEMPT_HOSTS and host not in _RATE_EXEMPT_HOSTS:
+        if key not in _RATE_EXEMPT_HOSTS:
             try:
                 payload = json.loads((await request.body()).decode("utf-8"))
             except Exception:
@@ -383,7 +463,7 @@ async def generation_rate_limit_middleware(request: Request, call_next):
         and request.url.path in RATE_LIMITED_PATHS
     ):
         key, host = _rate_limit_client_key(request)
-        if key not in _RATE_EXEMPT_HOSTS and host not in _RATE_EXEMPT_HOSTS:
+        if key not in _RATE_EXEMPT_HOSTS:
             now = time.monotonic()
             window_start = now - GENERATION_RATE_WINDOW_SECONDS
             with _rate_limit_lock:

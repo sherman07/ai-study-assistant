@@ -673,6 +673,7 @@ function closeFlashcardSettingsModal() {
 }
 
 async function generateFlashcards() {
+  if (isFlashcardGenerating) return;
   if (!fullSummary || !fullSummary.trim()) {
     alert("Generate visual notes first, then create flashcards.");
     return;

@@ -16,6 +16,7 @@ function renderVisualGuideLaunch() {
 }
 
 async function generateVisualGuide(force = false) {
+  if (isVisualGuideGenerating) return;
   if (!fullSummary || !fullSummary.trim()) {
     if (typeof showStudyToolNotice === "function") {
       showStudyToolNotice("Generate notes first, then create a visual image guide.", "error");

@@ -376,6 +376,10 @@ class AnalyzeAggregateUploadLimitTests(unittest.TestCase):
         async def downstream(_scope, _receive, _send):
             nonlocal downstream_called
             downstream_called = True
+            while True:
+                message = await _receive()
+                if not message.get("more_body", False):
+                    break
 
         async def receive():
             return next(chunks)
@@ -395,8 +399,41 @@ class AnalyzeAggregateUploadLimitTests(unittest.TestCase):
         with patch.object(appmod, "MAX_ANALYZE_REQUEST_BYTES", 100):
             asyncio.run(middleware(scope, receive, send))
 
-        self.assertFalse(downstream_called)
+        self.assertTrue(downstream_called)
         self.assertEqual(messages[0]["status"], 413)
+
+    def test_request_limit_streams_accepted_body_to_downstream_without_prefetching(self):
+        events = []
+        chunks = iter([
+            {"type": "http.request", "body": b"first", "more_body": True},
+            {"type": "http.request", "body": b"second", "more_body": False},
+        ])
+
+        async def receive():
+            events.append("upstream receive")
+            return next(chunks)
+
+        async def downstream(_scope, downstream_receive, _send):
+            events.append("downstream started")
+            first = await downstream_receive()
+            second = await downstream_receive()
+            self.assertEqual(first["body"], b"first")
+            self.assertEqual(second["body"], b"second")
+
+        async def send(_message):
+            raise AssertionError("accepted request must not emit a limit response")
+
+        scope = {
+            "type": "http",
+            "method": "POST",
+            "path": "/analyze",
+            "headers": [(b"content-type", b"multipart/form-data; boundary=x")],
+        }
+        middleware = appmod.AnalyzeRequestLimitMiddleware(downstream)
+        with patch.object(appmod, "MAX_ANALYZE_REQUEST_BYTES", 100):
+            asyncio.run(middleware(scope, receive, send))
+
+        self.assertEqual(events[0], "downstream started")
 
 
 if __name__ == "__main__":

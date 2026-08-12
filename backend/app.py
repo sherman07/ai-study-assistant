@@ -318,30 +318,25 @@ class AnalyzeRequestLimitMiddleware:
             except (TypeError, ValueError):
                 pass
 
-        buffered_messages = []
         received_bytes = 0
-        while True:
+
+        async def limited_receive():
+            nonlocal received_bytes
             message = await receive()
-            buffered_messages.append(message)
-            if message.get("type") != "http.request":
-                break
-            received_bytes += len(message.get("body", b""))
-            if received_bytes > MAX_ANALYZE_REQUEST_BYTES:
-                return await self._send_too_large(send)
-            if not message.get("more_body", False):
-                break
+            if message.get("type") == "http.request":
+                received_bytes += len(message.get("body", b""))
+                if received_bytes > MAX_ANALYZE_REQUEST_BYTES:
+                    raise _AnalyzeRequestTooLarge
+            return message
 
-        message_index = 0
+        try:
+            return await self.app(scope, limited_receive, send)
+        except _AnalyzeRequestTooLarge:
+            return await self._send_too_large(send)
 
-        async def replay_receive():
-            nonlocal message_index
-            if message_index < len(buffered_messages):
-                message = buffered_messages[message_index]
-                message_index += 1
-                return message
-            return {"type": "http.request", "body": b"", "more_body": False}
 
-        return await self.app(scope, replay_receive, send)
+class _AnalyzeRequestTooLarge(Exception):
+    pass
 
 
 class AnalyzeMultipartLimitRoute(APIRoute):

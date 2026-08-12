@@ -2,6 +2,7 @@ import asyncio
 import json
 import tempfile
 import unittest
+from contextvars import ContextVar
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -134,6 +135,7 @@ class BroadcastModeApiTests(unittest.TestCase):
 
     def test_generate_forces_openai_provider_for_broadcast_script(self):
         providers = []
+        request_provider = ContextVar("TEST_REQUEST_AI_TEXT_PROVIDER", default="gemini")
 
         def fake_generate_chat(messages, **kwargs):
             providers.append(backend_app_module.active_text_provider())
@@ -149,7 +151,7 @@ class BroadcastModeApiTests(unittest.TestCase):
             })
 
         with (
-            patch.object(backend_app_module, "AI_TEXT_PROVIDER", "gemini", create=True),
+            patch("core.config.REQUEST_AI_TEXT_PROVIDER", request_provider),
             patch("backend.app.require_text_ai"),
             patch("backend.app.generate_chat", side_effect=fake_generate_chat),
         ):
@@ -157,10 +159,10 @@ class BroadcastModeApiTests(unittest.TestCase):
                 "title": "Provider test",
                 "summary": "Generated Synapse notes with enough content to produce a broadcast script. " * 8,
             }))
+            self.assertEqual(backend_app_module.active_text_provider(), "gemini")
 
         self.assertNotIn("error", result)
         self.assertEqual(providers, ["openai"])
-        self.assertEqual(backend_app_module.active_text_provider(), "gemini")
 
     def test_tts_uses_openai_speech_model_and_writes_asset(self):
         class FakeSpeech:
@@ -177,7 +179,7 @@ class BroadcastModeApiTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             with (
                 patch("backend.app.client", fake_client),
-                patch("backend.app.has_openai", return_value=True),
+                patch("backend.app.require_openai_api"),
                 patch("backend.app.RUNTIME_ASSETS_DIR", backend_app_module.Path(temp_dir)),
                 patch("backend.app.PUBLIC_BACKEND_BASE_URL", "http://127.0.0.1:8001"),
             ):

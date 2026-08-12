@@ -21,3 +21,18 @@ test("disallowed CORS origins return a safe 403 response", async () => {
     await new Promise(resolve => server.close(resolve));
   }
 });
+
+test("admin routes reject unauthenticated requests before reaching a handler", async () => {
+  const server = createApp().listen(0, "127.0.0.1");
+  try {
+    await new Promise(resolve => server.once("listening", resolve));
+    const { port } = server.address();
+    const response = await fetch(`http://127.0.0.1:${port}/api/admin/me`);
+    const payload = await response.json();
+
+    assert.equal(response.status, 401);
+    assert.deepEqual(payload, { ok: false, error: "Authentication is required." });
+  } finally {
+    await new Promise(resolve => server.close(resolve));
+  }
+});

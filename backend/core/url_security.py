@@ -44,6 +44,17 @@ def _resolved_addresses(hostname: str, port: int) -> set:
 
 
 def normalize_public_http_url(url: str, purpose: str = "URL") -> str:
+    raw, hostname, port = _validated_http_url_parts(url, purpose)
+    if env_allows_private_urls():
+        return raw
+
+    resolved = _resolved_addresses(hostname, port)
+    if any(_is_blocked_ip(address) for address in resolved):
+        raise ValueError(f"{purpose} resolves to a private or local network address.")
+    return raw
+
+
+def _validated_http_url_parts(url: str, purpose: str) -> tuple[str, str, int]:
     raw = (url or "").strip()
     if raw.startswith("//"):
         raw = "https:" + raw
@@ -60,18 +71,42 @@ def normalize_public_http_url(url: str, purpose: str = "URL") -> str:
         raise ValueError(f"{purpose} must not include embedded credentials.")
 
     hostname = parsed.hostname.rstrip(".").lower()
-    if env_allows_private_urls():
-        return raw
-    if hostname in BLOCKED_HOSTNAMES or hostname.endswith(".local"):
+    if not env_allows_private_urls() and (
+        hostname in BLOCKED_HOSTNAMES or hostname.endswith(".local")
+    ):
         raise ValueError(f"{purpose} points to a private or local network address.")
-    if _is_blocked_ip(hostname):
+    if not env_allows_private_urls() and _is_blocked_ip(hostname):
         raise ValueError(f"{purpose} points to a private or local network address.")
 
     try:
         port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
     except ValueError:
         raise ValueError(f"{purpose} has an invalid port.")
+    return raw, hostname, port
+
+
+def resolve_public_http_target(url: str, purpose: str = "URL") -> tuple[str, str]:
+    """Validate a public HTTP URL and return one address safe to connect to.
+
+    Callers must connect directly to the returned address while retaining the
+    URL hostname for the HTTP Host header and TLS certificate verification.
+    This keeps DNS validation and the subsequent connection tied together.
+    """
+    raw, hostname, port = _validated_http_url_parts(url, purpose)
     resolved = _resolved_addresses(hostname, port)
-    if any(_is_blocked_ip(address) for address in resolved):
+    if not resolved:
+        raise ValueError(f"{purpose} hostname could not be resolved.")
+    if not env_allows_private_urls() and any(_is_blocked_ip(address) for address in resolved):
         raise ValueError(f"{purpose} resolves to a private or local network address.")
-    return raw
+
+    try:
+        address = min(
+            resolved,
+            key=lambda value: (
+                ipaddress.ip_address(value).version,
+                int(ipaddress.ip_address(value)),
+            ),
+        )
+    except ValueError:
+        raise ValueError(f"{purpose} resolved to an invalid network address.")
+    return raw, address

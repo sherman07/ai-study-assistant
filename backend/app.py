@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import html
+import http.client
 import json
 import mimetypes
 import smtplib
@@ -21,13 +22,15 @@ from functools import partial
 from io import BytesIO
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import parse_qs, quote, urlencode, urlparse, urlunparse
+from urllib.parse import parse_qs, quote, urlencode, urljoin, urlparse, urlunparse
 
 import requests
 from dotenv import dotenv_values
 from fastapi import BackgroundTasks, FastAPI, File, Form, Request, Response, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.routing import APIRoute
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 BACKEND_PACKAGE_DIR = Path(__file__).resolve().parent
 if str(BACKEND_PACKAGE_DIR) not in sys.path:
@@ -77,10 +80,13 @@ from core.config import (
     GEMINI_LOCATION,
     GEMINI_PROJECT_ID,
     MAX_AUDIO_BYTES,
+    MAX_ANALYZE_FILES,
+    MAX_ANALYZE_TOTAL_UPLOAD_BYTES,
     MAX_MULTI_SOURCE_VISUAL_IMAGES,
     MAX_SOURCE_CHARS,
     MAX_TUTOR_RESEARCH_CHARS,
     MAX_TUTOR_SEARCH_RESULTS,
+    TUTOR_WEB_RESEARCH_BUDGET_SECONDS,
     MAX_UPLOAD_BYTES,
     MAX_VIDEO_BYTES,
     MAX_VIDEO_FRAMES,
@@ -175,7 +181,7 @@ from core.source_extractors import (
     extract_text_file,
     source_unit_visual_parts,
 )
-from core.url_security import normalize_public_http_url
+from core.url_security import normalize_public_http_url, resolve_public_http_target
 from core.text_utils import (
     canonicalize_youtube_watch_url,
     clean_detected_url,
@@ -264,7 +270,96 @@ for _latex_env_name in (
     globals()[_latex_env_name] = "{" + _latex_env_name + "}"
 del _latex_env_name
 
+MAX_ANALYZE_REQUEST_BYTES = max(
+    1,
+    env_int(
+        "MAX_ANALYZE_REQUEST_BYTES",
+        MAX_ANALYZE_TOTAL_UPLOAD_BYTES + (MAX_ANALYZE_FILES * 64 * 1024) + (1024 * 1024),
+    ),
+)
+
+
+class AnalyzeRequestLimitMiddleware:
+    """Reject oversized /analyze bodies before multipart parsing allocates them."""
+
+    def __init__(self, app):
+        self.app = app
+
+    @staticmethod
+    async def _send_too_large(send) -> None:
+        body = b'{"error":"Analyze request body is too large."}'
+        await send({
+            "type": "http.response.start",
+            "status": 413,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(body)).encode("ascii")),
+            ],
+        })
+        await send({"type": "http.response.body", "body": body})
+
+    async def __call__(self, scope, receive, send):
+        if not (
+            scope.get("type") == "http"
+            and scope.get("method") == "POST"
+            and scope.get("path") == "/analyze"
+        ):
+            return await self.app(scope, receive, send)
+
+        headers = {
+            name.lower(): value
+            for name, value in scope.get("headers", ())
+        }
+        declared_length = headers.get(b"content-length")
+        if declared_length is not None:
+            try:
+                if int(declared_length) > MAX_ANALYZE_REQUEST_BYTES:
+                    return await self._send_too_large(send)
+            except (TypeError, ValueError):
+                pass
+
+        received_bytes = 0
+
+        async def limited_receive():
+            nonlocal received_bytes
+            message = await receive()
+            if message.get("type") == "http.request":
+                received_bytes += len(message.get("body", b""))
+                if received_bytes > MAX_ANALYZE_REQUEST_BYTES:
+                    raise _AnalyzeRequestTooLarge
+            return message
+
+        try:
+            return await self.app(scope, limited_receive, send)
+        except _AnalyzeRequestTooLarge:
+            return await self._send_too_large(send)
+
+
+class _AnalyzeRequestTooLarge(Exception):
+    pass
+
+
+class AnalyzeMultipartLimitRoute(APIRoute):
+    """Apply the analyze file ceiling inside Starlette's multipart parser."""
+
+    def get_route_handler(self):
+        route_handler = super().get_route_handler()
+
+        async def capped_route_handler(request: Request):
+            if self.path == "/analyze":
+                try:
+                    await request.form(max_files=MAX_ANALYZE_FILES)
+                except StarletteHTTPException as exc:
+                    if exc.status_code == 400 and str(exc.detail).startswith("Too many files."):
+                        exc.status_code = 413
+                    raise
+            return await route_handler(request)
+
+        return capped_route_handler
+
+
 app = FastAPI(title="Synapse Backend")
+app.router.route_class = AnalyzeMultipartLimitRoute
 app.add_middleware(
     CORSMiddleware,
     allow_origins=CORS_ALLOW_ORIGINS,
@@ -273,6 +368,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(AnalyzeRequestLimitMiddleware)
 RUNTIME_ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
 # ---------------------------------------------------------------------------
@@ -288,6 +384,15 @@ import threading as _threading
 
 GENERATION_RATE_LIMIT = env_int("SYNAPSE_GENERATION_RATE_LIMIT", 30)
 GENERATION_RATE_WINDOW_SECONDS = max(1, env_int("SYNAPSE_GENERATION_RATE_WINDOW_SECONDS", 60))
+AUTH_EMAIL_SOURCE_RATE_LIMIT = max(1, env_int("SYNAPSE_AUTH_EMAIL_SOURCE_RATE_LIMIT", 10))
+AUTH_EMAIL_RECIPIENT_RATE_LIMIT = max(1, env_int("SYNAPSE_AUTH_EMAIL_RECIPIENT_RATE_LIMIT", 3))
+AUTH_EMAIL_RATE_WINDOW_SECONDS = max(1, env_int("SYNAPSE_AUTH_EMAIL_RATE_WINDOW_SECONDS", 600))
+TRUSTED_PROXY_HOPS = max(0, env_int("SYNAPSE_TRUSTED_PROXY_HOPS", 0))
+AUTH_EMAIL_RATE_LIMITED_PATHS = frozenset({
+    "/api/auth/signup",
+    "/api/auth/resend-confirmation",
+    "/api/auth/request-password-reset",
+})
 RATE_LIMITED_PATHS = frozenset({
     "/analyze",
     "/upload-pdf",
@@ -310,24 +415,72 @@ RATE_LIMITED_PATHS = frozenset({
 _RATE_EXEMPT_HOSTS = {"127.0.0.1", "::1", "localhost", "testclient", "testserver"}
 _rate_limit_lock = _threading.Lock()
 _rate_limit_hits: Dict[str, List[float]] = {}
+_auth_email_rate_limit_hits: Dict[str, List[float]] = {}
 
 
 def _rate_limit_client_key(request: Request) -> Tuple[str, str]:
     host = (request.client.host if request.client else "") or ""
     forwarded = request.headers.get("x-forwarded-for", "")
-    key = forwarded.split(",")[0].strip() if forwarded else host
+    forwarded_chain = [part.strip() for part in forwarded.split(",") if part.strip()]
+    key = host
+    if TRUSTED_PROXY_HOPS and len(forwarded_chain) >= TRUSTED_PROXY_HOPS:
+        key = forwarded_chain[-TRUSTED_PROXY_HOPS]
     return key or "unknown", host
 
 
 @app.middleware("http")
 async def generation_rate_limit_middleware(request: Request, call_next):
+    if request.method == "POST" and request.url.path in AUTH_EMAIL_RATE_LIMITED_PATHS:
+        key, host = _rate_limit_client_key(request)
+        if key not in _RATE_EXEMPT_HOSTS:
+            try:
+                payload = json.loads((await request.body()).decode("utf-8"))
+            except Exception:
+                payload = {}
+            recipient = normalize_auth_email(payload.get("email")) if isinstance(payload, dict) else ""
+            now = time.monotonic()
+            window_start = now - AUTH_EMAIL_RATE_WINDOW_SECONDS
+            bucket_limits = [
+                (f"source:{key}", AUTH_EMAIL_SOURCE_RATE_LIMIT),
+                (f"recipient:{recipient}", AUTH_EMAIL_RECIPIENT_RATE_LIMIT),
+            ]
+            with _rate_limit_lock:
+                if len(_auth_email_rate_limit_hits) > 10000:
+                    stale_keys = [
+                        bucket for bucket, hits in _auth_email_rate_limit_hits.items()
+                        if not hits or hits[-1] < window_start
+                    ]
+                    for bucket in stale_keys:
+                        _auth_email_rate_limit_hits.pop(bucket, None)
+                active_buckets = []
+                retry_after = 0
+                for bucket, limit in bucket_limits:
+                    hits = [hit for hit in _auth_email_rate_limit_hits.get(bucket, []) if hit >= window_start]
+                    active_buckets.append((bucket, hits))
+                    if len(hits) >= limit:
+                        retry_after = max(
+                            retry_after,
+                            max(1, int(AUTH_EMAIL_RATE_WINDOW_SECONDS - (now - hits[0]))),
+                        )
+                if retry_after:
+                    for bucket, hits in active_buckets:
+                        _auth_email_rate_limit_hits[bucket] = hits
+                    return Response(
+                        json.dumps({"error": "Too many email requests. Please wait and try again."}),
+                        status_code=429,
+                        media_type="application/json",
+                        headers={"Retry-After": str(retry_after)},
+                    )
+                for bucket, hits in active_buckets:
+                    hits.append(now)
+                    _auth_email_rate_limit_hits[bucket] = hits
     if (
         GENERATION_RATE_LIMIT > 0
         and request.method == "POST"
         and request.url.path in RATE_LIMITED_PATHS
     ):
         key, host = _rate_limit_client_key(request)
-        if key not in _RATE_EXEMPT_HOSTS and host not in _RATE_EXEMPT_HOSTS:
+        if key not in _RATE_EXEMPT_HOSTS:
             now = time.monotonic()
             window_start = now - GENERATION_RATE_WINDOW_SECONDS
             with _rate_limit_lock:

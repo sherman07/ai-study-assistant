@@ -252,6 +252,111 @@ def extract_main_html_text(raw_html: str) -> str:
     text = "\n\n".join(unique_chunks)
     return text.strip()
 
+class PublicHttpRedirectHandler(urllib.request.HTTPRedirectHandler):
+    max_redirections = 5
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        validated_url = normalize_public_http_url(newurl, "redirect URL")
+        return super().redirect_request(req, fp, code, msg, headers, validated_url)
+
+
+class _PinnedHTTPConnection(http.client.HTTPConnection):
+    def __init__(self, host, *, pinned_address: str, **kwargs):
+        self._pinned_address = pinned_address
+        super().__init__(host, **kwargs)
+
+    def connect(self):
+        self.sock = self._create_connection(
+            (self._pinned_address, self.port),
+            self.timeout,
+            self.source_address,
+        )
+        if self._tunnel_host:
+            self._tunnel()
+
+
+class _PinnedHTTPSConnection(http.client.HTTPSConnection):
+    def __init__(self, host, *, pinned_address: str, **kwargs):
+        self._pinned_address = pinned_address
+        super().__init__(host, **kwargs)
+
+    def connect(self):
+        self.sock = self._create_connection(
+            (self._pinned_address, self.port),
+            self.timeout,
+            self.source_address,
+        )
+        if self._tunnel_host:
+            self._tunnel()
+        self.sock = self._context.wrap_socket(self.sock, server_hostname=self.host)
+
+
+class _PinnedHTTPHandler(urllib.request.HTTPHandler):
+    def __init__(self, pinned_address: str):
+        self._pinned_address = pinned_address
+        super().__init__()
+
+    def http_open(self, request):
+        return self.do_open(
+            lambda host, **kwargs: _PinnedHTTPConnection(
+                host,
+                pinned_address=self._pinned_address,
+                **kwargs,
+            ),
+            request,
+        )
+
+
+class _PinnedHTTPSHandler(urllib.request.HTTPSHandler):
+    def __init__(self, pinned_address: str, context):
+        self._pinned_address = pinned_address
+        self._pinned_context = context
+        super().__init__(context=context)
+
+    def https_open(self, request):
+        return self.do_open(
+            lambda host, **kwargs: _PinnedHTTPSConnection(
+                host,
+                pinned_address=self._pinned_address,
+                context=self._pinned_context,
+                **kwargs,
+            ),
+            request,
+        )
+
+
+class _ManualRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Return redirect responses so each next hop can be resolved and pinned."""
+
+    def http_error_302(self, request, response, code, message, headers):
+        return response
+
+    http_error_301 = http_error_302
+    http_error_303 = http_error_302
+    http_error_307 = http_error_302
+    http_error_308 = http_error_302
+
+
+def _open_pinned_http_response(request_or_url, pinned_address: str, timeout: int, context):
+    handlers = [
+        urllib.request.ProxyHandler({}),
+        _ManualRedirectHandler(),
+        _PinnedHTTPHandler(pinned_address),
+        _PinnedHTTPSHandler(pinned_address, context),
+    ]
+    opener = urllib.request.build_opener(*handlers)
+    return opener.open(request_or_url, timeout=timeout)  # nosec B310 -- DNS-pinned above
+
+
+def _request_for_redirect(original_request, target_url: str):
+    if not isinstance(original_request, urllib.request.Request):
+        return target_url
+    return urllib.request.Request(
+        target_url,
+        data=original_request.data,
+        headers=dict(original_request.header_items()),
+        method=original_request.get_method(),
+    )
 
 
 def urlopen_bytes(request_or_url, timeout: int = 20, max_bytes: Optional[int] = None) -> bytes:
@@ -260,9 +365,6 @@ def urlopen_bytes(request_or_url, timeout: int = 20, max_bytes: Optional[int] = 
     normal certificate verification first.
     """
     target_url = request_or_url.full_url if isinstance(request_or_url, urllib.request.Request) else str(request_or_url)
-    parsed_target = urlparse(target_url)
-    if parsed_target.scheme.lower() not in {"http", "https"}:
-        raise ValueError("Only http and https URLs can be fetched.")
 
     contexts = []
     if certifi is not None:
@@ -277,13 +379,40 @@ def urlopen_bytes(request_or_url, timeout: int = 20, max_bytes: Optional[int] = 
 
     last_error = None
     for context in contexts or [None]:
+        current_url = target_url
         try:
-            kwargs = {"timeout": timeout}
-            if context is not None:
-                kwargs["context"] = context
-            # URL scheme is validated above before urllib receives the request.
-            with urllib.request.urlopen(request_or_url, **kwargs) as response:  # nosec B310
-                return response.read(max_bytes) if max_bytes else response.read()
+            for redirect_count in range(PublicHttpRedirectHandler.max_redirections + 1):
+                validated_url, pinned_address = resolve_public_http_target(current_url, "fetch URL")
+                current_request = _request_for_redirect(request_or_url, validated_url)
+                response = _open_pinned_http_response(
+                    current_request,
+                    pinned_address,
+                    timeout,
+                    context,
+                )
+                status = int(getattr(response, "status", 200) or 200)
+                location = response.getheader("Location") if hasattr(response, "getheader") else None
+                if status in {301, 302, 303, 307, 308} and location:
+                    close = getattr(response, "close", None)
+                    if callable(close):
+                        close()
+                    if redirect_count >= PublicHttpRedirectHandler.max_redirections:
+                        raise ValueError("fetch URL redirected too many times.")
+                    current_url = urljoin(validated_url, location)
+                    continue
+
+                final_url = response.geturl() if hasattr(response, "geturl") else validated_url
+                if final_url != validated_url:
+                    resolve_public_http_target(final_url, "final response URL")
+                try:
+                    return response.read(max_bytes) if max_bytes else response.read()
+                finally:
+                    close = getattr(response, "close", None)
+                    if callable(close):
+                        close()
+            raise ValueError("fetch URL redirected too many times.")
+        except ValueError:
+            raise
         except Exception as error:
             last_error = error
 

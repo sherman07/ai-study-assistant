@@ -266,6 +266,7 @@ export function CompanionWorkspace() {
     const decision = await requestLearningCompanionDecision({
       message: learnerMessage.content,
       messages: history,
+      learningContext: activeThread.learningContext || {},
     });
     const assistantMessage = {
       id: createMessageId("assistant"),

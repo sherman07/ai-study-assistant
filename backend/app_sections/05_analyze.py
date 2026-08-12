@@ -919,6 +919,37 @@ def build_tutor_search_query(question: str, selected_section: str, source_identi
     return query[:280]
 
 
+def run_tutor_research_call(callback, deadline: float) -> List[dict]:
+    """Return one provider's results without letting it exceed the shared research budget."""
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        return []
+
+    outcome = {"results": []}
+    completed = _threading.Event()
+
+    def invoke() -> None:
+        try:
+            results = callback()
+            if isinstance(results, list):
+                outcome["results"] = results
+        except Exception:
+            outcome["results"] = []
+        finally:
+            completed.set()
+
+    _threading.Thread(target=invoke, daemon=True).start()
+    completed.wait(remaining)
+    return outcome["results"] if completed.is_set() else []
+
+
+def usable_tutor_research_results(results: List[dict]) -> List[dict]:
+    """Keep only results that contain grounding text for the Tutor prompt."""
+    return [
+        item for item in results if isinstance(item, dict) and normalise_space(item.get("snippet") or "")
+    ]
+
+
 def gather_tutor_web_research(question: str, selected_section: str, source_identity: str, title: str) -> Tuple[str, List[dict]]:
     """Search the web for additional context when the stored notes are incomplete.
     Returns a compact research context and result metadata.
@@ -930,9 +961,16 @@ def gather_tutor_web_research(question: str, selected_section: str, source_ident
     # Prefer Wikipedia first on cloud hosts, while keeping research within the hosted
     # request budget. DuckDuckGo HTML and arbitrary result-page fetches are routinely
     # slow or blocked from datacenter IPs.
-    results = search_web_wikipedia(query, max_results=MAX_TUTOR_SEARCH_RESULTS)
+    deadline = time.monotonic() + TUTOR_WEB_RESEARCH_BUDGET_SECONDS
+    results = usable_tutor_research_results(run_tutor_research_call(
+        lambda: search_web_wikipedia(query, max_results=MAX_TUTOR_SEARCH_RESULTS),
+        deadline,
+    ))
     if not results:
-        results = search_web_duckduckgo_instant(query, max_results=MAX_TUTOR_SEARCH_RESULTS)
+        results = usable_tutor_research_results(run_tutor_research_call(
+            lambda: search_web_duckduckgo_instant(query, max_results=MAX_TUTOR_SEARCH_RESULTS),
+            deadline,
+        ))
         for item in results:
             item.setdefault("provider", "duckduckgo_instant")
     enriched = []

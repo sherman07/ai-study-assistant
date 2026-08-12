@@ -1,8 +1,10 @@
+import time
 import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+import backend.app as backend_app_module
 from backend.app import app
 
 
@@ -116,6 +118,60 @@ class LearningCompanionEndpointTests(unittest.TestCase):
         self.assertTrue(response.json()["used_external_research"])
         self.assertEqual(response.json()["research_provider"], "duckduckgo_instant")
         instant_search.assert_called_once()
+
+    def test_tutor_research_uses_instant_fallback_when_wikipedia_snippets_are_blank(self):
+        instant_result = [{
+            "title": "Photosynthesis",
+            "url": "https://example.com/photosynthesis",
+            "snippet": "Light-dependent reactions capture light energy.",
+            "provider": "duckduckgo_instant",
+        }]
+        with (
+            patch("backend.app.require_text_ai"),
+            patch("backend.app.generate_chat", return_value="The light-dependent reactions capture light energy."),
+            patch("backend.app.search_web_wikipedia", return_value=[{
+                "title": "Photosynthesis",
+                "url": "https://en.wikipedia.org/wiki/Photosynthesis",
+                "snippet": "   ",
+                "provider": "wikipedia",
+            }]),
+            patch("backend.app.search_web_duckduckgo_instant", return_value=instant_result),
+        ):
+            response = TestClient(app).post("/ask", json={
+                "question": "What happens in the light-dependent reactions?",
+                "title": "Photosynthesis",
+                "summary": "Photosynthesis uses light energy.",
+                "sections": {"Overview": "Light reactions make energy carriers."},
+            })
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["used_external_research"])
+        self.assertEqual(response.json()["research_provider"], "duckduckgo_instant")
+
+    def test_tutor_research_returns_before_the_shared_deadline_when_a_provider_stalls(self):
+        def stalled_wikipedia(*_args, **_kwargs):
+            time.sleep(0.15)
+            return []
+
+        with (
+            patch.object(backend_app_module, "TUTOR_WEB_RESEARCH_BUDGET_SECONDS", 0.03, create=True),
+            patch("backend.app.require_text_ai"),
+            patch("backend.app.generate_chat", return_value="Answered after the research deadline."),
+            patch("backend.app.search_web_wikipedia", side_effect=stalled_wikipedia),
+            patch("backend.app.search_web_duckduckgo_instant", return_value=[]),
+        ):
+            started_at = time.monotonic()
+            response = TestClient(app).post("/ask", json={
+                "question": "What happens in the light-dependent reactions?",
+                "title": "Photosynthesis",
+                "summary": "Photosynthesis uses light energy.",
+                "sections": {"Overview": "Light reactions make energy carriers."},
+            })
+            elapsed = time.monotonic() - started_at
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["answer"], "Answered after the research deadline.")
+        self.assertLess(elapsed, 0.10, "Tutor should continue to model generation after the shared research deadline")
 
 
 if __name__ == "__main__":

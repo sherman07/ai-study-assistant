@@ -1,12 +1,12 @@
 @app.post("/timeline/generate")
 async def generate_timeline(data: dict):
     try:
-        require_text_ai()
         payload = data or {}
         title = clean_quiz_string(payload.get("title") if isinstance(payload, dict) else "", "Study Path")
         context = quiz_summary_context(payload)
         if not context:
             return analysis_error_response("No generated notes are available for timeline generation yet.", 400)
+        require_text_ai()
 
         sections_payload = payload.get("sections") if isinstance(payload, dict) else {}
         sections_source = sections_payload if isinstance(sections_payload, dict) and sections_payload else {}
@@ -653,7 +653,6 @@ def normalise_quiz_questions(parsed: dict, desired_types: List[str], title: str,
 @app.post("/quiz/generate")
 async def generate_quiz(data: dict):
     try:
-        require_text_ai()
         plan = parse_quiz_type_plan(data or {})
         desired_types = expand_quiz_type_plan(plan)
         title = clean_quiz_string(data.get("title") if isinstance(data, dict) else "", "Study Quiz")
@@ -669,6 +668,7 @@ async def generate_quiz(data: dict):
         context = quiz_summary_context(data or {})
         if not context:
             return analysis_error_response("No generated notes are available for quiz generation yet.", 400)
+        require_text_ai()
         if not variant_seed:
             variant_seed = sha256_text(f"{title}|{len(avoid_items)}|{context[:400]}")[:12]
 

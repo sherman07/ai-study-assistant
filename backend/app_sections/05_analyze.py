@@ -146,11 +146,28 @@ async def analyze_materials(
         title_candidates: List[str] = []
         seen_youtube_sources = set()
 
+        if len(files) > MAX_ANALYZE_FILES:
+            raise ValueError(
+                f"Uploaded file count is too large ({len(files)}). The current limit is {MAX_ANALYZE_FILES}."
+            )
+
+        buffered_uploads = []
+        aggregate_upload_bytes = 0
         for uploaded in files:
             analysis_stage = "file_read"
             data = await read_upload_bytes(uploaded, MAX_UPLOAD_BYTES, uploaded.filename or "uploaded file")
             if not data:
                 continue
+            aggregate_upload_bytes += len(data)
+            if aggregate_upload_bytes > MAX_ANALYZE_TOTAL_UPLOAD_BYTES:
+                raise ValueError(
+                    "Uploaded files are too large in total "
+                    f"({aggregate_upload_bytes} bytes). The current aggregate limit is "
+                    f"{MAX_ANALYZE_TOTAL_UPLOAD_BYTES} bytes."
+                )
+            buffered_uploads.append((uploaded, data))
+
+        for uploaded, data in buffered_uploads:
             analysis_stage = "file_extract"
             content_type = uploaded.content_type or mimetypes.guess_type(uploaded.filename or "")[0] or "application/octet-stream"
             parts, meta = await run_blocking(

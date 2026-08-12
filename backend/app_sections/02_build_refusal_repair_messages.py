@@ -252,6 +252,12 @@ def extract_main_html_text(raw_html: str) -> str:
     text = "\n\n".join(unique_chunks)
     return text.strip()
 
+class PublicHttpRedirectHandler(urllib.request.HTTPRedirectHandler):
+    max_redirections = 5
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        validated_url = normalize_public_http_url(newurl, "redirect URL")
+        return super().redirect_request(req, fp, code, msg, headers, validated_url)
 
 
 def urlopen_bytes(request_or_url, timeout: int = 20, max_bytes: Optional[int] = None) -> bytes:
@@ -260,9 +266,7 @@ def urlopen_bytes(request_or_url, timeout: int = 20, max_bytes: Optional[int] = 
     normal certificate verification first.
     """
     target_url = request_or_url.full_url if isinstance(request_or_url, urllib.request.Request) else str(request_or_url)
-    parsed_target = urlparse(target_url)
-    if parsed_target.scheme.lower() not in {"http", "https"}:
-        raise ValueError("Only http and https URLs can be fetched.")
+    normalize_public_http_url(target_url, "fetch URL")
 
     contexts = []
     if certifi is not None:
@@ -278,11 +282,12 @@ def urlopen_bytes(request_or_url, timeout: int = 20, max_bytes: Optional[int] = 
     last_error = None
     for context in contexts or [None]:
         try:
-            kwargs = {"timeout": timeout}
+            handlers = [PublicHttpRedirectHandler()]
             if context is not None:
-                kwargs["context"] = context
-            # URL scheme is validated above before urllib receives the request.
-            with urllib.request.urlopen(request_or_url, **kwargs) as response:  # nosec B310
+                handlers.append(urllib.request.HTTPSHandler(context=context))
+            opener = urllib.request.build_opener(*handlers)
+            with opener.open(request_or_url, timeout=timeout) as response:  # nosec B310
+                normalize_public_http_url(response.geturl(), "final response URL")
                 return response.read(max_bytes) if max_bytes else response.read()
         except Exception as error:
             last_error = error

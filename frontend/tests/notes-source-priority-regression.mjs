@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
@@ -10,8 +11,8 @@ const layoutCss = read("frontend/styles/01-section.css");
 const sectionCss = read("frontend/styles/02-section.css");
 const toolsCss = read("frontend/styles/04-section.css");
 const themeCss = read("frontend/styles/00-theme.css");
-const sourceViewer = read("frontend/src/legacy/controller_sections/09_togglesourceviewer.js");
-const transcript = read("frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
+const sourceViewer = readLegacyControllerSections("09_togglesourceviewer.js");
+const transcript = readLegacyControllerSections("08_extractrealtimeresponsetranscript.js");
 const analysis = read("frontend/src/react/components/AnalysisStage.js");
 const index = read("frontend/index.html");
 const controllerLoader = read("frontend/src/legacy/controllerLoader.js");

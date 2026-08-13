@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const historyNavigation = fs.readFileSync(path.join(repoRoot, "frontend/src/react/components/HistoryNavigation.js"), "utf8");
 const mobileNavigation = fs.readFileSync(path.join(repoRoot, "frontend/src/react/components/MobileNavigation.js"), "utf8");
-const boot = fs.readFileSync(path.join(repoRoot, "frontend/src/legacy/controller_sections/99_boot.js"), "utf8");
-const accountController = fs.readFileSync(path.join(repoRoot, "frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js"), "utf8");
+const boot = readLegacyControllerSections("99_boot.js");
+const accountController = readLegacyControllerSections("08_extractrealtimeresponsetranscript.js");
 const accountCss = fs.readFileSync(path.join(repoRoot, "frontend/styles/04-section.css"), "utf8");
 const railCss = fs.readFileSync(path.join(repoRoot, "frontend/styles/01-section.css"), "utf8");
 

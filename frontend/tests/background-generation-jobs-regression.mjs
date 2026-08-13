@@ -2,15 +2,16 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
 const exists = file => fs.existsSync(path.join(repoRoot, file));
 
 const controller = read("frontend/src/legacy/controller.js");
-const uploadController = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
-const historyController = read("frontend/src/legacy/controller_sections/09_togglesourceviewer.js");
-const boot = read("frontend/src/legacy/controller_sections/99_boot.js");
+const uploadController = readLegacyControllerSections("01_uploadedfiles.js");
+const historyController = readLegacyControllerSections("09_togglesourceviewer.js");
+const boot = readLegacyControllerSections("99_boot.js");
 const styles = read("frontend/styles/04-section.css");
 
 assert.ok(
@@ -22,7 +23,7 @@ assert.ok(
   "generation job store module should exist"
 );
 
-const jobsController = read("frontend/src/legacy/controller_sections/11_generationjobs.js");
+const jobsController = readLegacyControllerSections("11_generationjobs.js");
 
 for (const token of [
   "GENERATION_JOBS_STORAGE_KEY",

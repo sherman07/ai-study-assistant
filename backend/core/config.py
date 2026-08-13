@@ -1,3 +1,7 @@
+"""Synapse backend configuration."""
+
+from __future__ import annotations
+
 import os
 from contextvars import ContextVar
 from pathlib import Path
@@ -14,84 +18,18 @@ except Exception:
     DefaultCredentialsError = Exception
     GoogleAuthRequest = None
 
-
-def env_bool(name: str, default: str = "false") -> bool:
-    return os.getenv(name, default).lower() not in {"0", "false", "no"}
-
-
-def env_int(name: str, default: int) -> int:
-    try:
-        return int(os.getenv(name, str(default)))
-    except Exception:
-        return default
-
-
-def env_float(name: str, default: float) -> float:
-    try:
-        return float(os.getenv(name, str(default)))
-    except Exception:
-        return default
-
-
-def env_list(name: str, default: str = "") -> list:
-    raw = os.getenv(name, default)
-    return [item.strip() for item in raw.split(",") if item.strip()]
-
-
-def env_str(name: str, default: str = "") -> str:
-    value = (os.getenv(name) or "").strip()
-    return value or default
-
-
-PLACEHOLDER_ENV_MARKERS = (
-    "__ADD_",
-    "__YOUR",
-    "YOUR_",
-    "your_key_here",
-    "PASTE_",
+from core.config_env import (
+    PLACEHOLDER_ENV_MARKERS,
+    apply_env_values,
+    env_bool,
+    env_float,
+    env_int,
+    env_list,
+    env_str,
+    is_placeholder_env_value,
+    load_env_defaults,
+    load_env_overrides_for_placeholders,
 )
-
-
-def is_placeholder_env_value(value: str | None) -> bool:
-    text = str(value or "").strip()
-    if not text:
-        return True
-    upper_text = text.upper()
-    return any(marker.upper() in upper_text for marker in PLACEHOLDER_ENV_MARKERS)
-
-
-def apply_env_values(
-    values: dict,
-    *,
-    environ: dict | None = None,
-    override: bool = False,
-    override_placeholders: bool = False,
-) -> None:
-    target = environ if environ is not None else os.environ
-    for key, value in values.items():
-        if value is None:
-            continue
-        current = str(target.get(key, "") or "").strip()
-        should_replace = override or not current
-        if override_placeholders and current:
-            should_replace = should_replace or is_placeholder_env_value(current)
-        if should_replace:
-            target[key] = str(value).strip()
-
-
-def load_env_defaults(env_paths: tuple[Path, ...]) -> None:
-    for env_path in env_paths:
-        load_dotenv(env_path)
-
-
-def load_env_overrides_for_placeholders(env_paths: tuple[Path, ...]) -> None:
-    for env_path in env_paths:
-        if env_path.exists():
-            apply_env_values(
-                dotenv_values(env_path),
-                override_placeholders=True,
-            )
-
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 PROJECT_ROOT = BACKEND_DIR.parent
@@ -328,30 +266,12 @@ except Exception:
 CACHE_VERSION = "source_identity_mindmap_v68_provider_isolation"
 VISUAL_PIPELINE_VERSION = "inline-visual-markers-v1"
 
-DEFAULT_CORS_ALLOW_ORIGINS = [
-    "http://127.0.0.1:5500",
-    "http://localhost:5500",
-    "http://127.0.0.1:5175",
-    "http://localhost:5175",
-    "http://127.0.0.1:5176",
-    "http://localhost:5176",
-]
-CORS_ALLOW_ORIGINS = env_list(
-    "SYNAPSE_CORS_ALLOW_ORIGINS",
-    ",".join(DEFAULT_CORS_ALLOW_ORIGINS),
+from core.config_cors import (  # noqa: E402
+    CORS_ALLOW_CREDENTIALS,
+    CORS_ALLOW_ORIGIN_REGEX,
+    CORS_ALLOW_ORIGINS,
+    DEFAULT_CORS_ALLOW_ORIGINS,
 )
-for origin in DEFAULT_CORS_ALLOW_ORIGINS:
-    if origin not in CORS_ALLOW_ORIGINS:
-        CORS_ALLOW_ORIGINS.append(origin)
-CORS_ALLOW_ORIGIN_REGEX = (
-    os.getenv(
-        "SYNAPSE_CORS_ALLOW_ORIGIN_REGEX",
-        r"^http://(?:10(?:\.\d{1,3}){3}|192\.168(?:\.\d{1,3}){2}|172\.(?:1[6-9]|2\d|3[0-1])(?:\.\d{1,3}){2}):(?:5175|5176|5500)$",
-    ).strip()
-    or None
-)
-CORS_ALLOW_CREDENTIALS = env_bool("SYNAPSE_CORS_ALLOW_CREDENTIALS", "false")
-
 
 def normalise_text_provider(provider: str = "") -> str:
     value = provider if isinstance(provider, str) else ""

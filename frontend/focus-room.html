@@ -21,7 +21,7 @@
     <h1 id="focusRoomFallbackTitle">Synapse Focus Room</h1>
   </main>
   <script src="config.js?v=public-auth-session-v4"></script>
-  <script src="auth-client.js?v=auth-singleton-v1"></script>
+  <script type="module" src="auth-client.js?v=auth-singleton-v1"></script>
   <script type="module">
     if (window.SYNAPSE_FOCUS_ROOM_ENABLED === true) {
       import("./src/focus-room/static-compatible-loader.js?v=focus-room-loader-v20")

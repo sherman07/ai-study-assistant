@@ -2,16 +2,17 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
 
 const controller = read("frontend/src/legacy/controller.js");
-const switchTool = read("frontend/src/legacy/controller_sections/02_openvisualmodal.js");
-const history = read("frontend/src/legacy/controller_sections/09_togglesourceviewer.js");
-const broadcast = read("frontend/src/legacy/controller_sections/12_broadcastjobs.js");
-const boot = read("frontend/src/legacy/controller_sections/99_boot.js");
-const memory = read("frontend/src/legacy/controller_sections/13_studytoolmemory.js");
+const switchTool = readLegacyControllerSections("02_openvisualmodal.js");
+const history = readLegacyControllerSections("09_togglesourceviewer.js");
+const broadcast = readLegacyControllerSections("12_broadcastjobs.js");
+const boot = readLegacyControllerSections("99_boot.js");
+const memory = readLegacyControllerSections("13_studytoolmemory.js");
 
 assert.ok(controller.includes('"13_studytoolmemory.js"'), "controller should load the shared study-tool memory section");
 assert.ok(switchTool.includes("persistStudyToolMemory"), "tool switching should save the current generated state");

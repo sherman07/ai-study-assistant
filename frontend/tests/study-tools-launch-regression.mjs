@@ -2,26 +2,29 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = relative => fs.readFileSync(path.join(root, relative), "utf8");
 
 const controller = read("frontend/src/legacy/controller.js");
-const timeline = read("frontend/src/legacy/controller_sections/02_openvisualmodal.js");
-const visualGuide = read("frontend/src/legacy/controller_sections/04_rendervisualguidelaunch.js");
-const mastery = read("frontend/src/legacy/controller_sections/04_masterygraph.js");
-const quiz = read("frontend/src/legacy/controller_sections/05_persistcurrentquiztohistory.js");
-const flashcards = read("frontend/src/legacy/controller_sections/06_deleteflashcarddeck.js");
-const broadcast = read("frontend/src/legacy/controller_sections/12_broadcastjobs.js");
+const launchRenderer = read("frontend/src/features/study-tools/StudyToolLaunch.js");
+const timeline = readLegacyControllerSections("02_openvisualmodal.js");
+const visualGuide = readLegacyControllerSections("04_rendervisualguidelaunch.js");
+const mastery = readLegacyControllerSections("04_masterygraph.js");
+const quiz = readLegacyControllerSections("05_persistcurrentquiztohistory.js");
+const flashcards = readLegacyControllerSections("06_deleteflashcarddeck.js");
+const broadcast = readLegacyControllerSections("12_broadcastjobs.js");
 
 globalThis.React = await import("react");
 const { renderToStaticMarkup } = await import("react-dom/server");
 const { StudyTools } = await import(pathToFileURL(path.join(root, "frontend/src/react/components/StudyTools.js")));
 const studyToolsHtml = renderToStaticMarkup(React.createElement(StudyTools));
 
-assert.match(controller, /function renderStudyToolLaunch\(/, "Study Tools use one shared launch renderer");
-assert.match(controller, /data-generation-cost=\"0\"/, "Launch cards declare a zero-token generation cost");
-assert.match(controller, /No tokens used for this first generation/, "Launch cards communicate the free first generation");
+assert.match(controller, /from \"\.\.\/features\/study-tools\/StudyToolLaunch\.js\"/, "Study Tools import the shared launch renderer feature");
+assert.match(launchRenderer, /export function renderStudyToolLaunch\(/, "Study Tools use one shared launch renderer");
+assert.match(launchRenderer, /data-generation-cost=\"0\"/, "Launch cards declare a zero-token generation cost");
+assert.match(launchRenderer, /No tokens used for this first generation/, "Launch cards communicate the free first generation");
 
 for (const [tool, source] of [
   ["timeline", timeline],

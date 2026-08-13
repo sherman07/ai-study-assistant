@@ -3,10 +3,10 @@ import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import vm from "node:vm";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const controllerPath = path.resolve(__dirname, "../src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
-const controllerSource = fs.readFileSync(controllerPath, "utf8");
+const controllerSource = readLegacyControllerSections("08_extractrealtimeresponsetranscript.js");
 const start = controllerSource.indexOf("function extractRealtimeResponseTranscript");
 const end = controllerSource.indexOf("async function startRealtimeVoiceTutor");
 

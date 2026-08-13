@@ -2,20 +2,21 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = relative => fs.readFileSync(path.join(root, relative), "utf8");
 
 const sources = {
   reactTools: read("frontend/src/react/components/StudyTools.js"),
-  settings: read("frontend/src/legacy/controller_sections/02_openvisualmodal.js"),
-  timeline: read("frontend/src/legacy/controller_sections/03_rendertimeline.js"),
-  mastery: read("frontend/src/legacy/controller_sections/04_masterygraph.js"),
-  visualGuide: read("frontend/src/legacy/controller_sections/04_rendervisualguidelaunch.js"),
-  flashcards: read("frontend/src/legacy/controller_sections/04_rendervisualguidelaunch.js"),
-  flashcardState: read("frontend/src/legacy/controller_sections/06_deleteflashcarddeck.js"),
-  quiz: read("frontend/src/legacy/controller_sections/05_persistcurrentquiztohistory.js"),
-  broadcast: read("frontend/src/legacy/controller_sections/12_broadcastjobs.js")
+  settings: readLegacyControllerSections("02_openvisualmodal.js"),
+  timeline: readLegacyControllerSections("03_rendertimeline.js"),
+  mastery: readLegacyControllerSections("04_masterygraph.js"),
+  visualGuide: readLegacyControllerSections("04_rendervisualguidelaunch.js"),
+  flashcards: readLegacyControllerSections("04_rendervisualguidelaunch.js"),
+  flashcardState: readLegacyControllerSections("06_deleteflashcarddeck.js"),
+  quiz: readLegacyControllerSections("05_persistcurrentquiztohistory.js"),
+  broadcast: readLegacyControllerSections("12_broadcastjobs.js")
 };
 
 assert.match(sources.reactTools, /openStudyToolSettingsModal.*mindmap/s, "Mind Map exposes settings in the React panel header");

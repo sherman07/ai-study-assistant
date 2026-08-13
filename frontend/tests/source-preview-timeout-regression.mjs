@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const sourceViewerPath = path.resolve(__dirname, "../src/legacy/controller_sections/09_togglesourceviewer.js");
-const source = fs.readFileSync(sourceViewerPath, "utf8");
+const source = readLegacyControllerSections("09_togglesourceviewer.js");
 
 assert.ok(
   source.includes("SOURCE_PREVIEW_TIMEOUT_MS"),
@@ -36,10 +36,7 @@ assert.ok(
   "open + prefetch should share one in-flight /source-preview request"
 );
 
-const transcript = fs.readFileSync(
-  path.resolve(__dirname, "../src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js"),
-  "utf8"
-);
+const transcript = readLegacyControllerSections("08_extractrealtimeresponsetranscript.js");
 assert.ok(
   transcript.includes("scheduleSourcePreviewPrefetch(sourceViewerItems)"),
   "building or restoring source items should kick off background preview prep"

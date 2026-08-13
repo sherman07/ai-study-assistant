@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
@@ -12,8 +13,8 @@ function read(relativePath) {
 
 const constantsSource = read("frontend/src/react/constants.js");
 const uploadStageSource = read("frontend/src/react/components/UploadStage.js");
-const uploadControllerSource = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
-const accountSettingsSource = read("frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
+const uploadControllerSource = readLegacyControllerSections("01_uploadedfiles.js");
+const accountSettingsSource = readLegacyControllerSections("08_extractrealtimeresponsetranscript.js");
 
 assert.ok(
   constantsSource.includes("AI_PROVIDER_OPTIONS"),

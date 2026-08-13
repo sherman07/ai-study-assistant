@@ -2,20 +2,22 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
+import { readBackendAppSections, readBackendAppSource } from "./helpers/readBackendAppSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
 
 const config = read("backend/core/config.py");
-const ask = read("backend/app_sections/06_source_preview.py");
-const companion = read("backend/app_sections/14_learning_companion.py");
-const analyze = read("backend/app_sections/05_analyze.py");
+const ask = readBackendAppSections("06_source_preview.py");
+const companion = readBackendAppSections("14_learning_companion.py");
+const analyze = readBackendAppSections("05_analyze.py");
 const health = read("backend/core/health.py");
 const render = read("render.yaml");
-const askFrontend = read("frontend/src/legacy/controller_sections/07_focusmindmappoint.js");
-const uploadFrontend = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
+const askFrontend = readLegacyControllerSections("07_focusmindmappoint.js");
+const uploadFrontend = readLegacyControllerSections("01_uploadedfiles.js");
 const companionClient = read("frontend/src/legacy/learningCompanionClient.js");
-const app = read("backend/app.py");
+const app = readBackendAppSource();
 const index = read("frontend/index.html");
 
 assert.ok(config.includes("def chat_model_for_active_provider"), "active chat model helper required for Gemini tutor");

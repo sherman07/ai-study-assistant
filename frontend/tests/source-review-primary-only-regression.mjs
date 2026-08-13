@@ -3,12 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
 
-const uploaded = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
-const sourceBuilder = read("frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
+const uploaded = readLegacyControllerSections("01_uploadedfiles.js");
+const sourceBuilder = readLegacyControllerSections("08_extractrealtimeresponsetranscript.js");
 const index = read("frontend/index.html");
 const controllerLoader = read("frontend/src/legacy/controllerLoader.js");
 

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
@@ -13,7 +14,7 @@ function read(relativePath) {
 const uploadStageSource = read("frontend/src/react/components/UploadStage.js");
 const languageOptionsSource = read("frontend/src/react/components/LanguageOptions.js");
 const constantsSource = read("frontend/src/react/constants.js");
-const uploadControllerSource = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
+const uploadControllerSource = readLegacyControllerSections("01_uploadedfiles.js");
 const uploadStylesPrimary = read("frontend/styles/01-section.css");
 const uploadStylesSecondary = read("frontend/styles/04-section.css");
 const uploadStylesTertiary = read("frontend/styles/08-section.css");

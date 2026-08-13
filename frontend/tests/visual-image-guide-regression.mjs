@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
@@ -11,9 +12,9 @@ function read(relativePath) {
 }
 
 const backendSource = read("backend/app_sections/10_parse_quiz_type_plan.py");
-const uploadSource = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
-const timelineSource = read("frontend/src/legacy/controller_sections/03_rendertimeline.js");
-const renderSource = read("frontend/src/legacy/controller_sections/04_rendervisualguidelaunch.js");
+const uploadSource = readLegacyControllerSections("01_uploadedfiles.js");
+const timelineSource = readLegacyControllerSections("03_rendertimeline.js");
+const renderSource = readLegacyControllerSections("04_rendervisualguidelaunch.js");
 
 const backendVersion = backendSource.match(/VISUAL_IMAGE_GUIDE_STYLE_VERSION\s*=\s*"([^"]+)"/)?.[1];
 const frontendVersion = uploadSource.match(/const VISUAL_IMAGE_GUIDE_STYLE_VERSION\s*=\s*"([^"]+)"/)?.[1];

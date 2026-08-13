@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { authClientSource, landingAuthSource } from "./_sourceTrees.mjs";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -11,8 +13,8 @@ function read(relativePath) {
 
 const usersRepo = read("server/src/repositories/usersRepository.js");
 const usersRoute = read("server/src/routes/users.js");
-const authClient = read("frontend/auth-client.js");
-const accountUi = read("frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
+const authClient = authClientSource();
+const accountUi = readLegacyControllerSections("08_extractrealtimeresponsetranscript.js");
 const migration = read("server/src/db/migrations/002_admin_user_controls_credits.sql");
 const schema = read("server/src/db/supabase-schema.sql");
 

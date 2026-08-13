@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { authClientSource, landingAuthSource, focusRoomStoreSource, focusRoomDataSource, companionWorkspaceSource, read as readRepo } from "./_sourceTrees.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const setup = fs.readFileSync(path.join(root, "frontend/src/focus-room/components/FocusRoomSetup.jsx"), "utf8");
 const page = fs.readFileSync(path.join(root, "frontend/src/focus-room/components/FocusRoomPage.jsx"), "utf8");
-const store = fs.readFileSync(path.join(root, "frontend/src/focus-room/hooks/useFocusRoomStore.js"), "utf8");
+const store = focusRoomStoreSource();
 const styles = fs.readFileSync(path.join(root, "frontend/styles/09-focus-room.css"), "utf8");
 const html = fs.readFileSync(path.join(root, "frontend/focus-room.html"), "utf8");
-const data = fs.readFileSync(path.join(root, "frontend/src/focus-room/data.js"), "utf8");
+const data = focusRoomDataSource();
 
 assert.match(setup, /Choose a study scene/, "Focus Room setup shows the Innook-style scene chooser");
 assert.match(setup, /SceneSelector/, "Focus Room setup renders all available scenes");

@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import vm from "node:vm";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const authClient = fs.readFileSync(path.join(repoRoot, "frontend/auth-client.js"), "utf8");
 const authClientPages = [
   "billing-success",
   "focus-room",
@@ -54,7 +52,8 @@ const windowStub = {
     host: "example.com",
     pathname: "/frontend/index.html",
     search: "",
-    hash: ""
+    hash: "",
+    href: "https://example.com/frontend/index.html"
   },
   addEventListener() {},
   dispatchEvent() {},
@@ -78,19 +77,16 @@ const documentStub = {
   createElement() { return { addEventListener() {}, set src(_) {}, async: false }; }
 };
 
-vm.runInNewContext(authClient, vm.createContext({
-  AbortController,
-  CustomEvent: class CustomEvent { constructor(type, init = {}) { this.type = type; this.detail = init.detail; } },
-  Date,
-  JSON,
-  URL,
-  URLSearchParams,
-  clearTimeout,
-  console: { warn() {}, log() {} },
-  document: documentStub,
-  setTimeout,
-  window: windowStub
-}));
+windowStub.window = windowStub;
+windowStub.document = documentStub;
+globalThis.window = windowStub;
+globalThis.document = documentStub;
+
+const installUrl = pathToFileURL(
+  path.join(repoRoot, "frontend/src/features/auth/client/install.js")
+).href + `?singleton=${Date.now()}`;
+const { installAuthClient } = await import(installUrl);
+installAuthClient(windowStub);
 
 await Promise.all(Array.from({ length: 6 }, () => windowStub.SynapseAuth.signInWithGoogle()));
 

@@ -63,74 +63,59 @@ import {
   typeInto
 } from "./markdownRenderer.js?v=settings-modal-pattern-20260720-06";
 import { LegacyControllerLoader } from "./controllerLoader.js?v=settings-modal-pattern-20260720-06";
+import { installSynapseCredits } from "../features/credits/install.js";
+import { renderStudyToolLaunch } from "../features/study-tools/StudyToolLaunch.js";
 
 const CONTROLLER_VERSION = "settings-modal-pattern-20260720-06";
 const CONTROLLER_DEFINITION_FILES = [
   "01_uploadedfiles.js",
+  "01_aiproviderandlearningfigures.js",
+  "01_fileuploadandsources.js",
+  "01_generationjobanalysis.js",
+  "01_generationjobcontrols.js",
   "02_openvisualmodal.js",
+  "02_studytoolsandsettings.js",
+  "02_timelinestore.js",
   "03_rendertimeline.js",
+  "03_timelineactions.js",
+  "03_visualguidestore.js",
   "04_rendervisualguidelaunch.js",
+  "04_visualguiderenderandquiz.js",
   "04_masterygraph.js",
+  "04_memorycards.js",
+  "04_masterygraphrender.js",
   "05_persistcurrentquiztohistory.js",
+  "05_quizgenerationandrender.js",
+  "05_flashcardstore.js",
   "06_deleteflashcarddeck.js",
+  "06_flashcardstudy.js",
+  "06_mindmapdata.js",
+  "06_mindmaprender.js",
   "07_focusmindmappoint.js",
+  "07_voicetutor.js",
   "08_extractrealtimeresponsetranscript.js",
+  "08_workspaceandaccount.js",
+  "08_accountbilling.js",
+  "08_historyandsourceassets.js",
   "09_togglesourceviewer.js",
+  "09_sourcepreview.js",
+  "09_sourceviewerbody.js",
+  "09_historysync.js",
+  "09_historyload.js",
   "10_focusroombridge.js",
   "11_generationjobs.js",
   "12_broadcastjobs.js",
+  "12_broadcastpipeline.js",
+  "12_broadcastrealtime.js",
+  "12_broadcastplayback.js",
   "13_studytoolmemory.js",
   "14_learningcompanion.js",
 ];
 const CONTROLLER_BOOT_FILE = "99_boot.js";
 const apiClient = new SynapseApiClient(API_BASE);
 
-function renderStudyToolLaunch({
-  tool,
-  iconClass,
-  title,
-  description,
-  action,
-  actionLabel,
-  hasNotes = true,
-  kicker = "Ready when you are",
-  points = [],
-  estimate = "",
-  secondaryHint = ""
-} = {}) {
-  const disabled = hasNotes ? "" : "disabled";
-  const helper = hasNotes
-    ? (estimate ? `No tokens used for this first generation · ${estimate}` : "No tokens used for this first generation")
-    : "Generate your study notes first to unlock this tool";
-  const defaultPoints = {
-    flashcards: ["Atomic prompts from the current notes", "Reveal, then grade Again / Hard / Good / Easy", "Match mode for quick recognition drills"],
-    quiz: ["Exam-style and practice question mixes", "Save history against this note", "Review explanations after each attempt"],
-    timeline: ["Warm-up → learn → practise → check", "Mark tasks complete as you go", "Pace settings for quick or deep revision"],
-    masterygraph: ["Due and missed review queues", "Weak-topic map from your activity", "Self-grade what still feels shaky"],
-    visualguide: ["One finished revision poster", "Grounded in the current notes", "Export as PNG when ready"],
-    broadcast: ["Natural spoken episode from these notes", "Chapter markers while you listen", "Jump into quiz or flashcards after"]
-  };
-  const bullets = (Array.isArray(points) && points.length ? points : defaultPoints[tool] || [])
-    .slice(0, 4)
-    .map(item => `<li>${escapeHTML(item)}</li>`)
-    .join("");
-  return `
-    <div class="study-tool-launch study-tool-launch--v2" data-study-tool-launch="${escapeAttr(tool)}" data-generation-cost="0">
-      <div class="study-tool-launch-icon" aria-hidden="true"><i class="bi ${escapeAttr(iconClass)}"></i></div>
-      <div class="study-tool-launch-copy">
-        <span class="study-tool-launch-kicker">${escapeHTML(kicker)}</span>
-        <h4>${escapeHTML(title)}</h4>
-        <p>${escapeHTML(description)}</p>
-        ${bullets ? `<ul class="study-tool-launch-points">${bullets}</ul>` : ""}
-        ${secondaryHint ? `<p class="study-tool-launch-hint">${escapeHTML(secondaryHint)}</p>` : ""}
-      </div>
-      <div class="study-tool-launch-meta"><i class="bi bi-lightning-charge-fill" aria-hidden="true"></i>${escapeHTML(helper)}</div>
-      <button class="btn btn-primary study-tool-generate-btn" type="button" data-study-tool-generate="${escapeAttr(tool)}" data-token-cost="0" onclick="${escapeAttr(action)}" ${disabled}>
-        <i class="bi bi-stars me-2" aria-hidden="true"></i>${escapeHTML(actionLabel)}
-      </button>
-    </div>
-  `;
-}
+// Credits API must be on window before any controller section / loader work.
+installSynapseCredits(window);
 
 function showStudyToolNotice(message, tone = "info") {
   const text = String(message || "").trim();

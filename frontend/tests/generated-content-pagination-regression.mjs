@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
@@ -9,7 +10,7 @@ const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
 const route = read("server/src/routes/generatedContent.js");
 const repository = read("server/src/repositories/generatedContentRepository.js");
 const client = read("frontend/src/legacy/dataApiClient.js");
-const history = read("frontend/src/legacy/controller_sections/09_togglesourceviewer.js");
+const history = readLegacyControllerSections("09_togglesourceviewer.js");
 const postmanPath = path.join(repoRoot, "docs/api/Synapse.postman_collection.json");
 
 assert.ok(route.includes('router.get("/:id/sections"'), "generated-content should expose a paginated sections route");

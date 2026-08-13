@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const css = fs.readFileSync(path.join(repoRoot, "frontend/styles/04-section.css"), "utf8");
 const index = fs.readFileSync(path.join(repoRoot, "frontend/index.html"), "utf8");
 const style = fs.readFileSync(path.join(repoRoot, "frontend/style.css"), "utf8");
-const historyController = fs.readFileSync(path.join(repoRoot, "frontend/src/legacy/controller_sections/09_togglesourceviewer.js"), "utf8");
-const generationJobs = fs.readFileSync(path.join(repoRoot, "frontend/src/legacy/controller_sections/11_generationjobs.js"), "utf8");
-const broadcastJobs = fs.readFileSync(path.join(repoRoot, "frontend/src/legacy/controller_sections/12_broadcastjobs.js"), "utf8");
+const historyController = readLegacyControllerSections("09_togglesourceviewer.js");
+const generationJobs = readLegacyControllerSections("11_generationjobs.js");
+const broadcastJobs = readLegacyControllerSections("12_broadcastjobs.js");
 
 assert.ok(css.includes(".app-layout.loading-state .history-nav"));
 assert.ok(

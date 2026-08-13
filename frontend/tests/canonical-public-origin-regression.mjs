@@ -3,11 +3,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import vm from "node:vm";
+import { authClientSource, landingAuthSource, focusRoomStoreSource, focusRoomDataSource, companionWorkspaceSource, read as readRepo } from "./_sourceTrees.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const configSource = fs.readFileSync(path.join(repoRoot, "frontend/config.js"), "utf8");
-const authSource = fs.readFileSync(path.join(repoRoot, "frontend/auth-client.js"), "utf8");
-const landingAuthSource = fs.readFileSync(path.join(repoRoot, "frontend/landing-auth.js"), "utf8");
+const authSource = authClientSource();
+const landingAuthSourceText = landingAuthSource();
 const verifyAuthSource = fs.readFileSync(path.join(repoRoot, "frontend/verify-auth.js"), "utf8");
 
 function runConfig(href) {
@@ -49,7 +50,7 @@ assert.equal(localDevelopment.redirectedTo, "", "Local development must remain o
 assert.ok(authSource.includes("function publicAppOrigin()"), "Auth routes should use the canonical public origin when it is configured");
 assert.ok(authSource.includes("function absolutePublicUrl(path)"), "Auth callbacks should be built from a canonical public URL helper");
 assert.ok(authSource.includes("absoluteAppUrl,"), "Landing and verification pages should be able to use the canonical workspace URL");
-assert.ok(landingAuthSource.includes("window.SynapseAuth?.absoluteAppUrl?.()"), "Login and Google auth should return to the canonical workspace URL");
+assert.ok(landingAuthSourceText.includes("window.SynapseAuth?.absoluteAppUrl?.()"), "Login and Google auth should return to the canonical workspace URL");
 assert.ok(verifyAuthSource.includes("window.SynapseAuth?.absoluteAppUrl?.()"), "Email verification should return to the canonical workspace URL");
 
 console.log("canonical public origin regression passed");

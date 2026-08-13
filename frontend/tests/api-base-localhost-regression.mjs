@@ -3,6 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { fileURLToPath } from "node:url";
+import { authClientSource as authClientTree, landingAuthSource as landingAuthTree } from "./_sourceTrees.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
@@ -102,12 +103,12 @@ assert.equal(
   "explicit API base should win"
 );
 
-const authClientSource = fs.readFileSync(path.join(repoRoot, "frontend/auth-client.js"), "utf8");
+const authClientSource = authClientTree();
 assert.ok(authClientSource.includes("function isLocalDevHost"));
 assert.ok(authClientSource.includes("\"[::1]\""));
 assert.ok(authClientSource.includes("isLocalDevHost(hostname) && port !== backendPort"));
 
-const landingAuthSource = fs.readFileSync(path.join(repoRoot, "frontend/landing-auth.js"), "utf8");
+const landingAuthSource = landingAuthTree();
 assert.ok(landingAuthSource.includes("function isLocalDevHost"));
 assert.ok(landingAuthSource.includes("\"[::1]\""));
 assert.ok(landingAuthSource.includes("isLocalDevHost(hostname)"));

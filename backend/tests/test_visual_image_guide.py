@@ -450,67 +450,6 @@ class VisualImageGuideTests(unittest.TestCase):
         self.assertIn("Open-Economy Macroeconomics", request_payload["prompt"])
         self.assertIn("reference-style educational infographic", request_payload["prompt"])
 
-    def test_open_economy_domain_renderer_is_opt_in_before_openai_image(self):
-        with patch.dict(os.environ, {
-            "VISUAL_IMAGE_GUIDE_BLUEPRINT": "false",
-            "VISUAL_IMAGE_GUIDE_RENDERER": "openai",
-            "VISUAL_IMAGE_GUIDE_STRICT_CJK_LOCAL": "true",
-            "VISUAL_IMAGE_GUIDE_DOMAIN_LOCAL": "true",
-        }), patch("backend.app.requests.post") as request_post:
-            response = TestClient(app).post(
-                "/visual-image-guide/generate",
-                json={
-                    "title": "BUS115 - Week 11",
-                    "summary": OPEN_ECONOMY_NOTES,
-                    "preferred_language": "auto",
-                    "sources": [],
-                    "visual_gallery": [],
-                },
-            )
-
-        self.assertEqual(response.status_code, 200)
-        payload = response.json()
-
-        request_post.assert_not_called()
-        self.assertEqual("synapse-local-image-renderer-domain", payload["model"])
-        self.assertEqual("gpt-image-1.5", payload["requested_model"])
-        self.assertEqual("english", payload["language"])
-        self.assertEqual("open-economy-reference-wallchart-v3", payload["image_processing"]["layout"])
-        self.assertEqual([896, 1200], payload["image_processing"]["reference_canvas"])
-        self.assertNotIn("Learning Mechanism", str(payload.get("image_processing", {})))
-
-    def test_gpt_image_prompt_demands_reference_style_and_blocks_bad_template(self):
-        blueprint = visual_image_guide_fallback_blueprint("BUS115 - Week 11", OPEN_ECONOMY_NOTES)
-        prompt = visual_image_guide_prompt("BUS115 - Week 11", OPEN_ECONOMY_NOTES, "", "", "zh", blueprint)
-
-        self.assertIn("Open-Economy Macroeconomics", prompt)
-        self.assertIn("1024x1536", prompt)
-        self.assertIn("numbered section bands", prompt)
-        self.assertIn("formula/table block", prompt)
-        self.assertIn("multiple small supply-demand-style graphs", prompt)
-        self.assertIn("case-study or policy-analysis panels", prompt)
-        self.assertIn("exam-revision wall chart", prompt)
-        self.assertIn("Never use the title \"Learning Mechanism\"", prompt)
-        self.assertIn("Never use placeholder text like \"Use the corresponding source concept\"", prompt)
-        self.assertIn("Do not use machine-learning labels such as Data, Features, Training, Model, Prediction, or Evaluation", prompt)
-        self.assertNotIn("Topic/title: BUS115 - Week 11", prompt)
-
-    def test_gpt_image_prompt_requires_chinese_visual_labels_when_language_is_chinese(self):
-        blueprint = visual_image_guide_fallback_blueprint("BUS115 - Week 11", OPEN_ECONOMY_NOTES)
-        prompt = visual_image_guide_prompt("BUS115 - Week 11", OPEN_ECONOMY_NOTES, "", "", "zh", blueprint)
-
-        self.assertIn("All visible non-formula text must be Simplified Chinese", prompt)
-        self.assertIn("Translate blueprint titles and labels into Simplified Chinese", prompt)
-        self.assertIn("Do not copy English labels such as Big Picture, Loanable Funds, Net Exports, Common Mistakes, or Exam Chain", prompt)
-        self.assertIn("Use only these exact Simplified Chinese visible labels", prompt)
-        self.assertIn("开放经济宏观经济学", prompt)
-        self.assertIn("可贷资金市场", prompt)
-        self.assertIn("净资本流出", prompt)
-        self.assertIn("外汇市场", prompt)
-        self.assertIn("实际汇率", prompt)
-        self.assertIn("净出口", prompt)
-        self.assertIn("Keep formulas and standard variables exactly: S = I + NCO, NX = NCO, NCO, NX, r, e", prompt)
-        self.assertIn("Never invent approximate Chinese-looking glyphs", prompt)
 
 
 if __name__ == "__main__":

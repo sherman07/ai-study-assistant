@@ -4,13 +4,18 @@ Synapse is an AI-powered study website and workspace that turns PDFs, lecture sl
 
 ## Project Structure
 
-- `frontend/` - static public website, auth prototype pages, and the study workspace shell.
-- `frontend/src/` - React shell plus the existing legacy controller modules.
-- `backend/` - FastAPI backend for analysis, tutoring, quizzes, flashcards, source previews, contact enquiries, and generated assets.
-- `server/` - Express data API backed by Supabase for user and study data.
-- `logos/` and `frontend/logos/` - Synapse logo assets for local root serving and static frontend publishing.
-- `scripts/validate_static_site.mjs` - launch-readiness validation for static HTML.
-- `deploy/` - production runtime notes and service templates.
+Feature-based React + Node layout (high cohesion, low coupling). **Hard rule: every source file ≤ 500 lines** (`npm run test:architecture`). See `docs/architecture/REACT_NODE_ARCHITECTURE.md`.
+
+- `frontend/src/app/` — app boot
+- `frontend/src/pages/` — landing, workspace, focus-room shells
+- `frontend/src/features/` — capabilities (auth, credits, companion, focus-room, study-tools, …)
+- `frontend/src/entities/` — source / note / user domain helpers
+- `frontend/src/shared/` — cross-cutting lib/ui
+- `frontend/src/legacy/` — shrinking adapters for the old controller
+- `backend/` — FastAPI AI analysis service (routers / services / domain; sections ≤ 500 lines)
+- `server/src/features/` — Express + Supabase data/billing API features
+- `scripts/check_architecture_budgets.mjs` — enforces the 500-line budget
+- `deploy/` — production runtime notes and service templates
 
 ## Install
 

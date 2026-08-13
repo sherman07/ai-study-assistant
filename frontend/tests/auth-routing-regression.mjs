@@ -1,14 +1,20 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import vm from "node:vm";
+import { authClientSource, landingAuthSource, focusRoomStoreSource, focusRoomDataSource, companionWorkspaceSource, read as readRepo } from "./_sourceTrees.mjs";
+import { readBackendAppSource } from "./helpers/readBackendAppSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const authScript = fs.readFileSync(path.join(repoRoot, "frontend/landing-auth.js"), "utf8");
+const authScript = landingAuthSource();
 const authCss = fs.readFileSync(path.join(repoRoot, "frontend/landing-auth.css"), "utf8");
-const authClientScript = fs.readFileSync(path.join(repoRoot, "frontend/auth-client.js"), "utf8");
-const backendAppScript = fs.readFileSync(path.join(repoRoot, "backend/app.py"), "utf8");
+const authClientScript = authClientSource();
+const backendAppScript = readBackendAppSource();
+const backendAuthHelpers = fs.readFileSync(
+  path.join(repoRoot, "backend/app_sections/16_auth_email_and_billing_helpers.py"),
+  "utf8"
+);
 const loginPage = fs.readFileSync(path.join(repoRoot, "frontend/login.html"), "utf8");
 const signupPage = fs.readFileSync(path.join(repoRoot, "frontend/signup.html"), "utf8");
 const workspacePage = fs.readFileSync(path.join(repoRoot, "frontend/index.html"), "utf8");
@@ -41,13 +47,18 @@ assert.ok(authClientScript.includes("completeAuthRedirect"), "Auth client should
 assert.ok(authClientScript.includes("client.auth.verifyOtp"), "Verify/complete auth should exchange token_hash links for a Supabase session");
 assert.ok(authClientScript.includes('event === "SIGNED_OUT"'), "Auth client should clear the app session only on explicit Supabase sign-out events");
 assert.ok(authClientScript.includes('session?.authMode === "supabase"'), "Auth sync should clear stale Supabase app sessions when no provider session exists");
-assert.ok(backendAppScript.includes('"plan": "free"'), "New Supabase signups should use the Free plan id, not the old Starter label");
+assert.ok(
+  backendAppScript.includes('"plan": "free"') || backendAuthHelpers.includes('"plan": "free"'),
+  "New Supabase signups should use the Free plan id, not the old Starter label"
+);
 assert.ok(authClientScript.includes("resendSignupConfirmation"), "Auth client should expose a resend confirmation helper");
 assert.ok(authCss.includes(".auth-status-button"), "Confirmation retry should have visible button styling");
 assert.ok(authCss.includes(".auth-form-status.warning"), "Existing account status should have warning styling");
 assert.ok(authCss.includes(".auth-form-status.info"), "Pending account status should have info styling");
 for (const frontendFile of ["frontend/auth-client.js", "frontend/landing-auth.js", "frontend/signup.html"]) {
-  const source = fs.readFileSync(path.join(repoRoot, frontendFile), "utf8");
+  const source = frontendFile.endsWith(".html")
+    ? fs.readFileSync(path.join(repoRoot, frontendFile), "utf8")
+    : (frontendFile.includes("landing-auth") ? landingAuthSource() : authClientSource());
   assert.ok(!/service_role|SERVICE_ROLE|admin\/users/.test(source), `${frontendFile} must not expose Supabase admin credentials or admin auth routes`);
 }
 assert.ok(fs.existsSync(path.join(repoRoot, "index.html")));
@@ -195,7 +206,7 @@ function makeLocalStorage(seed = {}) {
   };
 }
 
-function simulateAuthSubmit({ pathname, page, store, values = {} }) {
+async function simulateAuthSubmit({ pathname, page, store, values = {} }) {
   let submitHandler = null;
   const submitButton = makeElement();
   const errors = {
@@ -294,30 +305,23 @@ function simulateAuthSubmit({ pathname, page, store, values = {} }) {
       return [];
     }
   };
-  const context = vm.createContext({
-    Date,
-    JSON,
-    Math,
-    URLSearchParams: globalThis.URLSearchParams,
-    window: windowStub,
-    document: documentStub,
-    console: { log() {}, warn() {} },
-    alert() {},
-    setTimeout(callback) {
-      callback();
-    },
-    IntersectionObserver: function IntersectionObserver() {
-      this.observe = () => {};
-    }
-  });
-  vm.runInContext(authScript, context);
+  windowStub.window = windowStub;
+  windowStub.document = documentStub;
+  globalThis.window = windowStub;
+  globalThis.document = documentStub;
+
+  const { initLandingAuth } = await import(
+    pathToFileURL(path.join(repoRoot, "frontend/src/features/auth/landing/init.js")).href
+    + `?auth-routing=${Date.now()}-${Math.random()}`
+  );
+  initLandingAuth(windowStub);
   assert.equal(typeof submitHandler, "function");
   submitHandler({ preventDefault() {} });
   return { href: windowStub.location.href, elements, store, rememberChecked: rememberCheckbox.checked };
 }
 
 const store = makeLocalStorage();
-const signup = simulateAuthSubmit({ pathname: "/frontend/signup.html", page: "signup", store });
+const signup = await simulateAuthSubmit({ pathname: "/frontend/signup.html", page: "signup", store });
 assert.equal(signup.href, "index.html");
 
 const accounts = JSON.parse(store.getItem(accountsKey));
@@ -332,16 +336,16 @@ assert.equal(accounts[0].authMode, "local_demo");
 assert.ok(store.getItem(sessionKey));
 
 store.removeItem(sessionKey);
-const loginFromFrontend = simulateAuthSubmit({ pathname: "/frontend/login.html", page: "login", store });
+const loginFromFrontend = await simulateAuthSubmit({ pathname: "/frontend/login.html", page: "login", store });
 assert.equal(loginFromFrontend.href, "index.html");
 assert.ok(JSON.parse(store.getItem(sessionKey)).email);
 
 store.removeItem(sessionKey);
-const loginFromRoot = simulateAuthSubmit({ pathname: "/login.html", page: "login", store });
+const loginFromRoot = await simulateAuthSubmit({ pathname: "/login.html", page: "login", store });
 assert.equal(loginFromRoot.href, "frontend/index.html");
 
 const missingAccountStore = makeLocalStorage();
-const missingAccount = simulateAuthSubmit({ pathname: "/frontend/login.html", page: "login", store: missingAccountStore });
+const missingAccount = await simulateAuthSubmit({ pathname: "/frontend/login.html", page: "login", store: missingAccountStore });
 assert.equal(missingAccount.href, "");
 assert.ok(missingAccount.elements.emailError.classList.contains("show"));
 
@@ -357,7 +361,7 @@ const legacyStore = makeLocalStorage({
     credits: 500
   }])
 });
-const legacyLogin = simulateAuthSubmit({
+const legacyLogin = await simulateAuthSubmit({
   pathname: "/frontend/login.html",
   page: "login",
   store: legacyStore,

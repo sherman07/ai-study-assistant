@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const sourcePath = path.resolve(__dirname, "../src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
-const source = fs.readFileSync(sourcePath, "utf8");
+const source = readLegacyControllerSections("08_extractrealtimeresponsetranscript.js");
 
 assert.match(source, /const backendByUrl = new Map\(\)/, "linked sources must match backend metadata by canonical URL");
 assert.match(source, /sourceIdentity: backend\.source_identity \|\| ""/, "linked sources must retain their backend identity");

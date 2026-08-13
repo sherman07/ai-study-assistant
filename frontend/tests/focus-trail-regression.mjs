@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
+import { authClientSource, landingAuthSource, focusRoomStoreSource, focusRoomDataSource, companionWorkspaceSource, read as readRepo } from "./_sourceTrees.mjs";
 
 const setup = fs.readFileSync("frontend/src/focus-room/components/FocusRoomSetup.jsx", "utf8");
-const store = fs.readFileSync("frontend/src/focus-room/hooks/useFocusRoomStore.js", "utf8");
+const store = focusRoomStoreSource();
 const page = fs.readFileSync("frontend/src/focus-room/components/FocusRoomPage.jsx", "utf8");
 const drawers = fs.readFileSync("frontend/src/focus-room/components/FocusRoomDrawers.jsx", "utf8");
 

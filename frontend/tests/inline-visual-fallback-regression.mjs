@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const sectionPath = path.resolve(__dirname, "../src/legacy/controller_sections/02_openvisualmodal.js");
-const sectionSource = fs.readFileSync(sectionPath, "utf8");
+const sectionSource = readLegacyControllerSections("02_openvisualmodal.js");
 
 const makeVisualRenderer = new Function(
   "window",

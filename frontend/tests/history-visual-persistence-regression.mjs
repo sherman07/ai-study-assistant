@@ -2,14 +2,15 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadSectionPath = path.resolve(__dirname, "../src/legacy/controller_sections/01_uploadedfiles.js");
-const visualSectionPath = path.resolve(__dirname, "../src/legacy/controller_sections/02_openvisualmodal.js");
-const cacheSectionPath = path.resolve(__dirname, "../src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
-const uploadSource = fs.readFileSync(uploadSectionPath, "utf8");
-const visualSource = fs.readFileSync(visualSectionPath, "utf8");
-const cacheSource = fs.readFileSync(cacheSectionPath, "utf8");
+const uploadSectionPath = readLegacyControllerSections("01_uploadedfiles.js");
+const visualSectionPath = readLegacyControllerSections("02_openvisualmodal.js");
+const cacheSectionPath = readLegacyControllerSections("08_extractrealtimeresponsetranscript.js");
+const uploadSource = uploadSectionPath;
+const visualSource = visualSectionPath;
+const cacheSource = cacheSectionPath;
 
 assert.ok(
   uploadSource.includes("data.visual_gallery || data.source_evidence_cards || data.figure_cards || data.visuals || []"),

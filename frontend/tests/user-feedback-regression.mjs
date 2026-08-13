@@ -2,16 +2,18 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { authClientSource, landingAuthSource, focusRoomStoreSource, focusRoomDataSource, companionWorkspaceSource } from "./_sourceTrees.mjs";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
 
 const historyNav = read("frontend/src/react/components/HistoryNavigation.js");
 const uploadStage = read("frontend/src/react/components/UploadStage.js");
-const uploadController = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
-const modeController = read("frontend/src/legacy/controller_sections/14_learningcompanion.js");
-const historyController = read("frontend/src/legacy/controller_sections/09_togglesourceviewer.js");
-const auth = read("frontend/landing-auth.js");
+const uploadController = readLegacyControllerSections("01_uploadedfiles.js");
+const modeController = readLegacyControllerSections("14_learningcompanion.js");
+const historyController = readLegacyControllerSections("09_togglesourceviewer.js");
+const auth = landingAuthSource();
 const layoutCss = read("frontend/styles/01-section.css");
 const historyCss = read("frontend/styles/04-section.css");
 

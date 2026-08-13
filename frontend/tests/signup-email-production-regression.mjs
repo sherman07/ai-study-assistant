@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { authClientSource, landingAuthSource, focusRoomStoreSource, focusRoomDataSource, companionWorkspaceSource } from "./_sourceTrees.mjs";
+import { readBackendAppSource } from "./helpers/readBackendAppSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (file) => fs.readFileSync(path.join(repoRoot, file), "utf8");
 
-const backend = read("backend/app.py");
-const authClient = read("frontend/auth-client.js");
+const backend = readBackendAppSource();
+const authClient = authClientSource();
 const render = read("render.yaml");
 const signupPage = read("frontend/signup.html");
 

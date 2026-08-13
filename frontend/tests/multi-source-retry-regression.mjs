@@ -2,15 +2,17 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
+import { readBackendAppSections } from "./helpers/readBackendAppSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
 
-const upload = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
-const jobs = read("frontend/src/legacy/controller_sections/11_generationjobs.js");
-const analyze = read("backend/app_sections/05_analyze.py");
-const youtube = read("backend/app_sections/03_download_youtube_media.py");
-const linkUnit = read("backend/app_sections/04_file_to_source_unit.py");
+const upload = readLegacyControllerSections("01_uploadedfiles.js");
+const jobs = readLegacyControllerSections("11_generationjobs.js");
+const analyze = readBackendAppSections("05_analyze.py");
+const youtube = readBackendAppSections("03_download_youtube_media.py");
+const linkUnit = readBackendAppSections("04_file_to_source_unit.py");
 const renderYaml = read("render.yaml");
 
 assert.ok(

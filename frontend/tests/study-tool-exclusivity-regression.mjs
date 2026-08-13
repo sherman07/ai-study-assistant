@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
 
-const switchToolSource = read("frontend/src/legacy/controller_sections/02_openvisualmodal.js");
-const mindMapSource = read("frontend/src/legacy/controller_sections/06_deleteflashcarddeck.js");
+const switchToolSource = readLegacyControllerSections("02_openvisualmodal.js");
+const mindMapSource = readLegacyControllerSections("06_deleteflashcarddeck.js");
 const legacyControllerRoot = path.join(repoRoot, "frontend/src/legacy/controller_sections");
 
 globalThis.React = await import("react");

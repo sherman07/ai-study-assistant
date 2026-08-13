@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
@@ -10,9 +11,9 @@ function read(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), "utf8");
 }
 
-const uploadControllerSource = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
-const notesRendererSource = read("frontend/src/legacy/controller_sections/02_openvisualmodal.js");
-const historySource = read("frontend/src/legacy/controller_sections/09_togglesourceviewer.js");
+const uploadControllerSource = readLegacyControllerSections("01_uploadedfiles.js");
+const notesRendererSource = readLegacyControllerSections("02_openvisualmodal.js");
+const historySource = readLegacyControllerSections("09_togglesourceviewer.js");
 
 assert.ok(
   uploadControllerSource.includes("normaliseAiGenerationDiagnostics(data.ai_generation"),

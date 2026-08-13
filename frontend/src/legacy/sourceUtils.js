@@ -1,3 +1,5 @@
+import { formatBytes as formatBytesShared } from "../shared/lib/bytes.js";
+
 const YOUTUBE_VIDEO_ID_REGEX = /^[A-Za-z0-9_-]{11}$/;
 const YOUTUBE_URL_VIDEO_ID_REGEX = new RegExp(
   "(?:https?:\\/\\/)?(?:www\\.)?(?:youtube(?:-nocookie)?\\.com\\/" +
@@ -40,16 +42,7 @@ class FileSourceClassifier {
 
 class ByteFormatter {
   format(bytes) {
-    const value = Number(bytes || 0);
-    if (!Number.isFinite(value) || value <= 0) return "";
-    const units = ["B", "KB", "MB", "GB"];
-    let size = value;
-    let unit = 0;
-    while (size >= 1024 && unit < units.length - 1) {
-      size /= 1024;
-      unit += 1;
-    }
-    return `${size >= 10 || unit === 0 ? Math.round(size) : size.toFixed(1)} ${units[unit]}`;
+    return formatBytesShared(bytes);
   }
 }
 
@@ -188,7 +181,7 @@ function sourceIcon(kind) {
 }
 
 function formatBytes(bytes) {
-  return byteFormatter.format(bytes);
+  return formatBytesShared(bytes);
 }
 
 function removeDetectedUrlsClient(text) {

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import { animateLegacyFlashcardTurn, legacyQuizOptionState, prefersReducedStudyMotion } from "../src/legacy/studyMotion.js";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 assert.equal(prefersReducedStudyMotion(() => ({ matches: true })), true);
 assert.equal(prefersReducedStudyMotion(() => ({ matches: false })), false);
@@ -60,8 +61,8 @@ assert.equal(swapped, true);
 assert.deepEqual(calls.map(call => call.target), ["focus"], "Reduced motion should swap immediately without a turn animation");
 
 const controller = await readFile(new URL("../src/legacy/controller.js", import.meta.url), "utf8");
-const flashcards = await readFile(new URL("../src/legacy/controller_sections/06_deleteflashcarddeck.js", import.meta.url), "utf8");
-const quiz = await readFile(new URL("../src/legacy/controller_sections/05_persistcurrentquiztohistory.js", import.meta.url), "utf8");
+const flashcards = readLegacyControllerSections("06_deleteflashcarddeck.js");
+const quiz = readLegacyControllerSections("05_persistcurrentquiztohistory.js");
 const flashcardStyle = await readFile(new URL("../styles/07-section.css", import.meta.url), "utf8");
 const quizStyle = await readFile(new URL("../styles/06-section.css", import.meta.url), "utf8");
 const feedbackStyle = await readFile(new URL("../styles/04-section.css", import.meta.url), "utf8");

@@ -1734,7 +1734,8 @@ async def list_generated_content_history(request: Request, limit: int = 50) -> A
             "items": synapse_database.list_generated_content(identity, limit),
         }
     except Exception as error:
-        return json_error(f"Could not load generated content history: {error}", 500)
+        logger.warning("Generated content history load failed: %s", error)
+        return json_error("Could not load generated content history right now.", 500)
 
 
 @app.get("/content/{content_id}")
@@ -1746,7 +1747,8 @@ async def get_generated_content_record(content_id: str, request: Request) -> Any
             return json_error("Generated content was not found for this user.", 404)
         return {"ok": True, "content": record}
     except Exception as error:
-        return json_error(f"Could not load generated content: {error}", 500)
+        logger.warning("Generated content load failed: %s", error)
+        return json_error("Could not load generated content right now.", 500)
 
 
 @app.delete("/content/{content_id}")
@@ -1758,7 +1760,8 @@ async def delete_generated_content_record(content_id: str, request: Request) -> 
             return json_error("Generated content was not found for this user.", 404)
         return {"ok": True, "deleted": True, "id": content_id}
     except Exception as error:
-        return json_error(f"Could not delete generated content: {error}", 500)
+        logger.warning("Generated content deletion failed: %s", error)
+        return json_error("Could not delete generated content right now.", 500)
 
 
 @app.post("/billing/checkout")

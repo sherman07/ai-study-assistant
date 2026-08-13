@@ -291,6 +291,12 @@ async function persistRefreshedCredits(user) {
   return writeCreditState(user.id, user.creditState, user.metadata || {}) || user;
 }
 
+function isDuplicateUserInsertConflict(error) {
+  return /HTTP 409|duplicate key.*users_(?:pkey|auth_provider_subject_idx)/i.test(
+    String(error?.message || error || "")
+  );
+}
+
 async function supabaseUpsertUser(identity = {}) {
   const row = supabaseUserRow(identity);
   const existing = await supabaseSelectSingle({
@@ -301,11 +307,25 @@ async function supabaseUpsertUser(identity = {}) {
   if (!existing) {
     // First sighting of this auth identity — insert a row. Credit seeding happens
     // via persistRefreshedCredits after mapUser/ensureCreditState.
-    const payload = await supabaseRequest("POST", "users", {
-      query: { on_conflict: "auth_provider,auth_subject" },
-      body: [row],
-      prefer: "resolution=merge-duplicates,return=representation"
-    });
+    let payload;
+    try {
+      payload = await supabaseRequest("POST", "users", {
+        query: { on_conflict: "auth_provider,auth_subject" },
+        body: [row],
+        prefer: "resolution=merge-duplicates,return=representation"
+      });
+    } catch (error) {
+      if (!isDuplicateUserInsertConflict(error)) throw error;
+      // Two first requests for the same account can both observe no row before
+      // either insert commits. Re-read only the same auth identity after a
+      // duplicate response; never recover from a conflicting unrelated user id.
+      const raced = await supabaseSelectSingle({
+        auth_provider: `eq.${row.auth_provider}`,
+        auth_subject: `eq.${row.auth_subject}`
+      });
+      if (!raced) throw error;
+      return persistRefreshedCredits(raced);
+    }
     const inserted = firstSupabaseRow(payload);
     if (!inserted) return null;
     return persistRefreshedCredits(mapUser(inserted));

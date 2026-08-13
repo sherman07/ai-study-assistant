@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   mergeIdentityMetadata,
-  supabaseUserPatch
+  supabaseUserPatch,
+  upsertUser
 } from "../src/repositories/usersRepository.js";
+import { config } from "../src/config.js";
 import { ensureCreditState } from "../src/billing/credits.js";
 import { userEntitlements } from "../src/billing/plans.js";
+import { stableUserId } from "../src/utils/ids.js";
 
 test("mergeIdentityMetadata preserves credits and admin_controls", () => {
   const merged = mergeIdentityMetadata(
@@ -117,4 +120,103 @@ test("controller grants survive entitlements merge after metadata preserve", () 
   assert.equal(entitlements.features.geminiProvider, false);
   assert.ok(entitlements.features.allowedAiProviders.includes("openai"));
   assert.ok(!entitlements.features.allowedAiProviders.includes("gemini"));
+});
+
+test("user upsert recovers a concurrent duplicate insert for the same identity", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalConfig = {
+    supabaseUrl: config.supabaseUrl,
+    supabaseServiceRoleKey: config.supabaseServiceRoleKey,
+    supabaseDbSchema: config.supabaseDbSchema
+  };
+  const userId = stableUserId("supabase", "race-subject");
+  const existingRow = {
+    id: userId,
+    auth_provider: "supabase",
+    auth_subject: "race-subject",
+    email: "student@example.com",
+    display_name: "Student",
+    auth_mode: "supabase",
+    role: "student",
+    plan: "free",
+    metadata_json: {
+      daily_credits: 50,
+      boost_credits: 500,
+      credits: 550,
+      daily_refreshed_on: "2026-08-11",
+      welcome_granted: true
+    }
+  };
+  const responses = [
+    new Response("[]", { status: 200 }),
+    new Response(JSON.stringify({ message: "duplicate key value violates unique constraint \\\"users_pkey\\\"" }), {
+      status: 409,
+      headers: { "content-type": "application/json" }
+    }),
+    new Response(JSON.stringify([existingRow]), {
+      status: 200,
+      headers: { "content-type": "application/json" }
+    }),
+    new Response(JSON.stringify([existingRow]), {
+      status: 200,
+      headers: { "content-type": "application/json" }
+    })
+  ];
+
+  config.supabaseUrl = "https://supabase.test";
+  config.supabaseServiceRoleKey = "test-service-role-key";
+  config.supabaseDbSchema = "public";
+  globalThis.fetch = async () => responses.shift();
+  try {
+    const user = await upsertUser({
+      auth_provider: "supabase",
+      auth_subject: "race-subject",
+      email: "student@example.com",
+      display_name: "Student",
+      auth_mode: "supabase"
+    });
+
+    assert.equal(user.id, userId);
+    assert.equal(user.authSubject, "race-subject");
+    assert.equal(responses.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    config.supabaseUrl = originalConfig.supabaseUrl;
+    config.supabaseServiceRoleKey = originalConfig.supabaseServiceRoleKey;
+    config.supabaseDbSchema = originalConfig.supabaseDbSchema;
+  }
+});
+
+test("user upsert does not recover a duplicate belonging to another identity", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalConfig = {
+    supabaseUrl: config.supabaseUrl,
+    supabaseServiceRoleKey: config.supabaseServiceRoleKey,
+    supabaseDbSchema: config.supabaseDbSchema
+  };
+  const responses = [
+    new Response("[]", { status: 200 }),
+    new Response(JSON.stringify({ message: "duplicate key value violates unique constraint \\\"users_pkey\\\"" }), {
+      status: 409,
+      headers: { "content-type": "application/json" }
+    }),
+    new Response("[]", { status: 200 })
+  ];
+
+  config.supabaseUrl = "https://supabase.test";
+  config.supabaseServiceRoleKey = "test-service-role-key";
+  config.supabaseDbSchema = "public";
+  globalThis.fetch = async () => responses.shift();
+  try {
+    await assert.rejects(
+      upsertUser({ auth_provider: "supabase", auth_subject: "different-subject" }),
+      /HTTP 409.*duplicate key/
+    );
+    assert.equal(responses.length, 0);
+  } finally {
+    globalThis.fetch = originalFetch;
+    config.supabaseUrl = originalConfig.supabaseUrl;
+    config.supabaseServiceRoleKey = originalConfig.supabaseServiceRoleKey;
+    config.supabaseDbSchema = originalConfig.supabaseDbSchema;
+  }
 });

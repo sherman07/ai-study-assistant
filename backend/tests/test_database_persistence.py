@@ -70,6 +70,54 @@ class SynapseDataApiClientTests(unittest.TestCase):
         self.assertTrue(payload["ok"])
         self.assertEqual(payload["items"][0]["title"], "Stored Study Notes")
 
+    def test_content_history_error_does_not_expose_data_api_details(self):
+        class FailingDataApi:
+            def list_generated_content(self, identity, limit=50):
+                raise RuntimeError("private database DSN and token")
+
+        with patch("backend.app.synapse_database", FailingDataApi()):
+            response = TestClient(app).get(
+                "/content/history",
+                headers={"X-Synapse-Client-Id": "client_test"},
+            )
+
+        self.assertEqual(response.status_code, 500)
+        self.assertEqual(
+            response.json(),
+            {"error": "Could not load generated content history right now."},
+        )
+        self.assertNotIn("private database", response.text)
+
+    def test_content_read_and_delete_errors_do_not_expose_data_api_details(self):
+        class FailingDataApi:
+            def get_generated_content(self, identity, content_id):
+                raise RuntimeError("private database DSN and token")
+
+            def delete_generated_content(self, identity, content_id):
+                raise RuntimeError("private database DSN and token")
+
+        with patch("backend.app.synapse_database", FailingDataApi()):
+            read_response = TestClient(app).get(
+                "/content/content_test",
+                headers={"X-Synapse-Client-Id": "client_test"},
+            )
+            delete_response = TestClient(app).delete(
+                "/content/content_test",
+                headers={"X-Synapse-Client-Id": "client_test"},
+            )
+
+        self.assertEqual(read_response.status_code, 500)
+        self.assertEqual(
+            read_response.json(),
+            {"error": "Could not load generated content right now."},
+        )
+        self.assertEqual(delete_response.status_code, 500)
+        self.assertEqual(
+            delete_response.json(),
+            {"error": "Could not delete generated content right now."},
+        )
+        self.assertNotIn("private database", read_response.text + delete_response.text)
+
 
 if __name__ == "__main__":
     unittest.main()

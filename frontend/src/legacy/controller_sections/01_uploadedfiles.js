@@ -781,10 +781,70 @@ function getDefaultVisualDetail(item, role) {
   return defaults[role] || "";
 }
 
+function normalizeTeachingIntent(value) {
+  const key = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, "_");
+  if (["clarity", "clear", "simplify", "make_clear", "learning_clarity", "clarity_focus", "clearer", "clarify"].includes(key)) {
+    return "clarity";
+  }
+  if (["deeper_analysis", "deeper", "deep", "analysis", "deep_analysis", "deeper_understanding", "depth", "deep_dive", "analyze", "analyse"].includes(key)) {
+    return "deeper_analysis";
+  }
+  return "";
+}
+
+function inferTeachingIntent(item) {
+  const explicit = normalizeTeachingIntent(item?.teaching_intent || item?.intent || "");
+  if (explicit) return explicit;
+  const kind = String(item?.visual_kind || "").toLowerCase();
+  const text = sourceFigureText(item);
+  if (
+    ["data/table", "graph/chart", "experiment/event", "formula/calculation", "method/result figure"].includes(kind)
+    || /\b(result|results|evidence|correlation|regression|limit|limitation|implication|compare|comparison|versus|vs|evaluate|exam|worked example|method|hypothesis|causation|mechanism)\b|结果|证据|相關|相关|比較|比较|限制|含义|考试|例题|机制|因果/i.test(text)
+  ) {
+    return "deeper_analysis";
+  }
+  return "clarity";
+}
+
+function teachingIntentLabel(item) {
+  const intent = inferTeachingIntent(item);
+  const explicit = cleanSourceFigureDisplayText(item?.teaching_intent_label || "");
+  if (explicit) return explicit;
+  const isChinese = visualDetailLanguageIsChinese(item);
+  if (intent === "deeper_analysis") {
+    return isChinese ? "深入分析" : "Deeper analysis";
+  }
+  return isChinese ? "先讲清楚" : "Clarity focus";
+}
+
+function defaultTeachingGoal(item) {
+  const intent = inferTeachingIntent(item);
+  const title = cleanSourceFigureDisplayText(item?.title || "") || (visualDetailLanguageIsChinese(item) ? "这个图表" : "this figure");
+  const isChinese = visualDetailLanguageIsChinese(item);
+  if (intent === "deeper_analysis") {
+    return isChinese
+      ? `深入分析“${title}”：说明图中证据支持什么、不能说明什么，以及考试如何使用。`
+      : `Go deeper on ${title}: interpret what the visible evidence supports, limits, and how to use it in an answer.`;
+  }
+  return isChinese
+    ? `先把“${title}”讲清楚：识别关键标签、结构与阅读顺序，再连回正文概念。`
+    : `Make ${title} clearer: identify the key labels, structure, and reading order before connecting it to the concept.`;
+}
+
 function getVisualExplanationSections(item, options = {}) {
   const includeFallbacks = options.includeFallbacks !== false;
   const isChinese = visualDetailLanguageIsChinese(item);
+  const intent = inferTeachingIntent(item);
+  const teachingGoal = getVisualDetailText(item, ["teaching_goal", "learning_goal"]) || (includeFallbacks ? defaultTeachingGoal(item) : "");
   const sections = [
+    {
+      key: "goal",
+      label: isChinese ? "Learning goal / 学习目标" : "Learning goal",
+      value: teachingGoal
+    },
     {
       key: "what",
       label: isChinese ? "What to notice / 图中重点" : "What to notice",
@@ -792,7 +852,9 @@ function getVisualExplanationSections(item, options = {}) {
     },
     {
       key: "why",
-      label: isChinese ? "Why it matters / 为什么重要" : "Why it matters",
+      label: intent === "deeper_analysis"
+        ? (isChinese ? "Deeper analysis / 深入分析" : "Deeper analysis")
+        : (isChinese ? "Why it clarifies / 为什么更清楚" : "Why it clarifies"),
       value: getVisualDetailText(item, ["why_relevant", "argument_supported", "cross_source_connection"]) || (includeFallbacks ? getDefaultVisualDetail(item, "why") : "")
     },
     {
@@ -811,8 +873,13 @@ function getVisualExplanationSections(item, options = {}) {
       value: getVisualDetailText(item, ["cross_source_connection"])
     }
   ];
+  const order = intent === "deeper_analysis"
+    ? ["goal", "why", "what", "exam", "how", "connection"]
+    : ["goal", "what", "how", "why", "exam", "connection"];
+  const byKey = new Map(sections.map(section => [section.key, section]));
+  const ordered = order.map(key => byKey.get(key)).filter(Boolean);
   const seen = new Set();
-  return sections.filter(section => {
+  return ordered.filter(section => {
     const value = cleanSourceFigureDisplayText(section.value);
     if (!value) return false;
     const dedupeKey = value.toLowerCase();
@@ -825,8 +892,11 @@ function getVisualExplanationSections(item, options = {}) {
 
 function renderVisualExplanationSections(item, options = {}) {
   const compact = Boolean(options.compact);
-  const compactKeys = new Set(["what", "why", "exam"]);
-  const limit = compact ? 3 : 5;
+  const intent = inferTeachingIntent(item);
+  const compactKeys = intent === "deeper_analysis"
+    ? new Set(["goal", "why", "exam"])
+    : new Set(["goal", "what", "how"]);
+  const limit = compact ? 3 : 6;
   const sections = getVisualExplanationSections(item)
     .filter(section => !compact || compactKeys.has(section.key))
     .slice(0, limit);
@@ -834,13 +904,19 @@ function renderVisualExplanationSections(item, options = {}) {
   return `
     <div class="${compact ? "inline-visual-details" : "visual-detail-grid"}">
       ${sections.map(section => `
-        <section class="visual-detail-item">
+        <section class="visual-detail-item${section.key === "goal" ? " visual-detail-goal" : ""}">
           <strong>${escapeHTML(section.label)}</strong>
           <p>${escapeHTML(compact ? shorten(section.value, 190) : section.value)}</p>
         </section>
       `).join("")}
     </div>
   `;
+}
+
+function renderVisualTeachingIntentBadge(item) {
+  const intent = inferTeachingIntent(item);
+  const label = teachingIntentLabel(item);
+  return `<span class="visual-teaching-intent visual-teaching-intent-${intent === "deeper_analysis" ? "deeper" : "clarity"}">${escapeHTML(label)}</span>`;
 }
 
 function openFilePicker() {

@@ -16,7 +16,10 @@ function openVisualModal(index) {
       <button class="visual-modal-close" type="button" aria-label="Close visual"><i class="bi bi-x-lg"></i></button>
       <img src="${escapeAttr(item.url)}" alt="${escapeAttr(title)}">
       <div class="visual-modal-caption">
-        <span class="inline-visual-kicker">In-text source</span>
+        <div class="inline-visual-kicker-row">
+          <span class="inline-visual-kicker">In-text source</span>
+          ${renderVisualTeachingIntentBadge(item)}
+        </div>
         ${title ? `<h4>${escapeHTML(title)}</h4>` : ""}
         ${metaParts.length ? `<p class="visual-source-meta">${escapeHTML(metaParts.join(" • "))}</p>` : ""}
         ${explanation}
@@ -54,13 +57,17 @@ function renderInlineVisualCard(index) {
   const source = cleanSourceFigureDisplayText(item.source_title || `Source ${item.source_index || ""}`);
   const caption = getVisualDetailText(item, ["what_shows", "caption"]);
   const explanation = renderVisualExplanationSections(item, { compact: true });
+  const intent = inferTeachingIntent(item);
   return `
-    <figure id="inline-visual-${Number(index)}" class="inline-visual-card" onclick="openVisualModal(${Number(index)})">
+    <figure id="inline-visual-${Number(index)}" class="inline-visual-card inline-visual-card-${intent === "deeper_analysis" ? "deeper" : "clarity"}" onclick="openVisualModal(${Number(index)})">
       <div class="inline-visual-image-wrap">
         <img src="${escapeAttr(item.url)}" alt="${escapeAttr(title)}" loading="lazy">
       </div>
       <figcaption>
-        <div class="inline-visual-kicker">In-text source</div>
+        <div class="inline-visual-kicker-row">
+          <div class="inline-visual-kicker">In-text source</div>
+          ${renderVisualTeachingIntentBadge(item)}
+        </div>
         <h4>${escapeHTML(title)}</h4>
         <p><strong>${escapeHTML(source)}</strong></p>
         ${caption ? `<p>${escapeHTML(shorten(caption, 180))}</p>` : ""}

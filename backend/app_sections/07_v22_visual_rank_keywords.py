@@ -274,9 +274,12 @@ def _v22_parse_visual_cards(raw: str, candidates: List[dict], labels: dict) -> L
 def _v22_visual_context_for_prompt(cards: List[dict]) -> str:
     lines = []
     for i, card in enumerate(cards or []):
+        intent = infer_teaching_intent(card)
+        goal = normalise_space(card.get("teaching_goal") or default_teaching_goal(card))
         lines.append(
             f"Source figure {i}: Source {card.get('source_index')} {card.get('location')} | "
-            f"Title: {card.get('title')} | Shows: {card.get('what_shows')} | "
+            f"Title: {card.get('title')} | Teaching intent: {intent} | Learning goal: {goal} | "
+            f"Shows: {card.get('what_shows')} | "
             f"Argument: {card.get('argument_supported')} | Connection: {card.get('cross_source_connection')}"
         )
     return "\n".join(lines)
@@ -327,6 +330,9 @@ def source_figure_labels(preferred_language: str) -> dict:
             "connection": "和知识点的连接",
             "how_to_read": "阅读方法",
             "exam_use": "考试/复习用途",
+            "clarity_intent": "先讲清楚",
+            "deeper_intent": "深入分析",
+            "teaching_goal": "学习目标",
         }
     if key == "traditional_chinese":
         return {
@@ -337,6 +343,9 @@ def source_figure_labels(preferred_language: str) -> dict:
             "connection": "和知識點的連接",
             "how_to_read": "閱讀方法",
             "exam_use": "考試/複習用途",
+            "clarity_intent": "先講清楚",
+            "deeper_intent": "深入分析",
+            "teaching_goal": "學習目標",
         }
     return {
         "figure_title": "Source figure",
@@ -346,7 +355,92 @@ def source_figure_labels(preferred_language: str) -> dict:
         "connection": "Connection to the concept",
         "how_to_read": "How to read it",
         "exam_use": "Exam / revision use",
+        "clarity_intent": "Clarity focus",
+        "deeper_intent": "Deeper analysis",
+        "teaching_goal": "Learning goal",
     }
+
+
+TEACHING_INTENT_CLARITY = "clarity"
+TEACHING_INTENT_DEEPER = "deeper_analysis"
+
+
+def normalise_teaching_intent(value: str) -> str:
+    key = re.sub(r"[\s\-]+", "_", normalise_space(value or "").lower())
+    if key in {
+        "clarity",
+        "clear",
+        "simplify",
+        "make_clear",
+        "learning_clarity",
+        "clarity_focus",
+        "clearer",
+        "clarify",
+    }:
+        return TEACHING_INTENT_CLARITY
+    if key in {
+        "deeper_analysis",
+        "deeper",
+        "deep",
+        "analysis",
+        "deep_analysis",
+        "deeper_understanding",
+        "depth",
+        "deep_dive",
+        "analyze",
+        "analyse",
+    }:
+        return TEACHING_INTENT_DEEPER
+    return ""
+
+
+def infer_teaching_intent(card: dict) -> str:
+    """Heuristic when the model omits teaching_intent: clarity for decode-first slides, deeper for evidence/analysis."""
+    existing = normalise_teaching_intent(str((card or {}).get("teaching_intent") or ""))
+    if existing:
+        return existing
+    kind = normalise_space((card or {}).get("visual_kind") or "").lower()
+    text = " ".join(
+        str((card or {}).get(key) or "")
+        for key in ("title", "caption", "what_shows", "why_relevant", "argument_supported", "exam_use", "location")
+    ).lower()
+    deeper_kinds = {
+        "data/table",
+        "graph/chart",
+        "experiment/event",
+        "formula/calculation",
+        "method/result figure",
+    }
+    if kind in deeper_kinds or re.search(
+        r"\b(result|results|evidence|correlation|regression|limit|limitation|implication|compare|comparison|"
+        r"versus|vs|evaluate|evaluation|exam|worked example|method|hypothesis|causation|mechanism)\b|"
+        r"结果|证据|相關|相关|比較|比较|限制|含义|考试|例题|机制|因果",
+        text,
+        flags=re.I,
+    ):
+        return TEACHING_INTENT_DEEPER
+    return TEACHING_INTENT_CLARITY
+
+
+def teaching_intent_label(intent: str, labels: Optional[dict] = None) -> str:
+    intent_key = normalise_teaching_intent(intent) or TEACHING_INTENT_CLARITY
+    labels = labels or {}
+    if intent_key == TEACHING_INTENT_DEEPER:
+        return labels.get("deeper_intent") or "Deeper analysis"
+    return labels.get("clarity_intent") or "Clarity focus"
+
+
+def default_teaching_goal(card: dict, labels: Optional[dict] = None) -> str:
+    intent = infer_teaching_intent(card)
+    title = normalise_space((card or {}).get("title") or labels and labels.get("figure_title") or "this slide")
+    chinese = bool(labels) and any(re.search(r"[\u4e00-\u9fff]", str(labels.get(key, ""))) for key in labels)
+    if intent == TEACHING_INTENT_DEEPER:
+        if chinese:
+            return f"深入分析“{title}”：说明图中证据支持什么、不能说明什么，以及考试如何使用。"
+        return f"Go deeper on {title}: interpret what the visible evidence supports, limits, and how to use it in an answer."
+    if chinese:
+        return f"先把“{title}”讲清楚：识别图中关键标签、结构与阅读顺序，再连回正文概念。"
+    return f"Make {title} clearer: identify the key labels, structure, and reading order before connecting it to the concept."
 
 
 def clean_source_figure_caption(text: str) -> str:

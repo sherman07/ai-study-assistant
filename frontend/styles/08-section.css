@@ -803,6 +803,43 @@
   text-transform: uppercase;
   margin-bottom: 0.65rem;
 }
+.inline-visual-kicker-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+  margin-bottom: 0.65rem;
+}
+.inline-visual-kicker-row .inline-visual-kicker {
+  margin-bottom: 0;
+}
+.visual-teaching-intent {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.32rem 0.62rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+}
+.visual-teaching-intent-clarity {
+  background: rgba(14, 165, 233, 0.12);
+  color: #0369a1;
+}
+.visual-teaching-intent-deeper {
+  background: rgba(79, 70, 229, 0.12);
+  color: #3730a3;
+}
+.inline-visual-card-clarity {
+  border-color: rgba(14, 165, 233, 0.28);
+}
+.inline-visual-card-deeper {
+  border-color: rgba(79, 70, 229, 0.28);
+}
+.visual-detail-goal {
+  background: rgba(238, 243, 255, 0.95);
+  border: 1px solid rgba(85, 112, 255, 0.14);
+}
 .inline-visual-card h4 {
   margin: 0 0 0.55rem;
   font-size: 1.12rem;

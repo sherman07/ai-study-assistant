@@ -3,12 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildGeneratedNoteNavigation } from "../src/legacy/notesNavigation.js";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
-const uploaded = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
-const sectionsController = read("frontend/src/legacy/controller_sections/02_openvisualmodal.js");
+const uploaded = readLegacyControllerSections("01_uploadedfiles.js");
+const sectionsController = readLegacyControllerSections("02_openvisualmodal.js");
 const layoutCss = read("frontend/styles/01-section.css");
 
 assert.match(

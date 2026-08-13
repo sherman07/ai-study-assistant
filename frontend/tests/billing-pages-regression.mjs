@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { authClientSource, landingAuthSource, focusRoomStoreSource, focusRoomDataSource, companionWorkspaceSource } from "./_sourceTrees.mjs";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -16,8 +18,8 @@ function exists(relativePath) {
 const pricingHtml = read("frontend/pricing.html");
 const pricingJs = read("frontend/pricing.js");
 const resultJs = read("frontend/billing-result.js");
-const authClient = read("frontend/auth-client.js");
-const accountController = read("frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
+const authClient = authClientSource();
+const accountController = readLegacyControllerSections("08_extractrealtimeresponsetranscript.js");
 const billingCss = read("frontend/billing-pages.css");
 const configJs = read("frontend/config.js");
 const viteConfig = read("vite.config.js");

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const flashcardPath = path.resolve(__dirname, "../src/legacy/controller_sections/06_deleteflashcarddeck.js");
-const source = fs.readFileSync(flashcardPath, "utf8");
+const source = readLegacyControllerSections("06_deleteflashcarddeck.js");
 const styles = fs.readFileSync(path.resolve(__dirname, "../styles/07-section.css"), "utf8");
 
 const makeHelpers = new Function(

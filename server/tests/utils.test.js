@@ -311,7 +311,13 @@ test("Render AI backend skips PDF page rendering on the free instance", () => {
 });
 
 test("stripe billing routes verify webhooks and keep secrets server-side", () => {
-  const routeSource = fs.readFileSync(path.join(serverRoot, "src/routes/billing.js"), "utf8");
+  const billingFeatureDir = path.join(serverRoot, "src/features/billing");
+  const routeSource = [
+    fs.readFileSync(path.join(serverRoot, "src/routes/billing.js"), "utf8"),
+    ...fs.readdirSync(billingFeatureDir)
+      .filter(name => name.endsWith(".js"))
+      .map(name => fs.readFileSync(path.join(billingFeatureDir, name), "utf8"))
+  ].join("\n");
   const schemaSource = fs.readFileSync(path.join(serverRoot, "src/db/supabase-schema.sql"), "utf8");
   const configSource = fs.readFileSync(path.join(serverRoot, "src/config.js"), "utf8");
   const generatedContentRoute = fs.readFileSync(path.join(serverRoot, "src/routes/generatedContent.js"), "utf8");

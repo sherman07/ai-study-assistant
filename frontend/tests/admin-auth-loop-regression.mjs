@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { authClientSource, landingAuthSource } from "./_sourceTrees.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const authClient = fs.readFileSync(path.join(root, "frontend/auth-client.js"), "utf8");
-const landingAuth = fs.readFileSync(path.join(root, "frontend/landing-auth.js"), "utf8");
+const authClient = authClientSource();
+const landingAuth = landingAuthSource();
 const adminCommon = fs.readFileSync(path.join(root, "frontend/admin-common.js"), "utf8");
 
 assert.match(authClient, /function requireApiSession\(/, "auth client must expose requireApiSession");

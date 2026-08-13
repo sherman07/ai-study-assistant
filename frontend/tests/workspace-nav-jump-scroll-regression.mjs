@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(root, file), "utf8");
 
-const companion = read("frontend/src/legacy/controller_sections/14_learningcompanion.js");
-const boot = read("frontend/src/legacy/controller_sections/99_boot.js");
+const companion = readLegacyControllerSections("14_learningcompanion.js");
+const boot = readLegacyControllerSections("99_boot.js");
 const summaryNav = read("frontend/src/react/components/SummaryNavigation.js");
 const layoutCss = read("frontend/styles/01-section.css");
 

@@ -2,21 +2,22 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
 
-const mastery = read("frontend/src/legacy/controller_sections/04_masterygraph.js");
-const notes = read("frontend/src/legacy/controller_sections/01_uploadedfiles.js");
-const controls = read("frontend/src/legacy/controller_sections/02_openvisualmodal.js");
-const timeline = read("frontend/src/legacy/controller_sections/03_rendertimeline.js");
-const visual = read("frontend/src/legacy/controller_sections/04_rendervisualguidelaunch.js");
-const quiz = read("frontend/src/legacy/controller_sections/05_persistcurrentquiztohistory.js");
-const flashcards = read("frontend/src/legacy/controller_sections/06_deleteflashcarddeck.js");
-const tutor = read("frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js");
-const source = read("frontend/src/legacy/controller_sections/09_togglesourceviewer.js");
-const broadcast = read("frontend/src/legacy/controller_sections/12_broadcastjobs.js");
-const boot = read("frontend/src/legacy/controller_sections/99_boot.js");
+const mastery = readLegacyControllerSections("04_masterygraph.js");
+const notes = readLegacyControllerSections("01_uploadedfiles.js");
+const controls = readLegacyControllerSections("02_openvisualmodal.js");
+const timeline = readLegacyControllerSections("03_rendertimeline.js");
+const visual = readLegacyControllerSections("04_rendervisualguidelaunch.js");
+const quiz = readLegacyControllerSections("05_persistcurrentquiztohistory.js");
+const flashcards = readLegacyControllerSections("06_deleteflashcarddeck.js");
+const tutor = readLegacyControllerSections("08_extractrealtimeresponsetranscript.js");
+const source = readLegacyControllerSections("09_togglesourceviewer.js");
+const broadcast = readLegacyControllerSections("12_broadcastjobs.js");
+const boot = readLegacyControllerSections("99_boot.js");
 const styles = read("frontend/styles/07-section.css");
 
 for (const token of [

@@ -4,34 +4,22 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, "../..");
 const sectionsDir = path.join(repoRoot, "frontend/src/legacy/controller_sections");
+const controllerSource = fs.readFileSync(path.join(repoRoot, "frontend/src/legacy/controller.js"), "utf8");
 
-const legacyControllerSections = [
-  "01_uploadedfiles.js",
-  "02_openvisualmodal.js",
-  "03_rendertimeline.js",
-  "04_rendervisualguidelaunch.js",
-  "04_masterygraph.js",
-  "05_persistcurrentquiztohistory.js",
-  "06_deleteflashcarddeck.js",
-  "07_focusmindmappoint.js",
-  "08_extractrealtimeresponsetranscript.js",
-  "09_togglesourceviewer.js",
-  "10_focusroombridge.js",
-  "11_generationjobs.js",
-  "12_broadcastjobs.js",
-  "13_studytoolmemory.js",
-  "14_learningcompanion.js",
-  "99_boot.js"
-];
+const match = controllerSource.match(/const CONTROLLER_DEFINITION_FILES = \[([\s\S]*?)\];/);
+assert.ok(match, "controller definition list should exist");
+const legacyControllerSections = [...match[1].matchAll(/"([^"]+\.js)"/g)].map(item => item[1]);
+legacyControllerSections.push("99_boot.js");
 
 function buildCombinedControllerSource() {
   const body = [
     "window.__synapseCombinedEvalStarted = true;",
-    ...legacyControllerSections.map((fileName) => {
+    ...legacyControllerSections.map(fileName => {
       const source = fs.readFileSync(path.join(sectionsDir, fileName), "utf8");
       return `\n/* ${fileName} */\n${source}`;
     })
@@ -57,12 +45,9 @@ test("combined legacy controller parses without syntax errors", () => {
 });
 
 test("renderAccountMenu does not redeclare email", () => {
-  const source = fs.readFileSync(
-    path.join(sectionsDir, "08_extractrealtimeresponsetranscript.js"),
-    "utf8"
-  );
-  const match = source.match(/function renderAccountMenu\(\) \{[\s\S]*?\n\}/);
-  assert.ok(match, "renderAccountMenu should exist");
-  const declarations = [...match[0].matchAll(/\b(?:const|let)\s+email\b/g)];
+  const source = readLegacyControllerSections("08_workspaceandaccount.js");
+  const matched = source.match(/function renderAccountMenu\(\) \{[\s\S]*?\n\}/);
+  assert.ok(matched, "renderAccountMenu should exist");
+  const declarations = [...matched[0].matchAll(/\b(?:const|let)\s+email\b/g)];
   assert.equal(declarations.length, 1, "renderAccountMenu should declare email only once");
 });

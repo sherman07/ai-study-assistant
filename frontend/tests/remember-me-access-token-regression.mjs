@@ -1,11 +1,7 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import path from "node:path";
-import vm from "node:vm";
-import { fileURLToPath } from "node:url";
-
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const authClient = fs.readFileSync(path.join(repoRoot, "frontend/auth-client.js"), "utf8");
+import { pathToFileURL } from "node:url";
+import { repoRoot } from "./_sourceTrees.mjs";
 
 function makeStorage() {
   const values = new Map();
@@ -29,7 +25,8 @@ const windowStub = {
     host: "example.com",
     pathname: "/frontend/login.html",
     search: "",
-    hash: ""
+    hash: "",
+    href: "https://example.com/frontend/login.html"
   },
   addEventListener() {},
   dispatchEvent() {},
@@ -45,22 +42,17 @@ const documentStub = {
   querySelector() { return null; },
   createElement() { return { addEventListener() {}, set src(_) {}, async: false }; }
 };
+windowStub.window = windowStub;
+windowStub.document = documentStub;
+globalThis.window = windowStub;
+globalThis.document = documentStub;
 
-vm.runInNewContext(authClient, vm.createContext({
-  AbortController,
-  CustomEvent: class CustomEvent { constructor(type, init = {}) { this.type = type; this.detail = init.detail; } },
-  Date,
-  JSON,
-  URL,
-  URLSearchParams,
-  clearTimeout,
-  console: { warn() {}, log() {} },
-  document: documentStub,
-  setTimeout,
-  window: windowStub
-}));
+const installUrl = pathToFileURL(
+  path.join(repoRoot, "frontend/src/features/auth/client/install.js")
+).href + `?remember-token=${Date.now()}`;
+const { installAuthClient } = await import(installUrl);
+const auth = installAuthClient(windowStub);
 
-const auth = windowStub.SynapseAuth;
 auth.setRememberMePreference(false);
 auth.saveSession({
   accountId: "student-1",

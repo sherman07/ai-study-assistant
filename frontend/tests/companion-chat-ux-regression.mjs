@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { authClientSource, landingAuthSource, focusRoomStoreSource, focusRoomDataSource, companionWorkspaceSource } from "./_sourceTrees.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = rel => fs.readFileSync(path.join(root, rel), "utf8");
 
-const companion = read("frontend/src/react/components/CompanionWorkspace.js");
+const companion = companionWorkspaceSource();
 const styles = read("frontend/styles/01-section.css");
 
 assert.match(companion, /CONVERSATION_STARTERS/, "empty state needs goal-oriented starters");

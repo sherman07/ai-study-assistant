@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = file => fs.readFileSync(path.join(repoRoot, file), "utf8");
 
 const studyTools = read("frontend/src/react/components/StudyTools.js");
-const masteryGraph = read("frontend/src/legacy/controller_sections/04_masterygraph.js");
-const timeline = read("frontend/src/legacy/controller_sections/03_rendertimeline.js");
+const masteryGraph = readLegacyControllerSections("04_masterygraph.js");
+const timeline = readLegacyControllerSections("03_rendertimeline.js");
 const backendStudyPath = read("backend/app_sections/11_timeline_generate.py");
 const styles = read("frontend/styles/07-section.css");
 const styleRoot = read("frontend/style.css");

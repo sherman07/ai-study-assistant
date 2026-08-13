@@ -3,14 +3,15 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildGeneratedNoteNavigation } from "../src/legacy/notesNavigation.js";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const layoutCss = fs.readFileSync(path.join(repoRoot, "frontend/styles/01-section.css"), "utf8");
 const themeCss = fs.readFileSync(path.join(repoRoot, "frontend/styles/00-theme.css"), "utf8");
 const responsiveCss = fs.readFileSync(path.join(repoRoot, "frontend/styles/04-section.css"), "utf8");
-const navigationController = fs.readFileSync(path.join(repoRoot, "frontend/src/legacy/controller_sections/02_openvisualmodal.js"), "utf8");
-const analysisController = fs.readFileSync(path.join(repoRoot, "frontend/src/legacy/controller_sections/01_uploadedfiles.js"), "utf8");
-const resetController = fs.readFileSync(path.join(repoRoot, "frontend/src/legacy/controller_sections/08_extractrealtimeresponsetranscript.js"), "utf8");
+const navigationController = readLegacyControllerSections("02_openvisualmodal.js");
+const analysisController = readLegacyControllerSections("01_uploadedfiles.js");
+const resetController = readLegacyControllerSections("08_extractrealtimeresponsetranscript.js");
 
 const generatedNotes = `# BUS115 Week 9
 

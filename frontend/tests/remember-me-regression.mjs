@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import path from "node:path";
-import vm from "node:vm";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import {
+  authClientSource,
+  read,
+  repoRoot
+} from "./_sourceTrees.mjs";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const authClient = fs.readFileSync(path.join(repoRoot, "frontend/auth-client.js"), "utf8");
-const loginPage = fs.readFileSync(path.join(repoRoot, "frontend/login.html"), "utf8");
+const loginPage = read("frontend/login.html");
+const authClient = authClientSource();
 
 function makeStorage(initial = {}) {
   const values = new Map(Object.entries(initial));
@@ -33,28 +35,23 @@ const documentStub = {
 const windowStub = {
   localStorage: durable,
   sessionStorage: temporary,
-  location: { protocol: "https:", hostname: "example.com", host: "example.com", pathname: "/frontend/login.html", search: "", hash: "" },
+  location: { protocol: "https:", hostname: "example.com", host: "example.com", pathname: "/frontend/login.html", search: "", hash: "", href: "https://example.com/frontend/login.html" },
   addEventListener() {},
   dispatchEvent() {},
   setTimeout,
   clearTimeout
 };
-const context = vm.createContext({
-  Date,
-  JSON,
-  URL,
-  URLSearchParams,
-  AbortController,
-  CustomEvent: class CustomEvent { constructor(type, init = {}) { this.type = type; this.detail = init.detail; } },
-  window: windowStub,
-  document: documentStub,
-  console: { warn() {}, log() {} },
-  setTimeout,
-  clearTimeout
-});
+windowStub.window = windowStub;
+windowStub.document = documentStub;
+globalThis.window = windowStub;
+globalThis.document = documentStub;
 
-vm.runInContext(authClient, context);
-const auth = windowStub.SynapseAuth;
+const installUrl = pathToFileURL(
+  path.join(repoRoot, "frontend/src/features/auth/client/install.js")
+).href + `?remember-me=${Date.now()}`;
+const { installAuthClient } = await import(installUrl);
+const auth = installAuthClient(windowStub);
+
 const appSession = JSON.stringify({ accountId: "student-1", email: "student@example.com" });
 const providerSession = JSON.stringify({ access_token: "temporary-token", refresh_token: "temporary-refresh" });
 
@@ -85,6 +82,6 @@ assert.equal(durable.getItem("synapse.auth.session.v1"), null);
 assert.equal(temporary.getItem("synapse.auth.session.v1"), null);
 
 assert.match(loginPage, /data-testid="remember-me-checkbox"/);
-assert.match(authClient, /storage: createSupabaseStorageAdapter\(\)/);
+assert.match(authClient, /storage: api\.createSupabaseStorageAdapter\(\)|storage: createSupabaseStorageAdapter\(\)/);
 assert.match(authClient, /signInEmail\(\{ email, password, rememberMe = false \}\)/);
 console.log("remember-me regression passed");

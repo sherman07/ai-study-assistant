@@ -3,22 +3,27 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const readableMathPath = path.resolve(__dirname, "../src/legacy/readableMath.js");
-const mathMarkdownPath = path.resolve(__dirname, "../src/legacy/mathMarkdown.js");
-const rendererPath = path.resolve(__dirname, "../src/legacy/markdownRenderer.js");
-const readableMathSource = fs
-  .readFileSync(readableMathPath, "utf8")
-  .replace(/\nexport\s+\{[\s\S]*?\};\s*$/, "");
-const mathMarkdownSource = fs
-  .readFileSync(mathMarkdownPath, "utf8")
-  .replace(/^import\s+\{[\s\S]*?\}\s+from\s+\"\.\/readableMath\.js(?:\?[^"]*)?\";\s*/, "")
-  .replace(/\nexport\s+\{[\s\S]*?\};\s*$/, "");
-const rendererSource = fs
-  .readFileSync(rendererPath, "utf8")
-  .replace(/^import\s+\{[\s\S]*?\}\s+from\s+\"\.\/readableMath\.js(?:\?[^"]*)?\";\s*/, "")
-  .replace(/^import\s+\{[\s\S]*?\}\s+from\s+\"\.\/mathMarkdown\.js(?:\?[^"]*)?\";\s*/, "")
-  .replace(/\nexport\s+\{[\s\S]*?\};\s*$/, "");
-const source = `${readableMathSource}\n\n${mathMarkdownSource}\n\n${rendererSource}`;
+const legacyDir = path.resolve(__dirname, "../src/legacy");
+const sharedHtmlPath = path.resolve(__dirname, "../src/shared/lib/html.js");
+
+function loadModuleSource(filePath) {
+  return fs
+    .readFileSync(filePath, "utf8")
+    .replace(/^import\s+[\s\S]*?;\s*$/gm, "")
+    .replace(/\nexport\s+\{[\s\S]*?\};\s*$/g, "")
+    .replace(/^export\s+(async\s+)?function\s+/gm, "function ")
+    .replace(/^export\s+const\s+/gm, "const ")
+    .replace(/^export\s+\{[\s\S]*?\};\s*$/gm, "");
+}
+
+const source = [
+  loadModuleSource(path.join(legacyDir, "readableMath.js")),
+  loadModuleSource(path.join(legacyDir, "mathMarkdownNormalize.js")),
+  loadModuleSource(path.join(legacyDir, "mathMarkdown.js")),
+  loadModuleSource(sharedHtmlPath),
+  loadModuleSource(path.join(legacyDir, "markdownRendererSupport.js")),
+  loadModuleSource(path.join(legacyDir, "markdownRenderer.js"))
+].join("\n\n");
 
 const makeRenderer = new Function(
   "window",
@@ -33,6 +38,7 @@ const makeRenderer = new Function(
   return { markdownToHTML, prepareMathMarkdown, splitMarkdownTableCells };
   `
 );
+
 
 const documentStub = {
   querySelectorAll: () => [],

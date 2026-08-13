@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { authClientSource, landingAuthSource, focusRoomStoreSource, focusRoomDataSource, companionWorkspaceSource } from "./_sourceTrees.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
 
 const indexHtml = read("frontend/index.html");
 const loader = read("frontend/src/legacy/loadLegacyController.js");
-const authClient = read("frontend/auth-client.js");
+const authClient = authClientSource();
 const assistant = read("frontend/src/react/components/AssistantPanel.js");
 
 assert.match(

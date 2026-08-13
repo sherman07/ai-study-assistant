@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 globalThis.window = {
   fetch: () => Promise.reject(new Error("not used")),
@@ -104,10 +105,7 @@ assert.match(
   "users should see an analysis-interruption message instead of a cold-start-only hint"
 );
 
-const uploadControllerSource = await readFile(
-  new URL("../src/legacy/controller_sections/01_uploadedfiles.js", import.meta.url),
-  "utf8"
-);
+const uploadControllerSource = readLegacyControllerSections("01_uploadedfiles.js");
 assert.match(
   uploadControllerSource,
   /await apiClient\.warmup\(\{[\s\S]*?attempts: 16,[\s\S]*?retryDelayMs: 5000,[\s\S]*?timeoutMs: 75000,[\s\S]*?maxWaitMs: 90000[\s\S]*?\}\);/,

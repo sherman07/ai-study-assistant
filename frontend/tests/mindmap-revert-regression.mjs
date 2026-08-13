@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = (file) => fs.readFileSync(path.join(repoRoot, file), "utf8");
 
-const mind = read("frontend/src/legacy/controller_sections/06_deleteflashcarddeck.js");
-const boot = read("frontend/src/legacy/controller_sections/99_boot.js");
+const mind = readLegacyControllerSections("06_deleteflashcarddeck.js");
+const boot = readLegacyControllerSections("99_boot.js");
 const css = read("frontend/styles/07-section.css");
 const backend = read("backend/app_sections/03_download_youtube_media.py");
 const index = read("frontend/index.html");

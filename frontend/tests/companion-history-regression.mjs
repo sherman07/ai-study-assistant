@@ -2,17 +2,19 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { authClientSource, landingAuthSource, focusRoomStoreSource, focusRoomDataSource, companionWorkspaceSource } from "./_sourceTrees.mjs";
+import { readLegacyControllerSections } from "./helpers/readLegacyControllerSections.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const read = rel => fs.readFileSync(path.join(root, rel), "utf8");
 
-const historyController = read("frontend/src/legacy/controller_sections/09_togglesourceviewer.js");
-const companionWorkspace = read("frontend/src/react/components/CompanionWorkspace.js");
+const historyController = readLegacyControllerSections("09_togglesourceviewer.js");
+const companionWorkspace = companionWorkspaceSource();
 const analysisStage = read("frontend/src/react/components/AnalysisStage.js");
 const uploadStage = read("frontend/src/react/components/UploadStage.js");
 const store = read("frontend/src/legacy/learningCompanionChatStore.js");
-const boot = read("frontend/src/legacy/controller_sections/99_boot.js");
-const main = read("frontend/src/main.js");
+const boot = readLegacyControllerSections("99_boot.js");
+const main = read("frontend/src/app/main.js");
 
 assert.match(analysisStage, /data-workspace-kind": "materials"/, "generated notes must show Materials kind");
 assert.doesNotMatch(uploadStage, /data-workspace-kind": "materials"/, "materials home should rely on the active navigation state instead of a duplicate badge");

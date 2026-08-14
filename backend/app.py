@@ -33,8 +33,47 @@ from fastapi.routing import APIRoute
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 BACKEND_PACKAGE_DIR = Path(__file__).resolve().parent
+REPO_ROOT = BACKEND_PACKAGE_DIR.parent
+# Prefer the repo root so `backend.*` imports match tests and production entrypoints.
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 if str(BACKEND_PACKAGE_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_PACKAGE_DIR))
+
+# Alias top-level `core` to `backend.core` before any submodule import. Without this,
+# `from core.config import ...` (app) and `from backend.core.config import ...` (tests)
+# load two module objects with separate ContextVars and provider settings.
+import importlib  # noqa: E402
+import backend.core as _synapse_core  # noqa: E402
+
+sys.modules["core"] = _synapse_core
+
+
+def _bind_core_submodule(name: str):
+    """Load backend.core.<name> once and expose it as both import paths."""
+    full_name = f"backend.core.{name}"
+    short_name = f"core.{name}"
+    module = importlib.import_module(full_name)
+    sys.modules[full_name] = module
+    sys.modules[short_name] = module
+    return module
+
+
+for _core_submodule in (
+    "analysis_cache",
+    "config",
+    "database",
+    "health",
+    "learning_companion",
+    "request_limits",
+    "section_loader",
+    "visual_assets",
+    "note_prompt_modes",
+    "source_extractors",
+    "url_security",
+    "text_utils",
+):
+    _bind_core_submodule(_core_submodule)
 
 from core.analysis_cache import cache_get, cache_set
 from core.config import (

@@ -40,7 +40,7 @@ const backendApp = read("backend/app.py");
 const backendBroadcastMode = read("backend/app_sections/13_broadcast_mode.py");
 const studyTools = read("frontend/src/react/components/StudyTools.js");
 const styles = read("frontend/styles/04-section.css");
-const broadcastAssetVersion = "notes-taller-v2";
+const broadcastAssetVersion = "a11y-skip-v1";
 const legacyControllerAssetVersion = "settings-modal-pattern-20260720-06";
 
 assert.ok(rootIndex.includes("frontend/landing.html"), "root index should keep the landing page as the public entry");

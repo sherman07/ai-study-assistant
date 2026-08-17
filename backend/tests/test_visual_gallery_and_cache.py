@@ -166,6 +166,34 @@ class ApiShapeTests(unittest.TestCase):
         self.assertEqual(environ["OPENAI_REALTIME_MODEL"], "gpt-realtime-2")
         self.assertEqual(environ["UNRELATED_VALUE"], "keep-me")
 
+    def test_placeholder_openai_key_is_not_treated_as_configured(self):
+        self.assertTrue(core_config.is_placeholder_env_value("__ADD_YOUR_OPENAI_API_KEY__"))
+        self.assertTrue(core_config.is_placeholder_env_value("your_key_here"))
+        self.assertFalse(core_config.is_placeholder_env_value("sk-proj-real-test-key"))
+
+        with (
+            patch.object(core_config, "OPENAI_API_KEY", "__ADD_YOUR_OPENAI_API_KEY__"),
+            patch.object(core_config, "client", object()),
+        ):
+            self.assertFalse(core_config.has_openai())
+
+        with (
+            patch.object(core_config, "OPENAI_API_KEY", "sk-proj-real-test-key"),
+            patch.object(core_config, "client", object()),
+        ):
+            self.assertTrue(core_config.has_openai())
+
+        with (
+            patch.object(backend_app_module, "OPENAI_API_KEY", "__ADD_YOUR_OPENAI_API_KEY__"),
+            patch.object(backend_app_module, "has_openai", return_value=False),
+            patch.object(backend_app_module, "is_placeholder_env_value", core_config.is_placeholder_env_value),
+            patch.object(backend_app_module, "GEMINI_API_KEY", ""),
+        ):
+            payload = TestClient(app).get("/health").json()
+        self.assertFalse(payload["openai_api_key_loaded"])
+        self.assertNotIn("OPENAI_API_KEY", payload)
+        self.assertNotIn("__ADD_YOUR", str(payload))
+
     def test_model_for_depth_uses_gemini_models_when_text_provider_is_gemini(self):
         with (
             patch.object(core_config, "AI_TEXT_PROVIDER", "gemini"),

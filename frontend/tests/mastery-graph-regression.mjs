@@ -18,7 +18,7 @@ const notes = read("frontend/src/legacy/controller_sections/02_openvisualmodal.j
 const timeline = read("frontend/src/legacy/controller_sections/03_rendertimeline.js");
 const quiz = read("frontend/src/legacy/controller_sections/05_persistcurrentquiztohistory.js");
 const styles = read("frontend/styles/07-section.css");
-const reactShellAssetVersion = "notes-taller-v2";
+const reactShellAssetVersion = "a11y-skip-v1";
 const legacyControllerAssetVersion = "settings-modal-pattern-20260720-06";
 
 assert.ok(controller.includes('"04_masterygraph.js"'), "legacy controller should load the memory engine section");

@@ -45,9 +45,11 @@ async def learning_companion_respond(data: dict):
         requested_provider = str((data or {}).get("ai_provider") or "").strip()
         provider_token = set_request_text_provider(requested_provider)
         subject = data.get("subject") if isinstance(data.get("subject"), dict) else {}
-        title = normalise_space(str(subject.get("title") or ""))
+        learning_context_raw = data.get("learning_context") if isinstance(data.get("learning_context"), dict) else data.get("learningContext")
+        learning_context = learning_context_raw if isinstance(learning_context_raw, dict) else {}
+        title = normalise_space(str(subject.get("title") or learning_context.get("topic") or ""))
         intention = normalise_space(str(subject.get("intention") or "")).lower()
-        goal = normalise_space(str(subject.get("goal") or ""))
+        goal = normalise_space(str(subject.get("goal") or learning_context.get("goal") or ""))
         history = learning_companion_history(data.get("messages"))
         message = normalise_space(str(data.get("message") or ""))
         if not message:
@@ -88,6 +90,16 @@ async def learning_companion_respond(data: dict):
             if available_time_minutes else
             "The learner has not chosen a time limit. Offer a small next step and let them set the pace."
         )
+        context_topic = normalise_space(str(learning_context.get("topic") or title))
+        context_goal = normalise_space(str(learning_context.get("goal") or goal))
+        context_level = normalise_space(str(learning_context.get("student_level") or learning_context.get("studentLevel") or ""))
+        context_subskill = normalise_space(str(learning_context.get("active_subskill") or learning_context.get("activeSubskill") or ""))
+        learning_context_block = "\n".join([
+            f"Persisted topic: {context_topic or 'Not stated yet'}",
+            f"Persisted goal: {context_goal or 'Not stated yet'}",
+            f"Persisted student level: {context_level or 'unclear'}",
+            f"Active subskill: {context_subskill or 'Not selected yet'}",
+        ])
         prompt = f"""
 You are Synapse Learning Companion, a patient long-term tutor. You are not a generic chatbot.
 
@@ -96,6 +108,9 @@ Learning intention: {intention}
 Learner goal: {goal or 'Not stated yet'}
 Intent-specific teaching approach: {learning_companion_intent_guidance(intention)}
 {time_guidance}
+
+Persisted learning context from Synapse:
+{learning_context_block}
 
 Conversation so far:
 {history_text}
@@ -108,6 +123,7 @@ Sourced research context:
 
 Companion rules:
 - Keep one continuing thread for this subject. Do not ask the learner to restate their goal.
+- Prefer the persisted learning context above when it conflicts with a generic topic guess.
 - On a first free-text turn without a preselected subject, infer the likely learning topic from the learner's own words and respond to that topic directly.
 - Adapt to their answer: diagnose first, teach only the smallest useful idea, then invite an attempt.
 - Follow a compact coaching loop: clarify the learner's practical goal, aim for one observable subskill, and prefer a single discriminating follow-up over a broad questionnaire.
@@ -159,6 +175,12 @@ Return JSON only:
             "research_query": research_query,
             "ai_provider": selected_provider,
             "model": chat_model,
+            "learning_context": {
+                "topic": context_topic,
+                "goal": context_goal,
+                "student_level": context_level or "unclear",
+                "active_subskill": context_subskill,
+            },
             "research_sources": [
                 {"title": item.get("title"), "url": item.get("url")}
                 for item in research_results[:MAX_TUTOR_SEARCH_RESULTS]

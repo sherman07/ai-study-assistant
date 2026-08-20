@@ -61,6 +61,15 @@ assert.ok(accountController.includes("function applyAccountTheme"), "settings sh
 assert.ok(accountController.includes("account-settings-nav"), "settings should have clear section navigation instead of a read-only status list");
 assert.ok(accountController.includes("openHistoryDeletionDialog"), "history deletion should use the Synapse confirmation dialog");
 assert.ok(accountController.includes("openAccountDeletionDialog"), "account deletion should require an explicit Synapse confirmation dialog");
+assert.ok(
+  accountController.includes("Your local study data was left untouched."),
+  "failed account deletion must not clear local study data or claim success"
+);
+assert.ok(
+  accountController.includes("await window.SynapseAuth.requestAccountDeletion();")
+    && accountController.includes("clearLocalSynapseData"),
+  "successful account deletion should clear local data only after the server succeeds"
+);
 assert.ok(!accountController.includes("window.confirm("), "account and history deletion should not use browser confirmation prompts");
 
 for (const selector of [

@@ -1352,7 +1352,12 @@
   async function requestAccountDeletion() {
     const response = await apiFetch("/account/delete", { method: "POST", body: JSON.stringify({ confirm: true }) });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.error) throw new Error(data.error || "Could not delete account.");
+    if (!response.ok || data.error || data.ok === false) {
+      throw new Error(data.error || "Could not delete account.");
+    }
+    if (data.deletion && data.deletion.supabase_deleted === false) {
+      throw new Error("Account identity could not be deleted. Local study data was left untouched.");
+    }
     return data;
   }
 

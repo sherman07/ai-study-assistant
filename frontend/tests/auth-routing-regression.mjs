@@ -43,6 +43,16 @@ assert.ok(authClientScript.includes('event === "SIGNED_OUT"'), "Auth client shou
 assert.ok(authClientScript.includes('session?.authMode === "supabase"'), "Auth sync should clear stale Supabase app sessions when no provider session exists");
 assert.ok(backendAppScript.includes('"plan": "free"'), "New Supabase signups should use the Free plan id, not the old Starter label");
 assert.ok(authClientScript.includes("resendSignupConfirmation"), "Auth client should expose a resend confirmation helper");
+assert.ok(
+  authClientScript.includes("data.ok === false")
+    && authClientScript.includes("data.deletion.supabase_deleted === false"),
+  "Account deletion client must reject failed identity deletes before clearing local data"
+);
+assert.ok(
+  authScript.includes("result.delivered === false")
+    || authScript.includes("delivered === false"),
+  "Landing contact UI must distinguish saved-but-undelivered webhook responses from full success"
+);
 assert.ok(authCss.includes(".auth-status-button"), "Confirmation retry should have visible button styling");
 assert.ok(authCss.includes(".auth-form-status.warning"), "Existing account status should have warning styling");
 assert.ok(authCss.includes(".auth-form-status.info"), "Pending account status should have info styling");

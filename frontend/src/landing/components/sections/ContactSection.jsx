@@ -58,7 +58,12 @@ export function ContactSection() {
       const endpoint = contactEndpoint();
       if (payload.company || !endpoint) {
         saveLocalInquiry(payload);
-        setStatus({ type: "success", message: "Thanks, your enquiry has been saved for launch testing." });
+        setStatus({
+          type: endpoint ? "success" : "info",
+          message: endpoint
+            ? "Thanks, your enquiry has been recorded."
+            : "Contact delivery is not configured in this browser session. Your enquiry was saved locally for launch testing only."
+        });
         form.reset();
         return;
       }
@@ -69,7 +74,10 @@ export function ContactSection() {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok || result.error) throw new Error(result.error || "Contact delivery failed.");
-      setStatus({ type: "success", message: result.message || "Thanks, your enquiry has been received." });
+      setStatus({
+        type: result.delivered === false ? "info" : "success",
+        message: result.message || "Thanks, your enquiry has been received."
+      });
       form.reset();
     } catch (error) {
       saveLocalInquiry(payload);

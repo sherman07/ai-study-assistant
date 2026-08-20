@@ -1304,6 +1304,7 @@
     }
     return {
       ok: true,
+      delivered: data.delivered !== false,
       message: data.message || 'Thanks, your enquiry has been received.'
     };
   }
@@ -1353,7 +1354,8 @@
       setButtonLoading(contactForm, 'contactSpinner', true);
       try {
         const result = await sendContactInquiry(payload);
-        showContactStatus(result.localOnly ? 'info' : 'success', result.message);
+        const statusType = result.localOnly || result.delivered === false ? 'info' : 'success';
+        showContactStatus(statusType, result.message);
         if (!result.localOnly) {
           contactForm.reset();
         }
